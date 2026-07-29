@@ -3,9 +3,9 @@
 horários de ``UPDATE_TIMES`` (padrão ``08:00,22:00``, no fuso do contêiner —
 ``TZ`` no docker-compose/Railway).
 
-Os modelos são leves e treinam na hora da simulação, então aqui só se cuida
-dos dados. Na subida, roda imediatamente se ainda não há snapshot ou se ele
-está velho.
+Depois de atualizar os dados, gera o snapshot de modelos, simulações e
+backtest consumido pelo site público. Na subida, roda imediatamente se algum
+snapshot está ausente, velho ou não corresponde aos dados atuais.
 """
 
 import os
@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src import store
+from src.projections import generate_and_save
 
 UPDATE_TIMES = [
     tuple(int(x) for x in t.strip().split(":"))
@@ -36,7 +37,19 @@ def run_update():
     played, future = store.split_played_future(df)
     log(f"rodada {data['status'].get('rodada_atual')} · "
         f"{len(played)} jogos disputados · {len(future)} futuros")
+    log("treinando modelos e gerando projeções publicadas…")
+    projection = generate_and_save(data)
+    log(f"{projection['n_sims']:,} simulações · {projection['model_name']}")
     log("atualização concluída")
+
+
+def projection_is_current(snapshot: dict | None) -> bool:
+    projection = store.load_projection()
+    return bool(
+        snapshot
+        and projection
+        and projection.get("source_fetched_at") == snapshot.get("fetched_at")
+    )
 
 
 def next_run(now: datetime) -> datetime:
@@ -57,10 +70,17 @@ def main():
     if snapshot:
         fetched = datetime.fromisoformat(snapshot["fetched_at"])
         idade_h = (datetime.now(timezone.utc) - fetched).total_seconds() / 3600
-    if snapshot is None or idade_h > STALE_HOURS:
-        run_update()
-    else:
-        log(f"snapshot recente ({idade_h:.1f} h) — aguardando o próximo horário")
+    try:
+        if snapshot is None or idade_h > STALE_HOURS:
+            run_update()
+        elif not projection_is_current(snapshot):
+            log("projeções ausentes ou desatualizadas — gerando agora")
+            projection = generate_and_save(snapshot)
+            log(f"{projection['n_sims']:,} simulações · {projection['model_name']}")
+        else:
+            log(f"snapshots recentes ({idade_h:.1f} h) — aguardando o próximo horário")
+    except Exception as e:
+        log(f"ERRO na atualização inicial: {e} — mantendo o último snapshot")
 
     while True:
         alvo = next_run(datetime.now())

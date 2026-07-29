@@ -35,6 +35,7 @@ def _mongo():
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 SEASON_FILE = DATA_DIR / "season.json"
+PROJECTION_FILE = DATA_DIR / "projection.json"
 
 REMO_ID = 364
 
@@ -261,6 +262,30 @@ def load_snapshot() -> dict | None:
         return None
     if SEASON_FILE.exists():
         return json.loads(SEASON_FILE.read_text())
+    return None
+
+
+def save_projection(doc: dict) -> None:
+    """Persiste o último pacote de projeções gerado pelo updater."""
+    if MONGO_URL:
+        _mongo().projections.replace_one(
+            {"_id": "current"}, {"_id": "current", **doc}, upsert=True
+        )
+    else:
+        DATA_DIR.mkdir(exist_ok=True)
+        PROJECTION_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+
+
+def load_projection() -> dict | None:
+    """Carrega projeções sem treinar modelos ou chamar APIs externas."""
+    if MONGO_URL:
+        doc = _mongo().projections.find_one({"_id": "current"})
+        if doc:
+            doc.pop("_id", None)
+            return doc
+        return None
+    if PROJECTION_FILE.exists():
+        return json.loads(PROJECTION_FILE.read_text())
     return None
 
 

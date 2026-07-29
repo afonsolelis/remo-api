@@ -1,6 +1,6 @@
 """Renderização das páginas do dashboard Streamlit.
 
-Dados: API pública do Cartola FC. Atualização automática 1x ao dia.
+Dados: API pública do Cartola FC. Atualização automática 2x ao dia.
 Previsões: XGBoost, Poisson, Poisson temporal e Ensemble (todos leves);
 simulação Monte Carlo do restante da temporada.
 
@@ -21,17 +21,8 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from src import store
-from src.evaluate import backtest
-from src.history import load_historical
-from src.copa import jogos_do_time, simulate_knockout
-from src.model import (
-    MODEL_LABELS,
-    PoissonBaseline,
-    available_model_keys,
-    make_predictor,
-    outcome_probs,
-)
-from src.simulate import simulate_season
+from src.copa import jogos_do_time
+from src.projections import published_simulation
 from src.standings import compute_standings, cumulative_points, team_last_results
 from src.store import REMO_ID
 from src.viz import (
@@ -50,75 +41,29 @@ FORM_ICON = {"V": "🟢", "E": "⚪", "D": "🔴"}
 
 # ---------------------------------------------------------------- dados
 
-@st.cache_data(ttl=3600, show_spinner="Baixando dados do Cartola…")
 def load_data() -> dict:
-    return store.load_or_refresh(max_age_hours=24)
+    projection = store.load_projection()
+    data = projection.get("season") if projection else store.load_snapshot()
+    if not data:
+        raise RuntimeError("snapshot público da temporada não encontrado")
+    return data
 
 
-def get_historical() -> pd.DataFrame | None:
-    """Temporadas 2012+ para treino (None se estiver offline sem cache)."""
-    try:
-        return load_historical()
-    except Exception:
-        return None
-
-
-@st.cache_data(show_spinner="Rodando o backtest (treina cada modelo por rodada)…")
+@st.cache_data(show_spinner="Carregando backtest publicado…")
 def run_backtest(fetched_at: str, n_rounds: int) -> pd.DataFrame:
-    data = store.load_or_refresh()
-    played, _ = store.split_played_future(store.matches_df(data))
-    return backtest(played, n_rounds=n_rounds, historical=get_historical())
+    projection = store.load_projection()
+    if not projection:
+        return pd.DataFrame()
+    return pd.DataFrame(projection.get("backtest", []))
 
 
-@st.cache_data(show_spinner="Rodando simulações…")
+@st.cache_data(show_spinner="Carregando simulações publicadas…")
 def run_sim(fetched_at: str, model_key: str, n_sims: int) -> dict:
-    data = store.load_or_refresh()
-    df = store.matches_df(data)
-    played, future = store.split_played_future(df)
-    team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
-
-    predictor = make_predictor(model_key, played, get_historical())
-    lam_h, lam_a = predictor.predict(future, played)
-    res = simulate_season(played, future, lam_h, lam_a, team_ids, n_sims=n_sims)
-    p_home, p_draw, p_away = outcome_probs(lam_h, lam_a)
-    fixtures = future.copy()
-    fixtures["p_casa"] = p_home
-    fixtures["p_empate"] = p_draw
-    fixtures["p_fora"] = p_away
-    return {"res": res, "fixtures": fixtures, "model": predictor.name,
-            "lam_h": lam_h, "lam_a": lam_a}
-
-
-# placar atribuído a cada palpite (afeta o saldo de gols)
-PICK_SCORES = {"casa": (1, 0), "empate": (1, 1), "fora": (0, 1)}
-
-
-@st.cache_data(show_spinner="Simulando com seus palpites…")
-def run_sim_palpites(fetched_at: str, model_key: str, n_sims: int,
-                     picks_tuple: tuple) -> dict:
-    """Monte Carlo condicionado: jogos com palpite ficam travados no resultado
-    escolhido; o resto segue as taxas do modelo."""
-    base = run_sim(fetched_at, model_key, n_sims)
-    fixtures = base["fixtures"]
-    picks = dict(picks_tuple)
-    fixed = {
-        j: PICK_SCORES[picks[m.partida_id]]
-        for j, m in enumerate(fixtures.itertuples())
-        if m.partida_id in picks
-    }
-    data = store.load_or_refresh()
-    df = store.matches_df(data)
-    played, _ = store.split_played_future(df)
-    team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
-    res = simulate_season(played, fixtures, base["lam_h"], base["lam_a"],
-                          team_ids, n_sims=n_sims, fixed_scores=fixed)
-    return {"res": res, "n_fixados": len(fixed)}
-
-
-def refresh_everything():
-    store.refresh()
-    st.cache_data.clear()
-    st.cache_resource.clear()
+    projection = store.load_projection()
+    if not projection:
+        st.info("As projeções ainda estão sendo preparadas. Tente novamente em breve.")
+        st.stop()
+    return published_simulation(projection)
 
 
 # ---------------------------------------------------------------- gráficos
@@ -273,10 +218,16 @@ df = store.matches_df(data)
 played, future = store.split_played_future(df)
 team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
 
-model_key = st.session_state.get("model_key", "ensemble")
-n_sims = st.session_state.get("n_sims", 5000)
+projection = store.load_projection()
+model_key = projection.get("model_key", "ensemble") if projection else "ensemble"
+n_sims = int(projection.get("n_sims", 0)) if projection else 0
 
-_SIMULATION_PAGES = {"remo", "simulacoes", "simulador", "proximos_jogos"}
+_SIMULATION_PAGES = {
+    "remo",
+    "simulacoes",
+    "classificacao_projetada",
+    "proximos_jogos",
+}
 if SELECTED_PAGE in _SIMULATION_PAGES and future.empty:
     st.info("Temporada encerrada — não há jogos futuros para simular.")
     st.stop()
@@ -294,9 +245,6 @@ _rodada_atual = status.get("rodada_atual", 1)
 def rotulo_rodada(r: int) -> str:
     """Rodadas antigas com jogo pendente são adiamentos (ex.: FLA×MIR da 4ª)."""
     return f"Rodada {r} · jogo adiado" if r < _rodada_atual else f"Rodada {r}"
-
-if "palpites" not in st.session_state:
-    st.session_state.palpites = {}  # partida_id -> "casa" | "empate" | "fora"
 
 # ---- página Remo
 if SELECTED_PAGE == "remo":
@@ -437,12 +385,15 @@ SCOUT_HELP = {"G": "Gols", "A": "Assistências", "FD": "Finalizações defendida
 
 @st.cache_data(ttl=3600, show_spinner="Carregando elencos e pontuações…")
 def load_atletas_data(fetched_at: str):
-    doc = store.ensure_atletas(max_age_hours=24)
+    doc = store.load_atletas()
     return doc, store.load_pontuados_all()
 
 
 if SELECTED_PAGE in {"partidas", "elenco"}:
     atletas_doc, pontuados = load_atletas_data(data["fetched_at"])
+    if not atletas_doc:
+        st.info("Os dados de atletas ainda estão sendo preparados.")
+        st.stop()
     posicoes_map = {int(k): v["nome"] for k, v in atletas_doc["posicoes"].items()}
     status_map = {
         int(k): v["nome"] for k, v in atletas_doc["status_atletas"].items()
@@ -558,69 +509,22 @@ if SELECTED_PAGE == "partidas":
 # ---- página Copa do Brasil
 @st.cache_data(ttl=3600, show_spinner="Carregando a Copa do Brasil…")
 def load_copa_data(fetched_at: str) -> dict | None:
-    try:
-        return store.ensure_copa(max_age_hours=24)
-    except Exception:
-        return store.load_copa()
+    return store.load_copa()
 
 
-@st.cache_data(show_spinner="Simulando o mata-mata…")
+@st.cache_data(show_spinner="Carregando projeção da Copa do Brasil…")
 def run_copa_sim(copa_fetched_at: str, cartola_fetched_at: str,
                  model_key: str, n_sims: int) -> dict | None:
-    doc = store.load_copa()
-    fase_atual = next((f for f in doc["fases"] if f["atual"]), None)
-    ties = [c for c in fase_atual["chaves"] if c.get("jogos")]
-    if not ties:
+    projection = store.load_projection()
+    if not projection or not projection.get("copa"):
         return None
-
-    data = store.load_or_refresh()
-    df = store.matches_df(data)
-    played, _ = store.split_played_future(df)
-    serie_a = set(df["casa_id"]) | set(df["fora_id"])
-
-    times_copa = []
-    nomes = {}
-    for t in ties:
-        j0 = t["jogos"][0]
-        times_copa += [j0["mandante_id"], j0["visitante_id"]]
-        nomes[j0["mandante_id"]] = j0["mandante"]
-        nomes[j0["visitante_id"]] = j0["visitante"]
-
-    predictor = make_predictor(model_key, played, get_historical())
-    base = PoissonBaseline().fit(played)
-    pares = [(h, a) for h in times_copa for a in times_copa
-             if h != a and h in serie_a and a in serie_a]
-    conhecidos = {}
-    if pares:
-        fx = pd.DataFrame([{"casa_id": h, "fora_id": a} for h, a in pares])
-        lh, la = predictor.predict(fx, played)
-        conhecidos = {p: (float(lh[i]), float(la[i])) for i, p in enumerate(pares)}
-
-    # clubes fora da Série A: força estimada abaixo da média da elite
-    def lam_pair(h, a):
-        if (h, a) in conhecidos:
-            return conhecidos[(h, a)]
-        atk_h = base.atk.get(h, 0.85)
-        dfn_h = base.dfn.get(h, 1.15)
-        atk_a = base.atk.get(a, 0.85)
-        dfn_a = base.dfn.get(a, 1.15)
-        return (
-            float(np.clip(base.mu_home * atk_h * dfn_a, 0.05, 6.0)),
-            float(np.clip(base.mu_away * atk_a * dfn_h, 0.05, 6.0)),
-        )
-
-    probs = simulate_knockout(ties, lam_pair, n_sims=n_sims)
-    fases_seguintes = []
-    achou = False
-    for f in doc["fases"]:
-        if achou:
-            fases_seguintes.append(f["nome"])
-        if f["atual"]:
-            achou = True
-    rotulos = fases_seguintes + ["🏆 Título"]
-    return {"probs": probs, "rotulos": rotulos[:len(next(iter(probs.values())))],
-            "nomes": nomes, "ties": ties, "fase_nome": fase_atual["nome"],
-            "fora_serie_a": [t for t in times_copa if t not in serie_a]}
+    copa = projection["copa"]
+    return {
+        **copa,
+        "probs": {int(time): valores for time, valores in copa["probs"].items()},
+        "nomes": {int(time): nome for time, nome in copa["nomes"].items()},
+        "fora_serie_a": [int(time) for time in copa["fora_serie_a"]],
+    }
 
 
 if SELECTED_PAGE == "copa":
@@ -858,146 +762,95 @@ if SELECTED_PAGE == "simulacoes":
         },
     )
 
-# ---- página Simulador (palpites do usuário)
-def _registrar_palpite(pid: int):
-    v = st.session_state.get(f"pick_{pid}")
-    if v:
-        st.session_state.palpites[pid] = v
-    else:
-        st.session_state.palpites.pop(pid, None)
+# ---- página Classificação projetada
+if SELECTED_PAGE == "classificacao_projetada":
+    st.markdown("## 🏁 Classificação projetada ao fim do Brasileirão")
+    st.caption(
+        f"Projeção após a última rodada baseada em {res.n_sims:,} temporadas "
+        f"simuladas com **{sim['model']}**. A posição média agrega todos os "
+        "cenários e pode conter valores decimais.".replace(",", ".")
+    )
 
+    posicoes = np.arange(1, len(res.team_ids) + 1)
+    pos_media = res.pos_dist @ posicoes
+    pos_mais_provavel = np.argmax(res.pos_dist, axis=1) + 1
+    pos_atual = dict(zip(standings["clube_id"], standings["Pos"]))
 
-if SELECTED_PAGE == "simulador":
-    st.caption("Escolha o resultado dos jogos que quiser (pode marcar várias "
-               "rodadas) e veja como fica a tabela. Vitórias contam como 1×0 e "
-               "empates como 1×1 para o saldo de gols.")
+    projecao = pd.DataFrame({
+        "clube_id": res.team_ids,
+        "Time": [store.clube_nome(clubes, t) for t in res.team_ids],
+        "Posição média": pos_media,
+        "Posição mais provável": pos_mais_provavel,
+        "Pontos projetados": res.exp_pts,
+        "Posição atual": [pos_atual[t] for t in res.team_ids],
+        "Título": res.p_titulo,
+        "G4": res.p_g4,
+        "G6": res.p_g6,
+        "Z4": res.p_z4,
+    }).sort_values(
+        ["Posição média", "Pontos projetados"], ascending=[True, False]
+    ).reset_index(drop=True)
 
-    info_partidas = {
-        m.partida_id: m for m in fixtures.itertuples()
-    }
-    rodadas_futuras_sim = sorted(fixtures["rodada"].unique())
-    rodada_palpite = st.selectbox("Rodada para palpitar", rodadas_futuras_sim,
-                                  format_func=rotulo_rodada)
-    jogos_rodada = fixtures[fixtures["rodada"] == rodada_palpite].sort_values("timestamp")
+    projecao.insert(0, "Pos. projetada", np.arange(1, len(projecao) + 1))
+    projecao["Variação"] = (
+        projecao["Posição atual"] - projecao["Pos. projetada"]
+    ).map(lambda v: f"▲ {v}" if v > 0 else (f"▼ {abs(v)}" if v < 0 else "—"))
 
-    for m in jogos_rodada.itertuples():
-        nome_casa = store.clube_nome(clubes, m.casa_id)
-        nome_fora = store.clube_nome(clubes, m.fora_id)
-        c1, c2 = st.columns([5, 4])
-        with c1:
-            quando = pd.to_datetime(m.data).strftime("%d/%m %H:%M")
-            destaque = "🦁 " if REMO_ID in (m.casa_id, m.fora_id) else ""
-            st.markdown(f"{destaque}**{nome_casa} × {nome_fora}**")
-            st.caption(f"{quando} · modelo: {pct(m.p_casa, 0)} / "
-                       f"{pct(m.p_empate, 0)} / {pct(m.p_fora, 0)}")
-        with c2:
-            st.segmented_control(
-                "Resultado",
-                options=["casa", "empate", "fora"],
-                format_func={"casa": nome_casa, "empate": "Empate",
-                             "fora": nome_fora}.get,
-                default=st.session_state.palpites.get(m.partida_id),
-                key=f"pick_{m.partida_id}",
-                on_change=_registrar_palpite,
-                args=(m.partida_id,),
-                label_visibility="collapsed",
-            )
+    n_times = len(projecao)
 
-    st.divider()
-    palpites = {pid: v for pid, v in st.session_state.palpites.items()
-                if pid in info_partidas}
-    if not palpites:
-        st.info("Nenhum palpite ainda — escolha resultados acima para ver o "
-                "efeito na classificação.")
-    else:
-        ca, cb = st.columns([4, 1])
-        with ca:
-            resumo = ", ".join(
-                f"R{info_partidas[pid].rodada} "
-                f"{store.clube_nome(clubes, info_partidas[pid].casa_id)}"
-                f"{' (V)' if v == 'casa' else ' (E)' if v == 'empate' else ''}"
-                f"×"
-                f"{store.clube_nome(clubes, info_partidas[pid].fora_id)}"
-                f"{' (V)' if v == 'fora' else ''}"
-                for pid, v in sorted(palpites.items(),
-                                     key=lambda kv: info_partidas[kv[0]].rodada)
-            )
-            st.markdown(f"**{len(palpites)} palpite(s):** {resumo}")
-        with cb:
-            if st.button("🧹 Limpar", width="stretch"):
-                for pid in list(st.session_state.palpites):
-                    st.session_state.pop(f"pick_{pid}", None)
-                st.session_state.palpites = {}
-                st.rerun()
+    def zona(posicao: int) -> str:
+        if posicao <= 4:
+            return "🌎 Libertadores"
+        if posicao <= 6:
+            return "✈️ G6"
+        if posicao >= n_times - 3:
+            return "🚨 Z4"
+        return "Série A"
 
-        completar = st.toggle("Completar os jogos sem palpite com o modelo "
-                              "(Monte Carlo)", value=True)
-        if completar:
-            cond = run_sim_palpites(data["fetched_at"], model_key, n_sims,
-                                    tuple(sorted(palpites.items())))
-            res_c = cond["res"]
-            posicoes = np.arange(1, len(team_ids) + 1)
-            pos_media_c = float((res_c.pos_dist[i_remo] * posicoes).sum())
-            pos_media_b = float((res.pos_dist[i_remo] * posicoes).sum())
+    projecao["Zona"] = projecao["Pos. projetada"].map(zona)
 
-            st.markdown("#### Efeito no Remo (vs. simulação sem palpites)")
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Posição média", f"{pos_media_c:.1f}º",
-                      delta=f"{pos_media_c - pos_media_b:+.1f}",
-                      delta_color="inverse")
-            k2.metric("Pontos esperados", f"{res_c.exp_pts[i_remo]:.1f}",
-                      delta=f"{res_c.exp_pts[i_remo] - res.exp_pts[i_remo]:+.1f}")
-            k3.metric("Libertadores (G4)", pct(res_c.p_g4[i_remo]),
-                      delta=pct(res_c.p_g4[i_remo] - res.p_g4[i_remo]))
-            k4.metric("Rebaixamento (Z4)", pct(res_c.p_z4[i_remo]),
-                      delta=pct(res_c.p_z4[i_remo] - res.p_z4[i_remo]),
-                      delta_color="inverse")
-
-            base_pts = {t: p for t, p in zip(res.team_ids, res.exp_pts)}
-            tabela_cond = pd.DataFrame({
-                "clube_id": res_c.team_ids,
-                "Time": [store.clube_nome(clubes, t) for t in res_c.team_ids],
-                "Pontos esperados": np.round(res_c.exp_pts, 1),
-                "Δ pontos": np.round(
-                    res_c.exp_pts - np.array([base_pts[t] for t in res_c.team_ids]), 1),
-                "Título": res_c.p_titulo,
-                "Libertadores (G4)": res_c.p_g4,
-                "Rebaixamento (Z4)": res_c.p_z4,
-            }).sort_values("Pontos esperados", ascending=False).reset_index(drop=True)
-            tabela_cond.insert(0, "Pos", tabela_cond.index + 1)
-            st.dataframe(
-                tabela_cond.drop(columns=["clube_id"]),
-                hide_index=True,
-                height=740,
-                column_config={
-                    "Δ pontos": st.column_config.NumberColumn(format="%+.1f"),
-                    **{c: st.column_config.ProgressColumn(
-                        c, format="percent", min_value=0, max_value=1)
-                       for c in ["Título", "Libertadores (G4)", "Rebaixamento (Z4)"]},
-                },
-            )
-        else:
-            extras = []
-            for pid, v in palpites.items():
-                m = info_partidas[pid]
-                gc, gf = PICK_SCORES[v]
-                extras.append({"rodada": m.rodada, "timestamp": m.timestamp,
-                               "casa_id": m.casa_id, "fora_id": m.fora_id,
-                               "gols_casa": gc, "gols_fora": gf})
-            played_ext = pd.concat([played, pd.DataFrame(extras)], ignore_index=True)
-            tabela_ext = compute_standings(played_ext, clubes, team_ids)
-            pos_atual = dict(zip(standings["clube_id"], standings["Pos"]))
-            tabela_ext["Δ"] = tabela_ext.apply(
-                lambda r: (lambda d: f"▲{d}" if d > 0 else f"▼{-d}" if d < 0 else "–")(
-                    pos_atual[r["clube_id"]] - r["Pos"]), axis=1)
-            st.markdown("#### Tabela com os seus resultados (jogos sem palpite "
-                        "ficam como estão)")
-            st.dataframe(
-                tabela_ext.set_index("clube_id")[
-                    ["Pos", "Δ", "Time", "PTS", "J", "V", "E", "D", "GP", "GC", "SG"]],
-                hide_index=True,
-                height=740,
-            )
+    st.dataframe(
+        projecao.drop(columns=["clube_id"]),
+        hide_index=True,
+        height=775,
+        column_order=[
+            "Pos. projetada",
+            "Time",
+            "Pontos projetados",
+            "Posição média",
+            "Posição mais provável",
+            "Posição atual",
+            "Variação",
+            "Zona",
+            "Título",
+            "G4",
+            "G6",
+            "Z4",
+        ],
+        column_config={
+            "Pos. projetada": st.column_config.NumberColumn(
+                "Pos.", format="%d", width="small"
+            ),
+            "Pontos projetados": st.column_config.NumberColumn(
+                "Pontos", format="%.1f"
+            ),
+            "Posição média": st.column_config.NumberColumn(format="%.1f"),
+            "Posição mais provável": st.column_config.NumberColumn(
+                "Pos. mais provável", format="%d"
+            ),
+            **{
+                c: st.column_config.ProgressColumn(
+                    c, format="percent", min_value=0, max_value=1
+                )
+                for c in ["Título", "G4", "G6", "Z4"]
+            },
+        },
+    )
+    st.caption(
+        "A ordem usa a posição média em todos os cenários; por isso, pontos "
+        "projetados e posição mais provável são indicadores complementares e "
+        "não representam uma única temporada simulada."
+    )
 
 # ---- página Próximos jogos
 if SELECTED_PAGE == "proximos_jogos":
@@ -1014,12 +867,12 @@ if SELECTED_PAGE == "modelo":
     st.subheader("Qual modelo prevê melhor? (backtest)")
     st.caption("Replay das últimas rodadas: cada modelo treina só com os jogos "
                "anteriores e é avaliado nos jogos que não viu. RPS e log loss: "
-               "quanto menor, melhor.")
-    n_rounds_bt = st.slider("Rodadas no backtest", 3, 8, 5)
-    if st.button("▶️ Rodar backtest"):
-        st.session_state["bt_rounds"] = n_rounds_bt
-    if "bt_rounds" in st.session_state:
-        bt = run_backtest(data["fetched_at"], st.session_state["bt_rounds"])
+               "quanto menor, melhor. Resultado atualizado automaticamente "
+               "duas vezes ao dia.")
+    bt = run_backtest(data["fetched_at"], 0)
+    if bt.empty:
+        st.info("O backtest publicado ainda está sendo preparado.")
+    else:
         melhor = bt.iloc[0]
         st.success(f"Melhor modelo no backtest: **{melhor['Modelo']}** "
                    f"(RPS {melhor['RPS']:.4f}, acurácia {pct(melhor['Acurácia 1X2'])} "

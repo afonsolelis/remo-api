@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from src import store
-from src.model import MODEL_LABELS, available_model_keys
 
 
 st.set_page_config(
@@ -23,7 +22,11 @@ pages = {
     ],
     "Análises": [
         st.Page("pages/simulacoes.py", title="Simulações", icon="🔮"),
-        st.Page("pages/simulador.py", title="Simulador", icon="🎮"),
+        st.Page(
+            "pages/classificacao_projetada.py",
+            title="Classificação projetada",
+            icon="🏁",
+        ),
         st.Page("pages/modelo.py", title="Modelo", icon="🧠"),
     ],
     "Competições": [
@@ -37,52 +40,35 @@ pages = {
 
 current_page = st.navigation(pages, position="top")
 
-data = store.load_or_refresh(max_age_hours=24)
+projection = store.load_projection()
+data = projection.get("season") if projection else store.load_snapshot()
+if not data:
+    st.error("Os dados públicos ainda estão sendo preparados. Tente novamente em breve.")
+    st.stop()
 status = data["status"]
-model_options = {MODEL_LABELS[key]: key for key in available_model_keys()}
-labels_by_key = {key: label for label, key in model_options.items()}
 
 with st.container(border=True):
-    brand, model_col, sims_col, update_col = st.columns(
-        [2.4, 2.1, 1.7, 1.2], vertical_alignment="bottom"
-    )
+    brand, publication = st.columns([2.4, 2.2], vertical_alignment="center")
     with brand:
         st.markdown("### 🦁 Remo no Brasileirão")
         st.caption(
             f"Temporada {status.get('temporada')} · Rodada "
             f"{status.get('rodada_atual')} de {status.get('rodada_final', 38)}"
         )
-    with model_col:
-        selected_label = st.selectbox(
-            "Modelo de previsão",
-            list(model_options),
-            index=list(model_options).index(
-                labels_by_key.get(st.session_state.get("model_key", "ensemble"),
-                                  MODEL_LABELS["ensemble"])
-            ),
-            key="_model_label",
-        )
-        st.session_state.model_key = model_options[selected_label]
-    with sims_col:
-        st.select_slider(
-            "Nº de simulações",
-            options=list(range(1000, 20001, 1000)),
-            value=st.session_state.get("n_sims", 5000),
-            key="n_sims",
-        )
-    with update_col:
-        if st.button("🔄 Atualizar", width="stretch"):
-            with st.spinner("Atualizando dados…"):
-                store.refresh()
-                st.cache_data.clear()
-                st.cache_resource.clear()
-            st.rerun()
+    with publication:
+        if projection:
+            generated = datetime.fromisoformat(projection["generated_at"]).astimezone()
+            st.markdown(
+                f"**{projection['model_name']} · "
+                f"{projection['n_sims']:,} simulações**".replace(",", ".")
+            )
+            st.caption(f"Projeção atualizada em {generated:%d/%m/%Y às %H:%M}")
+        else:
+            st.warning("As projeções estão sendo preparadas pelo atualizador.")
 
 fetched = datetime.fromisoformat(data["fetched_at"])
 age_h = (datetime.now(timezone.utc) - fetched).total_seconds() / 3600
 origin = "MongoDB" if store.MONGO_URL else "JSON local"
-st.caption(
-    f"Dados da API do Cartola atualizados há {age_h:.1f} h · {origin}"
-)
+st.caption(f"Dados atualizados há {age_h:.1f} h · {origin} · atualização automática 2× ao dia")
 
 current_page.run()

@@ -39,7 +39,7 @@ Sobe três serviços:
 |-----------|-------|
 | `mongo`   | MongoDB local (volume `mongo_data`): snapshot atual em `season` e um snapshot por dia em `season_daily` |
 | `app`     | o dashboard em `http://localhost:8501` |
-| `updater` | baixa da API do Cartola **2× ao dia (08h e 22h**, fuso `America/Belem`) |
+| `updater` | atualiza as APIs e publica 20.000 simulações **2× ao dia (08h e 22h**, fuso `America/Belem`) |
 
 Horários e fuso são configuráveis no `docker-compose.yml` (`UPDATE_TIMES`,
 `TZ`). O cache do histórico 2012+ fica no bind mount `./data`
@@ -64,6 +64,9 @@ Variáveis do serviço:
 MONGO_URL=${{MongoDB.MONGO_URL}}   # referência ao serviço MongoDB do projeto
 TZ=America/Belem
 ENABLE_UPDATER=1
+SIMULATION_MODEL=ensemble
+SIMULATION_COUNT=20000
+BACKTEST_ROUNDS=6
 ```
 
 O deploy é automático a cada push na `main` (repo conectado); `railway up`
@@ -85,9 +88,10 @@ os dados têm mais de 24 h. Para atualizar manualmente ou via cron:
 .venv/bin/python scripts/update_data.py
 ```
 
-Também há o botão **“🔄 Atualizar”** no cabeçalho permanente (nos dois modos).
-Os modelos treinam na hora da simulação (segundos) — não há
-artefatos pesados para gerenciar.
+O dashboard público é somente leitura. Dados, modelos, backtest e simulações
+são atualizados pelo agendador às 08h e 22h; visitas ao site não chamam APIs
+externas nem executam modelos. O último snapshot válido permanece disponível
+se uma atualização falhar.
 
 ## Como funciona a previsão
 
@@ -125,6 +129,7 @@ src/features.py         # features tabulares de forma + rating Elo
 src/model.py            # XGBoost, Poisson, Poisson temporal, ensemble
 src/evaluate.py         # backtest walk-forward (RPS, log loss)
 src/simulate.py         # Monte Carlo vetorizado (numpy)
+src/projections.py      # geração offline do snapshot público
 src/viz.py              # paleta e estilo dos gráficos
 src/dashboard.py        # renderização compartilhada das páginas
 src/page_runner.py      # executor comum usado pelas rotas

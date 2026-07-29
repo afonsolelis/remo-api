@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src import store
+from src.projections import generate_and_save
 
 
 def main():
@@ -24,6 +25,10 @@ def main():
     print(f"  temporada {data['status'].get('temporada')} · "
           f"rodada atual {data['status'].get('rodada_atual')}")
     print(f"  {len(played)} jogos disputados · {len(future)} jogos futuros")
+    print("Gerando projeções publicadas…")
+    projection = generate_and_save(data)
+    print(f"  {projection['n_sims']:,} simulações · "
+          f"{projection['model_name']}")
 
 
 if __name__ == "__main__":

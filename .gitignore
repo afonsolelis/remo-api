@@ -1,0 +1,11 @@
+# ambiente
+.venv/
+__pycache__/
+*.pyc
+
+# dados baixados e artefatos gerados (recriados pelo app/updater)
+data/
+models/
+
+# segredos do streamlit (se um dia existirem)
+.streamlit/secrets.toml

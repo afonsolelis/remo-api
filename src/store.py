@@ -1,0 +1,281 @@
+"""Persistência dos dados da API do Cartola.
+
+Dois backends, escolhidos pela variável de ambiente ``MONGO_URL``:
+
+- **MongoDB** (arquitetura Docker): snapshot atual na coleção ``season``
+  (documento ``_id="current"``) e um snapshot por dia em ``season_daily``.
+  O serviço ``updater`` do docker-compose atualiza 2x ao dia.
+- **JSON local** (execução direta, sem Docker): ``data/season.json`` +
+  ``data/daily/season-AAAA-MM-DD.json``; ``load_or_refresh`` refaz o download
+  quando o arquivo está mais velho que ``max_age_hours``.
+"""
+
+import json
+import os
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pandas as pd
+
+from . import cartola
+
+MONGO_URL = os.environ.get("MONGO_URL", "").strip()
+_mongo_client = None
+
+
+def _mongo():
+    global _mongo_client
+    from pymongo import MongoClient
+
+    if _mongo_client is None:
+        _mongo_client = MongoClient(MONGO_URL, serverSelectionTimeoutMS=5000)
+    return _mongo_client["remo"]
+
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+MODELS_DIR = ROOT / "models"
+SEASON_FILE = DATA_DIR / "season.json"
+
+REMO_ID = 364
+
+# A API só traz sigla ("VAS"), apelido ("Gigante da Colina") e slug sem acento
+# ("sao-paulo") — nomes reais mapeados aqui, com fallback para o slug.
+NOMES_REAIS = {
+    262: "Flamengo",
+    263: "Botafogo",
+    264: "Corinthians",
+    265: "Bahia",
+    266: "Fluminense",
+    267: "Vasco",
+    275: "Palmeiras",
+    276: "São Paulo",
+    277: "Santos",
+    280: "Red Bull Bragantino",
+    282: "Atlético-MG",
+    283: "Cruzeiro",
+    284: "Grêmio",
+    285: "Internacional",
+    287: "Vitória",
+    293: "Athletico-PR",
+    294: "Coritiba",
+    315: "Chapecoense",
+    364: "Remo",
+    2305: "Mirassol",
+}
+
+# Um jogo é considerado encerrado este tempo depois do apito inicial.
+MATCH_DURATION_S = 2 * 3600
+
+
+def refresh() -> dict:
+    """Baixa a temporada inteira da API e grava em data/season.json."""
+    status = cartola.get_status()
+    rodada_final = status.get("rodada_final", 38)
+
+    clubes: dict = {}
+    partidas: list = []
+    for rodada in range(1, rodada_final + 1):
+        payload = cartola.get_partidas(rodada)
+        clubes.update(payload.get("clubes", {}))
+        for p in payload.get("partidas", []):
+            p["rodada"] = rodada
+            partidas.append(p)
+        time.sleep(0.15)  # educado com a API
+
+    data = {
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "status": status,
+        "clubes": clubes,
+        "partidas": partidas,
+    }
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    if MONGO_URL:
+        db = _mongo()
+        db.season.replace_one({"_id": "current"}, {"_id": "current", **data}, upsert=True)
+        db.season_daily.replace_one({"_id": hoje}, {"_id": hoje, **data}, upsert=True)
+    else:
+        DATA_DIR.mkdir(exist_ok=True)
+        payload = json.dumps(data, ensure_ascii=False)
+        SEASON_FILE.write_text(payload)
+        daily_dir = DATA_DIR / "daily"
+        daily_dir.mkdir(exist_ok=True)
+        (daily_dir / f"season-{hoje}.json").write_text(payload)
+
+    try:
+        refresh_atletas(status)  # plantel + pontuações por rodada
+    except Exception:
+        pass  # partidas/classificação seguem valendo mesmo se atletas falhar
+    return data
+
+
+ATLETAS_FILE = DATA_DIR / "atletas.json"
+PONTUADOS_DIR = DATA_DIR / "pontuados"
+
+
+def _store_atletas(doc: dict):
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    if MONGO_URL:
+        db = _mongo()
+        db.atletas.replace_one({"_id": "current"}, {"_id": "current", **doc}, upsert=True)
+        db.atletas_daily.replace_one({"_id": hoje}, {"_id": hoje, **doc}, upsert=True)
+    else:
+        DATA_DIR.mkdir(exist_ok=True)
+        ATLETAS_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+
+
+def load_atletas() -> dict | None:
+    if MONGO_URL:
+        doc = _mongo().atletas.find_one({"_id": "current"})
+        if doc:
+            doc.pop("_id", None)
+            return doc
+        return None
+    if ATLETAS_FILE.exists():
+        return json.loads(ATLETAS_FILE.read_text())
+    return None
+
+
+def _stored_pontuados_rounds() -> set[int]:
+    if MONGO_URL:
+        return {d["_id"] for d in _mongo().pontuados.find({}, {"_id": 1})}
+    if PONTUADOS_DIR.exists():
+        return {int(f.stem.split("-")[1]) for f in PONTUADOS_DIR.glob("rodada-*.json")}
+    return set()
+
+
+def _store_pontuados(rodada: int, payload: dict):
+    if MONGO_URL:
+        _mongo().pontuados.replace_one({"_id": rodada}, {"_id": rodada, **payload},
+                                       upsert=True)
+    else:
+        PONTUADOS_DIR.mkdir(parents=True, exist_ok=True)
+        (PONTUADOS_DIR / f"rodada-{rodada:02d}.json").write_text(
+            json.dumps(payload, ensure_ascii=False))
+
+
+def load_pontuados_all() -> dict[int, dict]:
+    """Todas as rodadas com pontuação armazenada: {rodada: payload}."""
+    out: dict[int, dict] = {}
+    if MONGO_URL:
+        for d in _mongo().pontuados.find({}):
+            out[int(d.pop("_id"))] = d
+        return out
+    if PONTUADOS_DIR.exists():
+        for f in sorted(PONTUADOS_DIR.glob("rodada-*.json")):
+            out[int(f.stem.split("-")[1])] = json.loads(f.read_text())
+    return out
+
+
+def refresh_atletas(status: dict | None = None) -> dict:
+    """Baixa o mercado de atletas (plantel + estatísticas da temporada) e as
+    pontuações por rodada que ainda faltam (rodadas antigas são imutáveis)."""
+    status = status or cartola.get_status()
+    mercado = cartola.get_atletas_mercado()
+    doc = {
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "posicoes": mercado.get("posicoes", {}),
+        "status_atletas": mercado.get("status", {}),
+        "atletas": mercado.get("atletas", []),
+    }
+    _store_atletas(doc)
+
+    rodada_atual = status.get("rodada_atual", 1)
+    ja_tem = _stored_pontuados_rounds()
+    for r in range(1, rodada_atual + 1):
+        if r in ja_tem and r < rodada_atual - 1:
+            continue
+        try:
+            p = cartola.get_pontuados(r)
+        except Exception:
+            continue
+        if p and p.get("atletas"):
+            _store_pontuados(r, {"rodada": r, "atletas": p["atletas"]})
+        time.sleep(0.1)
+    return doc
+
+
+def ensure_atletas(max_age_hours: float = 24.0) -> dict:
+    doc = load_atletas()
+    if doc:
+        fetched_at = datetime.fromisoformat(doc["fetched_at"])
+        age_h = (datetime.now(timezone.utc) - fetched_at).total_seconds() / 3600
+        if age_h < max_age_hours:
+            return doc
+    return refresh_atletas()
+
+
+def load_snapshot() -> dict | None:
+    """Último snapshot salvo (Mongo ou JSON), sem bater na API."""
+    if MONGO_URL:
+        doc = _mongo().season.find_one({"_id": "current"})
+        if doc:
+            doc.pop("_id", None)
+            return doc
+        return None
+    if SEASON_FILE.exists():
+        return json.loads(SEASON_FILE.read_text())
+    return None
+
+
+def load_or_refresh(max_age_hours: float = 24.0) -> dict:
+    data = load_snapshot()
+    if data:
+        fetched_at = datetime.fromisoformat(data["fetched_at"])
+        age_h = (datetime.now(timezone.utc) - fetched_at).total_seconds() / 3600
+        if age_h < max_age_hours:
+            return data
+    return refresh()
+
+
+def matches_df(data: dict) -> pd.DataFrame:
+    """Todas as partidas da temporada em um DataFrame.
+
+    Nota: ``valida: false`` no Cartola marca jogos antecipados/adiados que não
+    contam para o fantasy naquela rodada — mas são jogos reais do Brasileirão
+    e contam para a tabela, então entram aqui.
+    """
+    rows = []
+    for p in data["partidas"]:
+        rows.append(
+            {
+                "rodada": p["rodada"],
+                "partida_id": p["partida_id"],
+                "data": p.get("partida_data"),
+                "timestamp": p.get("timestamp"),
+                "local": p.get("local"),
+                "casa_id": p["clube_casa_id"],
+                "fora_id": p["clube_visitante_id"],
+                "gols_casa": p.get("placar_oficial_mandante"),
+                "gols_fora": p.get("placar_oficial_visitante"),
+            }
+        )
+    df = pd.DataFrame(rows)
+    df["gols_casa"] = pd.to_numeric(df["gols_casa"], errors="coerce")
+    df["gols_fora"] = pd.to_numeric(df["gols_fora"], errors="coerce")
+    return df.sort_values(["timestamp", "partida_id"]).reset_index(drop=True)
+
+
+def split_played_future(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Separa jogos encerrados (com placar oficial) dos jogos futuros."""
+    now = time.time()
+    ended = df["timestamp"].fillna(0) + MATCH_DURATION_S < now
+    has_score = df["gols_casa"].notna() & df["gols_fora"].notna()
+    played = df[ended & has_score].copy()
+    future = df[~(ended & has_score)].copy()
+    return played, future
+
+
+def clube_nome(clubes: dict, clube_id: int) -> str:
+    if clube_id in NOMES_REAIS:
+        return NOMES_REAIS[clube_id]
+    c = clubes.get(str(clube_id)) or clubes.get(clube_id) or {}
+    slug = c.get("slug")
+    if slug:
+        return slug.replace("-", " ").title()
+    return c.get("apelido") or c.get("nome") or str(clube_id)
+
+
+def clube_escudo(clubes: dict, clube_id: int, size: str = "30x30") -> str | None:
+    c = clubes.get(str(clube_id)) or clubes.get(clube_id) or {}
+    return (c.get("escudos") or {}).get(size)

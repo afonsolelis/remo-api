@@ -1,0 +1,40 @@
+services:
+  mongo:
+    image: docker.io/library/mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    # descomente para inspecionar o banco a partir do host:
+    # ports:
+    #   - "27017:27017"
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - TZ=America/Belem
+    volumes:
+      - ./data:/app/data:z       # cache do histórico 2012+ (CSV)
+      - ./models:/app/models:z   # checkpoints diários + histórico de treinos
+    depends_on:
+      - mongo
+
+  updater:
+    build: .
+    restart: unless-stopped
+    command: ["python", "scripts/scheduler.py"]
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - TZ=America/Belem
+      - UPDATE_TIMES=08:00,22:00
+    volumes:
+      - ./data:/app/data:z
+      - ./models:/app/models:z
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:

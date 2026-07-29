@@ -387,6 +387,32 @@ with tab_remo:
         )
         st.plotly_chart(fig_next_matches(prox_ordenados, clubes), width="stretch")
 
+    st.divider()
+    st.subheader("🏅 Outras competições do Remo em 2026")
+    oc1, oc2 = st.columns(2)
+    with oc1:
+        st.markdown(
+            """
+**Campeonato Paraense** · jan–mar (encerrado)
+
+🥈 **Vice-campeão** — o Leão fez a final do Parazão 2026,
+mas o título ficou com o Paysandu (março/2026).
+            """
+        )
+    with oc2:
+        st.markdown(
+            """
+**Copa Verde** · mar–jun (encerrada)
+
+O Remo **não disputou** a edição 2026. O campeão foi o
+Paysandu, que virou sobre o Anápolis na final
+(3×1 fora, 4×0 em casa em 07/06).
+            """
+        )
+    st.caption("Fonte: ge/Globo. As competições do Remo ainda em andamento — "
+               "Brasileirão e Copa do Brasil — estão nas abas ao lado, com "
+               "simulações ao vivo.")
+
 # ---- aba Classificação
 with tab_tabela:
     disp = standings.copy()

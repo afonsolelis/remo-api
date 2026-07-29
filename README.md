@@ -85,8 +85,8 @@ os dados têm mais de 24 h. Para atualizar manualmente ou via cron:
 .venv/bin/python scripts/update_data.py
 ```
 
-Também há o botão **“🔄 Atualizar dados agora”** na barra lateral (nos dois
-modos). Os modelos treinam na hora da simulação (segundos) — não há
+Também há o botão **“🔄 Atualizar”** no cabeçalho permanente (nos dois modos).
+Os modelos treinam na hora da simulação (segundos) — não há
 artefatos pesados para gerenciar.
 
 ## Como funciona a previsão
@@ -104,13 +104,14 @@ artefatos pesados para gerenciar.
 4. **Monte Carlo** — cada jogo restante é sorteado de `Poisson(λ)` milhares de
    vezes; a tabela final é recalculada por cenário (desempate: pontos,
    vitórias, saldo, gols pró) → probabilidades de título, G4, G6 e Z4.
-5. **Backtest** (aba Modelo) — replay das últimas rodadas com treino só no
+5. **Backtest** (página Modelo) — replay das últimas rodadas com treino só no
    passado, medindo acurácia, log loss e RPS de cada modelo.
 
 ## Estrutura
 
 ```
 app.py                  # dashboard Streamlit
+pages/                  # páginas e rotas da navegação superior
 Dockerfile              # imagem única do app/updater (python 3.12, leve)
 docker-compose.yml      # mongo + app + updater (2x/dia)
 scripts/scheduler.py    # agendador do updater (08h e 22h)
@@ -125,6 +126,8 @@ src/model.py            # XGBoost, Poisson, Poisson temporal, ensemble
 src/evaluate.py         # backtest walk-forward (RPS, log loss)
 src/simulate.py         # Monte Carlo vetorizado (numpy)
 src/viz.py              # paleta e estilo dos gráficos
+src/dashboard.py        # renderização compartilhada das páginas
+src/page_runner.py      # executor comum usado pelas rotas
 ```
 
 > ⚠️ Projeto recreativo: com uma temporada só de dados, as previsões são

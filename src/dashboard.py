@@ -40,7 +40,6 @@ from src.viz import (
     GRAY,
     ORANGE,
     OTHERS,
-    SEQ_COLORSCALE,
     SURFACE,
     apply_layout,
     pct,
@@ -192,16 +191,34 @@ def fig_heatmap(res, clubes) -> go.Figure:
     names = [store.clube_nome(clubes, res.team_ids[i]) for i in order]
     z = res.pos_dist[order]
     n = len(names)
+    # Escala ancorada em probabilidades absolutas: zero fica visualmente vazio,
+    # enquanto diferenças nas faixas mais úteis continuam fáceis de comparar.
+    zmax = max(0.30, float(np.nanmax(z)))
+    colorscale = [
+        [0.0, "#ffffff"],
+        [1e-9, "#f5f9ff"],
+        [0.02 / zmax, "#dbeafe"],
+        [0.10 / zmax, "#86b6ef"],
+        [0.25 / zmax, BLUE],
+        [1.0, "#0d366b"],
+    ]
+    tickvals = sorted({0.0, 0.02, 0.10, 0.25, zmax})
     fig = go.Figure(
         go.Heatmap(
             z=z,
             x=[str(p) for p in range(1, n + 1)],
             y=names,
-            colorscale=SEQ_COLORSCALE,
+            colorscale=colorscale,
             zmin=0,
+            zmax=zmax,
             xgap=2,
             ygap=2,
-            colorbar=dict(tickformat=".0%", outlinewidth=0, thickness=12),
+            colorbar=dict(
+                tickvals=tickvals,
+                ticktext=[pct(v, 0) for v in tickvals],
+                outlinewidth=0,
+                thickness=12,
+            ),
             hovertemplate="%{y} — posição %{x}: %{z:.1%}<extra></extra>",
         )
     )

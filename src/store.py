@@ -34,7 +34,6 @@ def _mongo():
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
-MODELS_DIR = ROOT / "models"
 SEASON_FILE = DATA_DIR / "season.json"
 
 REMO_ID = 364

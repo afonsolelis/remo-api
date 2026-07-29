@@ -12,12 +12,10 @@ import numpy as np
 import pandas as pd
 
 from .model import (
-    TORCH_OK,
     XGB_OK,
     Ensemble,
     MODEL_LABELS,
     PoissonBaseline,
-    RNNPredictor,
     TimeDecayPoisson,
     XGBPredictor,
     outcome_probs,
@@ -28,27 +26,18 @@ MIN_TRAIN_GAMES = 60
 
 def backtest(played: pd.DataFrame, n_rounds: int = 5,
              historical: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Replay das últimas ``n_rounds`` rodadas disputadas.
-
-    As RNNs são treinadas uma única vez, apenas com o que existia antes da
-    primeira rodada avaliada (+ temporadas históricas) — nunca veem os jogos
-    do teste. Os demais modelos retreinam a cada rodada (é barato).
-    """
+    """Replay das últimas ``n_rounds`` rodadas disputadas — todos os modelos
+    retreinam a cada rodada só com o passado (são leves, leva segundos)."""
     rodadas = sorted(played["rodada"].unique())[-n_rounds:]
-    pre = played[played["rodada"] < rodadas[0]]
-    rnns = {}
-    if TORCH_OK and len(pre) >= MIN_TRAIN_GAMES:
-        rnns["lstm"] = RNNPredictor("lstm").fit(pre, historical)
-        rnns["gru"] = RNNPredictor("gru").fit(pre, historical)
-
     preds: dict[str, list] = {}
     reais: list[int] = []
+
     for rodada in rodadas:
         train = played[played["rodada"] < rodada]
         test = played[played["rodada"] == rodada]
         if len(train) < MIN_TRAIN_GAMES or test.empty:
             continue
-        models = dict(rnns)
+        models = {}
         if XGB_OK:
             models["xgb"] = XGBPredictor().fit(train, historical)
         models["poisson"] = PoissonBaseline().fit(train)

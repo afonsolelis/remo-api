@@ -11,8 +11,6 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-# build CPU do PyTorch (imagem local completa, com LSTM/GRU)
-RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 COPY src/ src/
 COPY scripts/ scripts/

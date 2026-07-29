@@ -1,8 +1,8 @@
 """Remo no Brasileirão 2026 — dashboard local (Streamlit).
 
 Dados: API pública do Cartola FC. Atualização automática 1x ao dia.
-Previsões: LSTM (PyTorch) ou baseline Poisson; simulação Monte Carlo
-do restante da temporada.
+Previsões: XGBoost, Poisson, Poisson temporal e Ensemble (todos leves);
+simulação Monte Carlo do restante da temporada.
 """
 
 import sys
@@ -21,15 +21,9 @@ from src.evaluate import backtest
 from src.history import load_historical
 from src.model import (
     MODEL_LABELS,
-    TORCH_OK,
-    XGB_OK,
-    RNNPredictor,
     available_model_keys,
-    load_history,
-    load_metrics,
     make_predictor,
     outcome_probs,
-    train_daily,
 )
 from src.simulate import simulate_season
 from src.standings import compute_standings, cumulative_points, team_last_results
@@ -64,26 +58,6 @@ def get_historical() -> pd.DataFrame | None:
         return load_historical()
     except Exception:
         return None
-
-
-@st.cache_resource(show_spinner="Treinando as redes neurais (LSTM e GRU)…")
-def ensure_models(fetched_at: str) -> bool:
-    """Garante modelos treinados com os dados atuais; retreina a cada nova carga."""
-    if not TORCH_OK:
-        return False
-    data = store.load_or_refresh()
-    played, _ = store.split_played_future(store.matches_df(data))
-    try:
-        historical = get_historical()
-        hoje = datetime.now().strftime("%Y-%m-%d")
-        for arch in ("lstm", "gru"):
-            m = load_metrics(arch)
-            if m and m.get("date") == hoje and RNNPredictor.available(arch):
-                continue  # já treinada hoje (ex.: reinício do servidor)
-            train_daily(played, arch, historical)
-        return True
-    except RuntimeError:
-        return False
 
 
 @st.cache_data(show_spinner="Rodando o backtest (treina cada modelo por rodada)…")
@@ -269,44 +243,6 @@ def fig_next_matches(fixtures, clubes) -> go.Figure:
     return apply_layout(fig, height=max(240, 44 * len(labels) + 110))
 
 
-def fig_history_nll(hist: pd.DataFrame) -> go.Figure:
-    fig = go.Figure(
-        go.Scatter(x=hist["quando"], y=hist["best_val_nll"], mode="lines+markers",
-                   line=dict(color=BLUE, width=2), marker=dict(size=8),
-                   hovertemplate="%{x}<br>NLL validação: %{y:.3f}<extra></extra>")
-    )
-    fig.update_yaxes(title_text="Poisson NLL (validação)")
-    fig.update_layout(showlegend=False)
-    return apply_layout(fig, height=300, title="Erro de validação por treino")
-
-
-def fig_history_acc(hist: pd.DataFrame) -> go.Figure:
-    fig = go.Figure([
-        go.Scatter(x=hist["quando"], y=hist["val_acc_1x2"], mode="lines+markers",
-                   name="LSTM", line=dict(color=BLUE, width=2), marker=dict(size=8),
-                   hovertemplate="%{x}<br>LSTM: %{y:.1%}<extra></extra>"),
-        go.Scatter(x=hist["quando"], y=hist["naive_home_acc"], mode="lines+markers",
-                   name="baseline mandante", line=dict(color=GRAY, width=2, dash="dot"),
-                   marker=dict(size=8),
-                   hovertemplate="%{x}<br>baseline: %{y:.1%}<extra></extra>"),
-    ])
-    fig.update_yaxes(title_text="acurácia 1X2 (validação)", tickformat=".0%")
-    return apply_layout(fig, height=300, title="Acurácia por treino")
-
-
-def fig_loss_curve(metrics) -> go.Figure:
-    epochs = list(range(1, len(metrics["loss_train"]) + 1))
-    fig = go.Figure([
-        go.Scatter(x=epochs, y=metrics["loss_train"], name="treino",
-                   line=dict(color=BLUE, width=2)),
-        go.Scatter(x=epochs, y=metrics["loss_val"], name="validação",
-                   line=dict(color=ORANGE, width=2)),
-    ])
-    fig.update_xaxes(title_text="época")
-    fig.update_yaxes(title_text="Poisson NLL")
-    return apply_layout(fig, title="Curva de treinamento da LSTM")
-
-
 # ---------------------------------------------------------------- app
 
 data = load_data()
@@ -315,7 +251,6 @@ status = data["status"]
 df = store.matches_df(data)
 played, future = store.split_played_future(df)
 team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
-ensure_models(data["fetched_at"])
 
 # ---- sidebar
 with st.sidebar:
@@ -934,99 +869,31 @@ with tab_modelo:
         )
 
     st.divider()
-    if not TORCH_OK:
-        st.info("⚡ **Modo leve** (sem PyTorch): as redes neurais ficam de fora e o "
-                "app usa XGBoost, Poisson, Poisson temporal e o Ensemble — que foi "
-                "o melhor modelo no backtest. É o modo usado na nuvem para "
-                "economizar build e CPU. Para treinar LSTM/GRU, rode localmente com "
-                "`pip install torch --index-url https://download.pytorch.org/whl/cpu`.")
-    else:
-        st.subheader("Treinamento das redes neurais")
-        arch_sel = st.radio("Arquitetura", ["lstm", "gru"], horizontal=True,
-                            format_func=lambda a: a.upper())
-        metrics = load_metrics(arch_sel)
-        if metrics:
-            if metrics.get("n_hist"):
-                st.caption(f"Treinada com {metrics['n_hist']:,} jogos de temporadas "
-                           "anteriores (2012+, peso decrescente por ano) + a temporada "
-                           "atual, com rating Elo como feature.".replace(",", "."))
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Jogos de treino", metrics["n_samples"])
-            m2.metric("Acurácia 1X2 (validação)", pct(metrics["val_acc_1x2"]))
-            m3.metric("Baseline \"sempre mandante\"", pct(metrics["naive_home_acc"]))
-            m4.metric("Épocas (melhor)",
-                      f"{metrics['epochs_run']} ({metrics['best_epoch']})")
-            st.plotly_chart(fig_loss_curve(metrics), width="stretch")
-        if st.button("🔁 Retreinar agora (LSTM e GRU)"):
-            data_now = store.load_or_refresh()
-            played_now, _ = store.split_played_future(store.matches_df(data_now))
-            with st.spinner("Treinando…"):
-                for a in ("lstm", "gru"):
-                    train_daily(played_now, a)
-            st.cache_data.clear()
-            st.cache_resource.clear()
-            st.rerun()
-
-        history = [h for h in load_history() if h["arch"] == arch_sel]
-        if history:
-            st.subheader("Histórico de treinamentos")
-            hist = pd.DataFrame(history)
-            hist["quando"] = pd.to_datetime(hist["trained_at"]).dt.strftime("%d/%m %H:%M")
-            if len(hist) >= 2:
-                h1, h2 = st.columns(2)
-                with h1:
-                    st.plotly_chart(fig_history_nll(hist), width="stretch")
-                with h2:
-                    st.plotly_chart(fig_history_acc(hist), width="stretch")
-            st.dataframe(
-                hist[["quando", "n_samples", "n_val", "epochs_run", "best_epoch",
-                      "best_val_nll", "val_acc_1x2", "naive_home_acc"]]
-                .rename(columns={
-                    "quando": "Treino", "n_samples": "Jogos", "n_val": "Validação",
-                    "epochs_run": "Épocas", "best_epoch": "Melhor época",
-                    "best_val_nll": "NLL val", "val_acc_1x2": "Acurácia 1X2",
-                    "naive_home_acc": "Baseline mandante",
-                })
-                .sort_values("Treino", ascending=False),
-                hide_index=True,
-                column_config={
-                    "NLL val": st.column_config.NumberColumn(format="%.3f"),
-                    "Acurácia 1X2": st.column_config.NumberColumn(format="percent"),
-                    "Baseline mandante": st.column_config.NumberColumn(format="percent"),
-                },
-            )
-            st.caption("Um treino por dia (via atualização automática ou "
-                       "`scripts/update_data.py --train`). Os modelos de cada dia "
-                       "ficam salvos em `models/daily/{lstm,gru}-AAAA-MM-DD.pt` e os "
-                       "dados brutos em `data/daily/season-AAAA-MM-DD.json`.")
-
     with st.expander("Como funciona a previsão"):
         st.markdown(
             """
-**Pipeline:**
+**Pipeline (100% leve — todos os treinos levam segundos):**
 
 1. **Dados** — todas as partidas da Série A vêm da API pública do Cartola
-   (`api.cartola.globo.com`) e são atualizadas localmente 1x ao dia.
-2. **Features** — para as redes neurais, cada time vira uma sequência dos
-   últimos **6 jogos** (gols pró, gols contra, pontos, mando, força do
-   adversário); para o XGBoost, viram indicadores tabulares de forma
-   (pontos por jogo, média de gols nos últimos 5, desempenho por mando).
+   (`api.cartola.globo.com`), atualizadas 2× ao dia; o XGBoost treina também
+   com o histórico do Brasileirão **2012+** (~5.300 jogos), com peso
+   decrescente por ano de distância.
+2. **Features** — indicadores de forma das duas equipes antes de cada jogo
+   (pontos por jogo, média de gols nos últimos 5, desempenho por mando) e o
+   **rating Elo**, atualizado jogo a jogo.
 3. **Modelos** — todos preveem **taxas de gols** (λ) via regressão de Poisson:
-   - **LSTM / GRU** — redes recorrentes que leem a sequência de forma;
-   - **XGBoost** — árvores de decisão com boosting;
+   - **XGBoost** — árvores de decisão com boosting (treina em ~2 s);
    - **Poisson** — força de ataque/defesa por médias da temporada;
    - **Poisson temporal** — idem, mas jogos recentes pesam mais
      (meia-vida de 90 dias, à la Dixon-Coles);
-   - **Ensemble** — média das taxas de todos os modelos acima.
+   - **Ensemble** — média das taxas dos três acima (o padrão do app).
 4. **Simulação Monte Carlo** — cada jogo restante é sorteado milhares de vezes
    a partir das taxas previstas; a tabela final é recalculada em cada cenário
    (com desempate por vitórias, saldo e gols pró), o que gera as
    probabilidades de título, G4, G6 e rebaixamento.
 
 O **backtest** acima é o juiz: ele refaz as últimas rodadas fingindo que o
-futuro não aconteceu e mede qual modelo chegou mais perto. Com uma temporada
-só de dados, os modelos estatísticos e o ensemble tendem a se sair melhor que
-as redes — conforme os jogos acumulam, o quadro pode virar. Estimativas para
+futuro não aconteceu e mede qual modelo chegou mais perto. Estimativas para
 diversão, não aposta. 🦁
             """
         )

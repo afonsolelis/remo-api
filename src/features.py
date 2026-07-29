@@ -1,21 +1,12 @@
-"""Features para os modelos.
-
-Sequenciais (RNNs): cada time vira uma sequência dos últimos K jogos; cada
-jogo é um vetor [gols pró, gols contra, pontos, mando, força do adversário,
-diferença de Elo], normalizado para ~[-1, 1].
-
-Tabulares (XGBoost): indicadores de forma acumulada das duas equipes antes do
-jogo (pontos por jogo, média de gols nos últimos 5, desempenho por mando, Elo).
-
-O rating Elo é atualizado jogo a jogo durante a varredura cronológica; entre
-temporadas históricas ele é regredido para a média (elencos mudam).
+"""Features tabulares para os modelos: indicadores de forma acumulada das
+duas equipes antes de cada jogo (pontos por jogo, média de gols nos últimos 5,
+desempenho por mando) mais o **rating Elo**, atualizado jogo a jogo durante a
+varredura cronológica; entre temporadas históricas ele é regredido para a
+média (elencos mudam).
 """
 
 import numpy as np
 import pandas as pd
-
-K = 6        # tamanho da janela de forma recente
-N_FEAT = 6
 
 ELO_START = 1500.0
 ELO_K = 20.0
@@ -32,126 +23,6 @@ def _elo_update(elo: dict, casa: int, fora: int, gc: int, gf: int):
     elo[casa] = ra + delta
     elo[fora] = rb - delta
 
-
-def _feature_vector(gf: int, ga: int, is_home: bool, opp_ppg: float,
-                    elo_diff: float) -> list[float]:
-    pts = 3 if gf > ga else 1 if gf == ga else 0
-    return [gf / 3.0, ga / 3.0, pts / 3.0, 1.0 if is_home else 0.0,
-            opp_ppg / 3.0, elo_diff / 400.0]
-
-
-def _padded(history: list[list[float]], k: int) -> np.ndarray:
-    """Últimos k vetores, com zeros à esquerda quando o histórico é curto."""
-    seq = np.zeros((k, N_FEAT), dtype=np.float32)
-    tail = history[-k:]
-    if tail:
-        seq[-len(tail):] = np.asarray(tail, dtype=np.float32)
-    return seq
-
-
-def build_training_data(played: pd.DataFrame, k: int = K, elo: dict | None = None):
-    """Percorre os jogos em ordem cronológica montando, para cada partida, as
-    sequências de forma das duas equipes ANTES do jogo, e o placar como alvo.
-
-    ``elo`` é opcional e mutado (permite carregar o rating entre temporadas).
-    Retorna (X_casa, X_fora, y, rodadas) — arrays numpy.
-    """
-    if elo is None:
-        elo = {}
-    history: dict[int, list[list[float]]] = {}
-    points: dict[int, int] = {}
-    games: dict[int, int] = {}
-
-    X_h, X_a, y, rodadas = [], [], [], []
-    for m in played.sort_values("timestamp").itertuples():
-        casa, fora = m.casa_id, m.fora_id
-        gc, gf = int(m.gols_casa), int(m.gols_fora)
-        for t in (casa, fora):
-            history.setdefault(t, [])
-            points.setdefault(t, 0)
-            games.setdefault(t, 0)
-
-        if history[casa] and history[fora]:
-            X_h.append(_padded(history[casa], k))
-            X_a.append(_padded(history[fora], k))
-            y.append([gc, gf])
-            rodadas.append(m.rodada)
-
-        # atualiza os históricos DEPOIS de gerar o exemplo (sem vazamento)
-        ppg_casa = points[casa] / max(games[casa], 1)
-        ppg_fora = points[fora] / max(games[fora], 1)
-        ed = elo.get(casa, ELO_START) - elo.get(fora, ELO_START)
-        history[casa].append(_feature_vector(gc, gf, True, ppg_fora, ed))
-        history[fora].append(_feature_vector(gf, gc, False, ppg_casa, -ed))
-        points[casa] += 3 if gc > gf else 1 if gc == gf else 0
-        points[fora] += 3 if gf > gc else 1 if gc == gf else 0
-        games[casa] += 1
-        games[fora] += 1
-        _elo_update(elo, casa, fora, gc, gf)
-
-    return (
-        np.asarray(X_h, dtype=np.float32),
-        np.asarray(X_a, dtype=np.float32),
-        np.asarray(y, dtype=np.float32),
-        np.asarray(rodadas),
-    )
-
-
-def build_multi_training(historical: pd.DataFrame, played: pd.DataFrame, k: int = K):
-    """Concatena temporadas históricas (Elo carregado entre elas, com regressão
-    à média) + temporada atual. Retorna (X_h, X_a, y, pesos), com temporadas
-    antigas pesando ``HIST_DECAY`` por ano de distância."""
-    parts, elo = [], {}
-    if historical is not None and len(historical):
-        ano_ref = int(historical["season"].max()) + 1
-        for season in sorted(historical["season"].unique()):
-            Xh, Xa, y, _ = build_training_data(
-                historical[historical["season"] == season], k, elo
-            )
-            w = np.full(len(y), HIST_DECAY ** (ano_ref - int(season)), dtype=np.float32)
-            parts.append((Xh, Xa, y, w))
-            elo = {t: ELO_START + ELO_CARRY * (r - ELO_START) for t, r in elo.items()}
-
-    Xh, Xa, y, _ = build_training_data(played, k)  # ids do Cartola: Elo próprio
-    parts.append((Xh, Xa, y, np.ones(len(y), dtype=np.float32)))
-
-    return (
-        np.concatenate([p[0] for p in parts]),
-        np.concatenate([p[1] for p in parts]),
-        np.concatenate([p[2] for p in parts]),
-        np.concatenate([p[3] for p in parts]),
-    )
-
-
-def current_sequences(played: pd.DataFrame, k: int = K) -> dict[int, np.ndarray]:
-    """Sequência de forma atual (últimos k jogos) de cada time."""
-    elo: dict[int, float] = {}
-    history: dict[int, list[list[float]]] = {}
-    points: dict[int, int] = {}
-    games: dict[int, int] = {}
-
-    for m in played.sort_values("timestamp").itertuples():
-        casa, fora = m.casa_id, m.fora_id
-        gc, gf = int(m.gols_casa), int(m.gols_fora)
-        for t in (casa, fora):
-            history.setdefault(t, [])
-            points.setdefault(t, 0)
-            games.setdefault(t, 0)
-        ppg_casa = points[casa] / max(games[casa], 1)
-        ppg_fora = points[fora] / max(games[fora], 1)
-        ed = elo.get(casa, ELO_START) - elo.get(fora, ELO_START)
-        history[casa].append(_feature_vector(gc, gf, True, ppg_fora, ed))
-        history[fora].append(_feature_vector(gf, gc, False, ppg_casa, -ed))
-        points[casa] += 3 if gc > gf else 1 if gc == gf else 0
-        points[fora] += 3 if gf > gc else 1 if gc == gf else 0
-        games[casa] += 1
-        games[fora] += 1
-        _elo_update(elo, casa, fora, gc, gf)
-
-    return {t: _padded(h, k) for t, h in history.items()}
-
-
-# ------------------------------------------------------------- tabulares
 
 class _RollingStats:
     """Estatísticas acumuladas por time durante a varredura cronológica."""
@@ -206,8 +77,9 @@ TABULAR_COLS = [
 
 
 def build_tabular(played: pd.DataFrame, elo: dict | None = None):
-    """Features tabulares (forma acumulada das duas equipes antes do jogo)
-    para modelos de árvore. Retorna (X, y_casa, y_fora) como numpy."""
+    """Features das duas equipes antes de cada jogo (sem vazamento de futuro).
+    Retorna (X, y_casa, y_fora) como numpy; ``elo`` é mutado (permite carregar
+    o rating entre temporadas)."""
     if elo is None:
         elo = {}
     stats: dict[int, _RollingStats] = {}
@@ -233,7 +105,9 @@ def build_tabular(played: pd.DataFrame, elo: dict | None = None):
 
 
 def build_multi_tabular(historical: pd.DataFrame, played: pd.DataFrame):
-    """Versão multi-temporada de ``build_tabular`` (com pesos por recência)."""
+    """Temporadas históricas (Elo carregado entre elas, com regressão à média)
+    + temporada atual. Retorna (X, y_casa, y_fora, pesos) — temporadas antigas
+    pesam ``HIST_DECAY`` por ano de distância."""
     parts, elo = [], {}
     if historical is not None and len(historical):
         ano_ref = int(historical["season"].max()) + 1
@@ -257,7 +131,7 @@ def build_multi_tabular(historical: pd.DataFrame, played: pd.DataFrame):
 
 
 def tabular_for_fixtures(fixtures: pd.DataFrame, played: pd.DataFrame) -> np.ndarray:
-    """Features tabulares dos jogos futuros com a forma atual das equipes."""
+    """Features dos jogos futuros com a forma atual das equipes."""
     elo: dict[int, float] = {}
     stats: dict[int, _RollingStats] = {}
     for m in played.sort_values("timestamp").itertuples():

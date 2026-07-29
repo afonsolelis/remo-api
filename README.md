@@ -3,7 +3,8 @@
 Dashboard local (Streamlit) que acompanha o **Clube do Remo** no Brasileirão
 Série A usando a API pública do Cartola FC (`https://api.cartola.globo.com`),
 com **simulações Monte Carlo** do restante da temporada e previsão de jogos por
-**LSTM (PyTorch)**.
+modelos leves (XGBoost com Elo, Poisson, Poisson temporal e Ensemble — todos
+treinam em segundos).
 
 ## O que tem
 
@@ -18,10 +19,9 @@ com **simulações Monte Carlo** do restante da temporada e previsão de jogos p
 - **🔮 Simulações** — milhares de temporadas simuladas: distribuição de posição
   final de cada clube (heatmap), probabilidades e pontos esperados.
 - **📅 Próximos jogos** — probabilidades 1X2 do modelo para cada rodada futura.
-- **🧠 Modelo** — **backtest comparativo** entre os modelos (LSTM, GRU,
-  XGBoost, Poisson, Poisson temporal e Ensemble — acurácia, log loss e RPS
-  nas últimas rodadas), métricas e curva de perda das redes, retreino em
-  1 clique e **histórico de treinamentos** (erro e acurácia a cada dia).
+- **🧠 Modelo** — **backtest comparativo** entre os modelos (XGBoost,
+  Poisson, Poisson temporal e Ensemble): acurácia, log loss e RPS nas
+  últimas rodadas.
 
 ## Rodando com Docker (recomendado)
 
@@ -35,11 +35,11 @@ Sobe três serviços:
 |-----------|-------|
 | `mongo`   | MongoDB local (volume `mongo_data`): snapshot atual em `season` e um snapshot por dia em `season_daily` |
 | `app`     | o dashboard em `http://localhost:8501` |
-| `updater` | baixa da API do Cartola e retreina as redes **2× ao dia (08h e 22h**, fuso `America/Belem`) |
+| `updater` | baixa da API do Cartola **2× ao dia (08h e 22h**, fuso `America/Belem`) |
 
 Horários e fuso são configuráveis no `docker-compose.yml` (`UPDATE_TIMES`,
-`TZ`). Os checkpoints dos modelos e o cache do histórico 2012+ ficam nos bind
-mounts `./models` e `./data` (compartilhados entre `app` e `updater`).
+`TZ`). O cache do histórico 2012+ fica no bind mount `./data`
+(compartilhado entre `app` e `updater`).
 
 Comandos úteis:
 
@@ -52,64 +52,51 @@ docker compose down                 # parar (dados persistem no volume)
 
 ## Deploy no Railway
 
-O serviço roda em contêiner único e em **modo leve, sem PyTorch**
-(`Dockerfile.railway`): o app detecta a ausência do torch e usa XGBoost,
-Poisson, Poisson temporal e o Ensemble — treino de segundos, imagem ~3×
-menor. As redes LSTM/GRU ficam para o modo local completo. O agendador roda
-junto do dashboard (`ENABLE_UPDATER=1`) e atualiza os dados 2× ao dia.
-
+O serviço roda em contêiner único (mesmo Dockerfile do local): o agendador
+sobe junto do dashboard via `ENABLE_UPDATER=1` e atualiza os dados 2× ao dia.
 Variáveis do serviço:
 
 ```
 MONGO_URL=${{MongoDB.MONGO_URL}}   # referência ao serviço MongoDB do projeto
 TZ=America/Belem
 ENABLE_UPDATER=1
-RAILWAY_DOCKERFILE_PATH=Dockerfile.railway
 ```
 
-Um volume montado em `/app/models` persiste artefatos entre deploys. O deploy
-é automático a cada push na `main` (repo conectado); `railway up` também
-funciona para testes sem commit.
+O deploy é automático a cada push na `main` (repo conectado); `railway up`
+também funciona para testes sem commit.
 
 ## Rodando sem Docker
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt \
-  --index-url https://download.pytorch.org/whl/cpu \
-  --extra-index-url https://pypi.org/simple
+.venv/bin/pip install -r requirements.txt
 .venv/bin/streamlit run app.py
 ```
 
 Sem a variável `MONGO_URL`, o armazenamento cai para JSON local
 (`data/season.json` + `data/daily/`) e o app refaz o download sozinho quando
-os dados têm mais de 24 h. Para atualizar/treinar manualmente ou via cron:
+os dados têm mais de 24 h. Para atualizar manualmente ou via cron:
 
 ```bash
-.venv/bin/python scripts/update_data.py --train
+.venv/bin/python scripts/update_data.py
 ```
 
 Também há o botão **“🔄 Atualizar dados agora”** na barra lateral (nos dois
-modos). Artefatos de cada treino:
-
-```
-models/lstm.pt / gru.pt                  # modelos atuais
-models/daily/{lstm,gru}-AAAA-MM-DD.pt    # "pickle do dia" — um checkpoint por data
-models/history.jsonl                     # métricas de cada treino (alimenta o dashboard)
-```
+modos). Os modelos treinam na hora da simulação (segundos) — não há
+artefatos pesados para gerenciar.
 
 ## Como funciona a previsão
 
-1. **Dados de treino** — além da temporada atual (API do Cartola), as redes e o
-   XGBoost treinam com o histórico do Brasileirão **2012+** (~5.300 jogos, de
+1. **Dados de treino** — além da temporada atual (API do Cartola), o XGBoost
+   treina com o histórico do Brasileirão **2012+** (~5.300 jogos, de
    football-data.co.uk, cache em `data/historical/`), com peso decrescente por
    ano de distância.
-2. **Features** — sequência dos últimos 6 jogos de cada equipe (gols pró/contra,
-   pontos, mando, força do adversário e **rating Elo**, atualizado jogo a jogo);
-   para o XGBoost, indicadores tabulares de forma + Elo.
-3. **Modelos** — LSTM, GRU, XGBoost (todos regressão de Poisson: preveem taxas
-   de gols λ), Poisson por médias, Poisson temporal (recentes pesam mais) e
-   Ensemble (média de todos).
+2. **Features** — indicadores de forma das duas equipes antes de cada jogo
+   (pontos por jogo, média de gols nos últimos 5, desempenho por mando) e o
+   **rating Elo**, atualizado jogo a jogo.
+3. **Modelos** — XGBoost, Poisson por médias, Poisson temporal (recentes pesam
+   mais) e Ensemble (média de todos) — todos regressão de Poisson: preveem
+   taxas de gols λ e treinam em segundos.
 4. **Monte Carlo** — cada jogo restante é sorteado de `Poisson(λ)` milhares de
    vezes; a tabela final é recalculada por cenário (desempate: pontos,
    vitórias, saldo, gols pró) → probabilidades de título, G4, G6 e Z4.
@@ -120,16 +107,16 @@ models/history.jsonl                     # métricas de cada treino (alimenta o 
 
 ```
 app.py                  # dashboard Streamlit
-Dockerfile              # imagem do app/updater (python 3.12 + torch CPU)
+Dockerfile              # imagem única do app/updater (python 3.12, leve)
 docker-compose.yml      # mongo + app + updater (2x/dia)
 scripts/scheduler.py    # agendador do updater (08h e 22h)
-scripts/update_data.py  # atualização manual/cron + retreino
+scripts/update_data.py  # atualização manual/cron dos dados
 src/cartola.py          # cliente da API do Cartola
 src/store.py            # persistência: MongoDB (Docker) ou JSON local
 src/history.py          # histórico 2012+ (football-data.co.uk)
 src/standings.py        # classificação e forma
-src/features.py         # sequências, tabulares e rating Elo
-src/model.py            # LSTM/GRU, XGBoost, Poisson, ensemble
+src/features.py         # features tabulares de forma + rating Elo
+src/model.py            # XGBoost, Poisson, Poisson temporal, ensemble
 src/evaluate.py         # backtest walk-forward (RPS, log loss)
 src/simulate.py         # Monte Carlo vetorizado (numpy)
 src/viz.py              # paleta e estilo dos gráficos

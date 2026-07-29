@@ -6,6 +6,6 @@ plotly>=5.22
 xgboost>=2.1
 scikit-learn>=1.5
 pymongo>=4.6
-# PyTorch CPU-only (instale com):
+# PyTorch fica FORA desta lista de propósito: o deploy na nuvem
+# (Dockerfile.railway) roda sem redes neurais. Para o modo completo local:
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
-torch>=2.4

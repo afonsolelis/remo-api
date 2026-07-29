@@ -52,17 +52,24 @@ docker compose down                 # parar (dados persistem no volume)
 
 ## Deploy no Railway
 
-O serviço roda em contêiner único: o mesmo Dockerfile, com o agendador junto
-do dashboard (variável `ENABLE_UPDATER=1`). Variáveis do serviço:
+O serviço roda em contêiner único e em **modo leve, sem PyTorch**
+(`Dockerfile.railway`): o app detecta a ausência do torch e usa XGBoost,
+Poisson, Poisson temporal e o Ensemble — treino de segundos, imagem ~3×
+menor. As redes LSTM/GRU ficam para o modo local completo. O agendador roda
+junto do dashboard (`ENABLE_UPDATER=1`) e atualiza os dados 2× ao dia.
+
+Variáveis do serviço:
 
 ```
 MONGO_URL=${{MongoDB.MONGO_URL}}   # referência ao serviço MongoDB do projeto
 TZ=America/Belem
 ENABLE_UPDATER=1
+RAILWAY_DOCKERFILE_PATH=Dockerfile.railway
 ```
 
-Um volume montado em `/app/models` preserva os checkpoints entre deploys.
-Para publicar uma nova versão: `railway up --service <serviço> --detach`.
+Um volume montado em `/app/models` persiste artefatos entre deploys. O deploy
+é automático a cada push na `main` (repo conectado); `railway up` também
+funciona para testes sem commit.
 
 ## Rodando sem Docker
 

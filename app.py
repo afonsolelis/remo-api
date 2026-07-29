@@ -328,7 +328,10 @@ with st.sidebar:
 
     st.subheader("Simulação")
     model_options = {MODEL_LABELS[k]: k for k in available_model_keys()}
-    model_label = st.radio("Modelo de previsão", list(model_options), index=0)
+    model_label = st.radio(
+        "Modelo de previsão", list(model_options),
+        index=list(model_options).index(MODEL_LABELS["ensemble"]),
+    )
     model_key = model_options[model_label]
     n_sims = st.slider("Nº de simulações", 1000, 20000, 5000, step=1000)
 
@@ -932,9 +935,11 @@ with tab_modelo:
 
     st.divider()
     if not TORCH_OK:
-        st.warning("PyTorch não está instalado — as redes neurais estão indisponíveis. "
-                   "Instale com: "
-                   "`pip install torch --index-url https://download.pytorch.org/whl/cpu`")
+        st.info("⚡ **Modo leve** (sem PyTorch): as redes neurais ficam de fora e o "
+                "app usa XGBoost, Poisson, Poisson temporal e o Ensemble — que foi "
+                "o melhor modelo no backtest. É o modo usado na nuvem para "
+                "economizar build e CPU. Para treinar LSTM/GRU, rode localmente com "
+                "`pip install torch --index-url https://download.pytorch.org/whl/cpu`.")
     else:
         st.subheader("Treinamento das redes neurais")
         arch_sel = st.radio("Arquitetura", ["lstm", "gru"], horizontal=True,

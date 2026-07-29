@@ -50,6 +50,20 @@ docker compose exec mongo mongosh remo --eval \
 docker compose down                 # parar (dados persistem no volume)
 ```
 
+## Deploy no Railway
+
+O serviço roda em contêiner único: o mesmo Dockerfile, com o agendador junto
+do dashboard (variável `ENABLE_UPDATER=1`). Variáveis do serviço:
+
+```
+MONGO_URL=${{MongoDB.MONGO_URL}}   # referência ao serviço MongoDB do projeto
+TZ=America/Belem
+ENABLE_UPDATER=1
+```
+
+Um volume montado em `/app/models` preserva os checkpoints entre deploys.
+Para publicar uma nova versão: `railway up --service <serviço> --detach`.
+
 ## Rodando sem Docker
 
 ```bash

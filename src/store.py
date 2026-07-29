@@ -105,6 +105,10 @@ def refresh() -> dict:
         refresh_atletas(status)  # plantel + pontuações por rodada
     except Exception:
         pass  # partidas/classificação seguem valendo mesmo se atletas falhar
+    try:
+        refresh_copa()  # chaveamento da Copa do Brasil (API do ge)
+    except Exception:
+        pass
     return data
 
 
@@ -164,6 +168,49 @@ def load_pontuados_all() -> dict[int, dict]:
         for f in sorted(PONTUADOS_DIR.glob("rodada-*.json")):
             out[int(f.stem.split("-")[1])] = json.loads(f.read_text())
     return out
+
+
+COPA_FILE = DATA_DIR / "copa.json"
+
+
+def _store_copa(doc: dict):
+    if MONGO_URL:
+        _mongo().copa.replace_one({"_id": "bracket"}, {"_id": "bracket", **doc},
+                                  upsert=True)
+    else:
+        DATA_DIR.mkdir(exist_ok=True)
+        COPA_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+
+
+def load_copa() -> dict | None:
+    if MONGO_URL:
+        doc = _mongo().copa.find_one({"_id": "bracket"})
+        if doc:
+            doc.pop("_id", None)
+            return doc
+        return None
+    if COPA_FILE.exists():
+        return json.loads(COPA_FILE.read_text())
+    return None
+
+
+def refresh_copa() -> dict:
+    from . import copa
+
+    doc = copa.fetch_bracket()
+    doc["fetched_at"] = datetime.now(timezone.utc).isoformat()
+    _store_copa(doc)
+    return doc
+
+
+def ensure_copa(max_age_hours: float = 24.0) -> dict:
+    doc = load_copa()
+    if doc:
+        fetched_at = datetime.fromisoformat(doc["fetched_at"])
+        age_h = (datetime.now(timezone.utc) - fetched_at).total_seconds() / 3600
+        if age_h < max_age_hours:
+            return doc
+    return refresh_copa()
 
 
 def refresh_atletas(status: dict | None = None) -> dict:

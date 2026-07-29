@@ -19,8 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import store
 from src.evaluate import backtest
 from src.history import load_historical
+from src.copa import jogos_do_time, simulate_knockout
 from src.model import (
     MODEL_LABELS,
+    PoissonBaseline,
     available_model_keys,
     make_predictor,
     outcome_probs,
@@ -303,10 +305,11 @@ def rotulo_rodada(r: int) -> str:
 if "palpites" not in st.session_state:
     st.session_state.palpites = {}  # partida_id -> "casa" | "empate" | "fora"
 
-(tab_remo, tab_elenco, tab_tabela, tab_partidas, tab_sim, tab_jogar, tab_jogos,
- tab_modelo) = st.tabs(
-    ["🦁 Remo", "👥 Elenco do Remo", "📊 Classificação", "📋 Partidas & elenco",
-     "🔮 Simulações", "🎮 Simulador", "📅 Próximos jogos", "🧠 Modelo"]
+(tab_remo, tab_elenco, tab_copa, tab_tabela, tab_partidas, tab_sim, tab_jogar,
+ tab_jogos, tab_modelo) = st.tabs(
+    ["🦁 Remo", "👥 Elenco do Remo", "🏆 Copa do Brasil", "📊 Classificação",
+     "📋 Partidas & elenco", "🔮 Simulações", "🎮 Simulador", "📅 Próximos jogos",
+     "🧠 Modelo"]
 )
 
 # ---- aba Remo
@@ -535,6 +538,151 @@ with tab_partidas:
     )
     st.caption("Fonte: mercado do Cartola (scout agregado da temporada). "
                "Preço e média são da pontuação Cartola, não do jogo real.")
+
+# ---- aba Copa do Brasil
+@st.cache_data(ttl=3600, show_spinner="Carregando a Copa do Brasil…")
+def load_copa_data(fetched_at: str) -> dict | None:
+    try:
+        return store.ensure_copa(max_age_hours=24)
+    except Exception:
+        return store.load_copa()
+
+
+@st.cache_data(show_spinner="Simulando o mata-mata…")
+def run_copa_sim(copa_fetched_at: str, cartola_fetched_at: str,
+                 model_key: str, n_sims: int) -> dict | None:
+    doc = store.load_copa()
+    fase_atual = next((f for f in doc["fases"] if f["atual"]), None)
+    ties = [c for c in fase_atual["chaves"] if c.get("jogos")]
+    if not ties:
+        return None
+
+    data = store.load_or_refresh()
+    df = store.matches_df(data)
+    played, _ = store.split_played_future(df)
+    serie_a = set(df["casa_id"]) | set(df["fora_id"])
+
+    times_copa = []
+    nomes = {}
+    for t in ties:
+        j0 = t["jogos"][0]
+        times_copa += [j0["mandante_id"], j0["visitante_id"]]
+        nomes[j0["mandante_id"]] = j0["mandante"]
+        nomes[j0["visitante_id"]] = j0["visitante"]
+
+    predictor = make_predictor(model_key, played, get_historical())
+    base = PoissonBaseline().fit(played)
+    pares = [(h, a) for h in times_copa for a in times_copa
+             if h != a and h in serie_a and a in serie_a]
+    conhecidos = {}
+    if pares:
+        fx = pd.DataFrame([{"casa_id": h, "fora_id": a} for h, a in pares])
+        lh, la = predictor.predict(fx, played)
+        conhecidos = {p: (float(lh[i]), float(la[i])) for i, p in enumerate(pares)}
+
+    # clubes fora da Série A: força estimada abaixo da média da elite
+    def lam_pair(h, a):
+        if (h, a) in conhecidos:
+            return conhecidos[(h, a)]
+        atk_h = base.atk.get(h, 0.85)
+        dfn_h = base.dfn.get(h, 1.15)
+        atk_a = base.atk.get(a, 0.85)
+        dfn_a = base.dfn.get(a, 1.15)
+        return (
+            float(np.clip(base.mu_home * atk_h * dfn_a, 0.05, 6.0)),
+            float(np.clip(base.mu_away * atk_a * dfn_h, 0.05, 6.0)),
+        )
+
+    probs = simulate_knockout(ties, lam_pair, n_sims=n_sims)
+    fases_seguintes = []
+    achou = False
+    for f in doc["fases"]:
+        if achou:
+            fases_seguintes.append(f["nome"])
+        if f["atual"]:
+            achou = True
+    rotulos = fases_seguintes + ["🏆 Título"]
+    return {"probs": probs, "rotulos": rotulos[:len(next(iter(probs.values())))],
+            "nomes": nomes, "ties": ties, "fase_nome": fase_atual["nome"],
+            "fora_serie_a": [t for t in times_copa if t not in serie_a]}
+
+
+with tab_copa:
+    copa_doc = load_copa_data(data["fetched_at"])
+    if not copa_doc:
+        st.info("Não consegui carregar a Copa do Brasil agora — tente atualizar "
+                "os dados na barra lateral.")
+    else:
+        sim_copa = run_copa_sim(copa_doc["fetched_at"], data["fetched_at"],
+                                model_key, n_sims)
+        st.markdown(f"### {copa_doc['edicao']} — "
+                    f"{sim_copa['fase_nome'] if sim_copa else 'fase atual'}")
+
+        if sim_copa and REMO_ID in sim_copa["probs"]:
+            chave_remo = next(t for t in sim_copa["ties"]
+                              if REMO_ID in (t["jogos"][0]["mandante_id"],
+                                             t["jogos"][0]["visitante_id"]))
+            st.subheader(f"🦁 {chave_remo['nome']}: "
+                         f"{chave_remo['jogos'][0]['mandante']} × "
+                         f"{chave_remo['jogos'][0]['visitante']}")
+            for i, j in enumerate(chave_remo["jogos"], start=1):
+                placar = (f" — **{int(j['gols_mandante'])}×{int(j['gols_visitante'])}**"
+                          if j["gols_mandante"] is not None else "")
+                dia = f"{(j['data'] or '')[8:10]}/{(j['data'] or '')[5:7]}"
+                st.markdown(f"**Jogo {i}** ({'ida' if i == 1 else 'volta'}): "
+                            f"{j['mandante']} × {j['visitante']}{placar} · "
+                            f"{dia} {j['hora'] or ''} · {j['sede'] or 'a definir'}")
+
+            p_remo = sim_copa["probs"][REMO_ID]
+            cols = st.columns(len(p_remo))
+            for c, rotulo, p in zip(cols, sim_copa["rotulos"], p_remo):
+                c.metric(rotulo, pct(p))
+
+        if sim_copa:
+            st.subheader("Probabilidades de todos (simulação do chaveamento)")
+            tabela_copa = pd.DataFrame([
+                {"Time": sim_copa["nomes"].get(t, str(t)),
+                 **{r: p for r, p in zip(sim_copa["rotulos"], ps)}}
+                for t, ps in sim_copa["probs"].items()
+            ]).sort_values(sim_copa["rotulos"][-1], ascending=False)
+            st.dataframe(
+                tabela_copa, hide_index=True,
+                height=38 * (len(tabela_copa) + 1) + 3,
+                column_config={r: st.column_config.ProgressColumn(
+                    r, format="percent", min_value=0, max_value=1)
+                    for r in sim_copa["rotulos"]},
+            )
+            fora = [sim_copa["nomes"][t] for t in sim_copa["fora_serie_a"]]
+            aviso_fora = (f" Clubes fora da Série A ({', '.join(fora)}) entram com "
+                          "força estimada abaixo da média da elite." if fora else "")
+            st.caption("Ida e volta simulados por Poisson com o modelo selecionado "
+                       "na barra lateral; agregado empatado vai para pênaltis "
+                       "(50/50); chaveamento padrão e mando das fases futuras "
+                       f"alternado.{aviso_fora}")
+
+            st.subheader("Confrontos da fase")
+            for t in sim_copa["ties"]:
+                linhas = []
+                for j in t["jogos"]:
+                    placar = (f"{int(j['gols_mandante'])}×{int(j['gols_visitante'])}"
+                              if j["gols_mandante"] is not None else "—")
+                    pen = (f" (pên. {int(j['pen_mandante'])}×{int(j['pen_visitante'])})"
+                           if j["pen_mandante"] is not None else "")
+                    dia = f"{(j['data'] or '')[8:10]}/{(j['data'] or '')[5:7]}"
+                    linhas.append(f"{j['mandante']} {placar}{pen} {j['visitante']} · {dia}")
+                st.markdown(f"**{t['nome']}** — " + "  |  ".join(linhas))
+
+        campanha = jogos_do_time(copa_doc, REMO_ID)
+        if campanha:
+            with st.expander("Campanha do Remo na competição"):
+                for j in campanha:
+                    placar = (f"{int(j['gols_mandante'])}×{int(j['gols_visitante'])}"
+                              if j["gols_mandante"] is not None else "a jogar")
+                    pen = (f" (pên. {int(j['pen_mandante'])}×{int(j['pen_visitante'])})"
+                           if j["pen_mandante"] is not None else "")
+                    st.markdown(f"- **{j['fase']}**: {j['mandante']} {placar}{pen} "
+                                f"{j['visitante']} · {j['data'] or ''}")
+
 
 # ---- aba Elenco do Remo (disponibilidade para o próximo jogo)
 POS_ORDEM = {"Goleiro": 0, "Lateral": 1, "Zagueiro": 2, "Meia": 3,

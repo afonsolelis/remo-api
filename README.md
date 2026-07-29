@@ -12,6 +12,10 @@ treinam em segundos).
   de título / Libertadores (G4) / rebaixamento (Z4) nas simulações.
 - **📊 Classificação** — tabela completa calculada dos resultados oficiais,
   com escudos e forma recente.
+- **🏆 Copa do Brasil** — chaveamento completo via API de tabela do ge
+  (mesmos IDs de clube do Cartola), campanha do Remo e **simulação Monte
+  Carlo do mata-mata**: ida/volta por Poisson, pênaltis, probabilidade de
+  cada clube avançar fase a fase até o título. Guardado no banco (`copa`).
 - **📋 Partidas & elenco** — pontuação e scout do Cartola de cada jogador em
   cada partida (gols, assistências, desarmes, defesas, cartões…) e o plantel
   de qualquer clube com estatísticas da temporada (preço, média, status).
@@ -112,6 +116,7 @@ docker-compose.yml      # mongo + app + updater (2x/dia)
 scripts/scheduler.py    # agendador do updater (08h e 22h)
 scripts/update_data.py  # atualização manual/cron dos dados
 src/cartola.py          # cliente da API do Cartola
+src/copa.py             # Copa do Brasil (API do ge) + simulação do mata-mata
 src/store.py            # persistência: MongoDB (Docker) ou JSON local
 src/history.py          # histórico 2012+ (football-data.co.uk)
 src/standings.py        # classificação e forma

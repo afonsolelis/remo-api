@@ -36,6 +36,9 @@ pages = {
         st.Page("pages/elenco.py", title="Elenco do Remo", icon="👥"),
         st.Page("pages/partidas.py", title="Partidas e elenco", icon="📋"),
     ],
+    "Admin": [
+        st.Page("pages/admin.py", title="Admin", icon="🔒"),
+    ],
 }
 
 current_page = st.navigation(pages, position="top")

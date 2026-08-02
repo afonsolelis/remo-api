@@ -66,6 +66,80 @@ def run_sim(fetched_at: str, model_key: str, n_sims: int) -> dict:
     return published_simulation(projection)
 
 
+def _fmt_data_hora(data: str | None, hora: str | None = None) -> str:
+    if not data:
+        return "a definir"
+    texto = f"{data[8:10]}/{data[5:7]}"
+    if hora:
+        texto = f"{texto} {hora}"
+    return texto
+
+
+def _fmt_placar_jogo(jogo: dict) -> str:
+    if jogo["gols_mandante"] is None:
+        return "—"
+    placar = f"{int(jogo['gols_mandante'])}×{int(jogo['gols_visitante'])}"
+    if jogo["pen_mandante"] is not None:
+        placar += f" (pên. {int(jogo['pen_mandante'])}×{int(jogo['pen_visitante'])})"
+    return placar
+
+
+def _fmt_agregado_tie(tie: dict) -> str:
+    totais: dict[int, int] = {}
+    nomes: dict[int, str] = {}
+    penais: str | None = None
+    for jogo in tie["jogos"]:
+        mandante_id = jogo["mandante_id"]
+        visitante_id = jogo["visitante_id"]
+        nomes[mandante_id] = jogo["mandante"]
+        nomes[visitante_id] = jogo["visitante"]
+        totais.setdefault(mandante_id, 0)
+        totais.setdefault(visitante_id, 0)
+        if jogo["gols_mandante"] is not None:
+            totais[mandante_id] += int(jogo["gols_mandante"])
+            totais[visitante_id] += int(jogo["gols_visitante"])
+        if jogo["pen_mandante"] is not None:
+            penais = (
+                f"pên. {int(jogo['pen_mandante'])}×{int(jogo['pen_visitante'])}"
+            )
+
+    if len(nomes) != 2:
+        return "a definir"
+
+    time_a, time_b = list(nomes.keys())
+    agregado = f"{nomes[time_a]} {totais[time_a]}×{totais[time_b]} {nomes[time_b]}"
+    if penais:
+        agregado = f"{agregado} ({penais})"
+    if all(jogo["gols_mandante"] is None for jogo in tie["jogos"]):
+        return "ainda sem jogos disputados"
+    return agregado
+
+
+def _render_chaveamento_fase(ties: list[dict]) -> None:
+    colunas = st.columns(2)
+    for i, tie in enumerate(ties):
+        with colunas[i % 2]:
+            with st.container(border=True):
+                st.markdown(f"**{tie['nome']}**")
+                if tie["jogos"]:
+                    duelo = (
+                        f"{tie['jogos'][0]['mandante']} × "
+                        f"{tie['jogos'][0]['visitante']}"
+                    )
+                    st.caption(duelo)
+                st.markdown(f"**Agregado:** {_fmt_agregado_tie(tie)}")
+                for j, jogo in enumerate(tie["jogos"], start=1):
+                    rotulo = "Ida" if j == 1 else "Volta"
+                    st.markdown(
+                        f"`{rotulo}` {jogo['mandante']} "
+                        f"**{_fmt_placar_jogo(jogo)}** {jogo['visitante']}"
+                    )
+                    st.caption(
+                        f"{_fmt_data_hora(jogo['data'], jogo['hora'])} · "
+                        f"{jogo['sede'] or 'a definir'}"
+                    )
+
+
 # ---------------------------------------------------------------- gráficos
 
 def fig_pos_dist_remo(res, team_ids) -> go.Figure:
@@ -545,13 +619,16 @@ if SELECTED_PAGE == "copa":
             st.subheader(f"🦁 {chave_remo['nome']}: "
                          f"{chave_remo['jogos'][0]['mandante']} × "
                          f"{chave_remo['jogos'][0]['visitante']}")
-            for i, j in enumerate(chave_remo["jogos"], start=1):
-                placar = (f" — **{int(j['gols_mandante'])}×{int(j['gols_visitante'])}**"
-                          if j["gols_mandante"] is not None else "")
-                dia = f"{(j['data'] or '')[8:10]}/{(j['data'] or '')[5:7]}"
-                st.markdown(f"**Jogo {i}** ({'ida' if i == 1 else 'volta'}): "
-                            f"{j['mandante']} × {j['visitante']}{placar} · "
-                            f"{dia} {j['hora'] or ''} · {j['sede'] or 'a definir'}")
+            jogos_remo = pd.DataFrame([{
+                "Jogo": f"Jogo {i}",
+                "Tipo": "ida" if i == 1 else "volta",
+                "Mandante": j["mandante"],
+                "Placar": _fmt_placar_jogo(j),
+                "Visitante": j["visitante"],
+                "Quando": _fmt_data_hora(j["data"], j["hora"]),
+                "Local": j["sede"] or "a definir",
+            } for i, j in enumerate(chave_remo["jogos"], start=1)])
+            st.dataframe(jogos_remo, hide_index=True, use_container_width=True)
 
             p_remo = sim_copa["probs"][REMO_ID]
             cols = st.columns(len(p_remo))
@@ -581,16 +658,7 @@ if SELECTED_PAGE == "copa":
                        f"alternado.{aviso_fora}")
 
             st.subheader("Confrontos da fase")
-            for t in sim_copa["ties"]:
-                linhas = []
-                for j in t["jogos"]:
-                    placar = (f"{int(j['gols_mandante'])}×{int(j['gols_visitante'])}"
-                              if j["gols_mandante"] is not None else "—")
-                    pen = (f" (pên. {int(j['pen_mandante'])}×{int(j['pen_visitante'])})"
-                           if j["pen_mandante"] is not None else "")
-                    dia = f"{(j['data'] or '')[8:10]}/{(j['data'] or '')[5:7]}"
-                    linhas.append(f"{j['mandante']} {placar}{pen} {j['visitante']} · {dia}")
-                st.markdown(f"**{t['nome']}** — " + "  |  ".join(linhas))
+            _render_chaveamento_fase(sim_copa["ties"])
 
         campanha = jogos_do_time(copa_doc, REMO_ID)
         if campanha:

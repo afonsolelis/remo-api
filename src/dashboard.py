@@ -9,6 +9,7 @@ definido. Manter a renderização aqui evita duplicar o contexto e os componente
 durante a migração do antigo layout baseado em abas.
 """
 
+import html
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -115,29 +116,219 @@ def _fmt_agregado_tie(tie: dict) -> str:
     return agregado
 
 
+def _render_copa_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .copa-tie-card {
+            border: 1px solid rgba(49, 51, 63, 0.18);
+            border-radius: 18px;
+            padding: 1rem 1rem 1.1rem;
+            background: linear-gradient(180deg, rgba(247, 249, 252, 0.96), rgba(255, 255, 255, 1));
+            margin-bottom: 1rem;
+        }
+        .copa-tie-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: baseline;
+            margin-bottom: 0.35rem;
+        }
+        .copa-tie-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .copa-tie-badge {
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #0b5ed7;
+            background: rgba(11, 94, 215, 0.10);
+            border-radius: 999px;
+            padding: 0.2rem 0.55rem;
+            white-space: nowrap;
+        }
+        .copa-tie-duel {
+            font-size: 0.9rem;
+            color: #475569;
+            margin-bottom: 0.7rem;
+        }
+        .copa-agg-box {
+            background: #0f172a;
+            color: #f8fafc;
+            border-radius: 14px;
+            padding: 0.75rem 0.9rem;
+            margin-bottom: 0.85rem;
+        }
+        .copa-agg-label {
+            display: block;
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            opacity: 0.75;
+            margin-bottom: 0.2rem;
+        }
+        .copa-agg-value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .copa-match-card {
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 14px;
+            padding: 0.85rem 0.95rem;
+            background: #ffffff;
+            margin-top: 0.7rem;
+        }
+        .copa-match-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 0.7rem;
+        }
+        .copa-match-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #475569;
+        }
+        .copa-match-status {
+            font-size: 0.76rem;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 0.18rem 0.55rem;
+            background: #e2e8f0;
+            color: #334155;
+            white-space: nowrap;
+        }
+        .copa-match-status.is-played {
+            background: rgba(22, 163, 74, 0.12);
+            color: #166534;
+        }
+        .copa-scoreline {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .copa-team {
+            font-size: 0.98rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.25;
+        }
+        .copa-team.is-away {
+            text-align: right;
+        }
+        .copa-score-box {
+            min-width: 7.5rem;
+            text-align: center;
+            border-radius: 12px;
+            background: #eff6ff;
+            padding: 0.55rem 0.7rem;
+        }
+        .copa-score-main {
+            font-size: 1.55rem;
+            line-height: 1;
+            font-weight: 800;
+            color: #0b5ed7;
+        }
+        .copa-score-sub {
+            font-size: 0.76rem;
+            color: #475569;
+            margin-top: 0.28rem;
+        }
+        .copa-match-meta {
+            margin-top: 0.75rem;
+            font-size: 0.82rem;
+            color: #64748b;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_copa_match_card(jogo: dict, rotulo: str) -> None:
+    placar = "a jogar"
+    penais = ""
+    status = "agendado"
+    status_class = "copa-match-status"
+    if jogo["gols_mandante"] is not None:
+        placar = f"{int(jogo['gols_mandante'])}×{int(jogo['gols_visitante'])}"
+        status = "encerrado"
+        status_class = "copa-match-status is-played"
+    if jogo["pen_mandante"] is not None:
+        penais = (
+            f"<div class='copa-score-sub'>pênaltis "
+            f"{int(jogo['pen_mandante'])}×{int(jogo['pen_visitante'])}</div>"
+        )
+
+    data_local = (
+        f"{html.escape(_fmt_data_hora(jogo['data'], jogo['hora']))} · "
+        f"{html.escape(jogo['sede'] or 'local a definir')}"
+    )
+    st.markdown(
+        f"""
+        <div class="copa-match-card">
+            <div class="copa-match-top">
+                <div class="copa-match-label">{html.escape(rotulo)}</div>
+                <div class="{status_class}">{status}</div>
+            </div>
+            <div class="copa-scoreline">
+                <div class="copa-team">{html.escape(jogo['mandante'])}</div>
+                <div class="copa-score-box">
+                    <div class="copa-score-main">{placar}</div>
+                    {penais}
+                </div>
+                <div class="copa-team is-away">{html.escape(jogo['visitante'])}</div>
+            </div>
+            <div class="copa-match-meta">{data_local}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_copa_tie_card(tie: dict, destaque: str | None = None) -> None:
+    jogos = tie.get("jogos", [])
+    duelo = "a definir"
+    if jogos:
+        duelo = f"{jogos[0]['mandante']} × {jogos[0]['visitante']}"
+
+    badge = (
+        f"<div class='copa-tie-badge'>{html.escape(destaque)}</div>"
+        if destaque else ""
+    )
+    st.markdown(
+        f"""
+        <div class="copa-tie-card">
+            <div class="copa-tie-header">
+                <div class="copa-tie-name">{html.escape(tie['nome'])}</div>
+                {badge}
+            </div>
+            <div class="copa-tie-duel">{html.escape(duelo)}</div>
+            <div class="copa-agg-box">
+                <span class="copa-agg-label">Agregado</span>
+                <div class="copa-agg-value">{html.escape(_fmt_agregado_tie(tie))}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    for j, jogo in enumerate(jogos, start=1):
+        _render_copa_match_card(jogo, "Jogo de ida" if j == 1 else "Jogo de volta")
+
+
 def _render_chaveamento_fase(ties: list[dict]) -> None:
     colunas = st.columns(2)
     for i, tie in enumerate(ties):
         with colunas[i % 2]:
-            with st.container(border=True):
-                st.markdown(f"**{tie['nome']}**")
-                if tie["jogos"]:
-                    duelo = (
-                        f"{tie['jogos'][0]['mandante']} × "
-                        f"{tie['jogos'][0]['visitante']}"
-                    )
-                    st.caption(duelo)
-                st.markdown(f"**Agregado:** {_fmt_agregado_tie(tie)}")
-                for j, jogo in enumerate(tie["jogos"], start=1):
-                    rotulo = "Ida" if j == 1 else "Volta"
-                    st.markdown(
-                        f"`{rotulo}` {jogo['mandante']} "
-                        f"**{_fmt_placar_jogo(jogo)}** {jogo['visitante']}"
-                    )
-                    st.caption(
-                        f"{_fmt_data_hora(jogo['data'], jogo['hora'])} · "
-                        f"{jogo['sede'] or 'a definir'}"
-                    )
+            _render_copa_tie_card(tie)
 
 
 # ---------------------------------------------------------------- gráficos
@@ -607,6 +798,7 @@ if SELECTED_PAGE == "copa":
         st.info("Não consegui carregar a Copa do Brasil agora — tente atualizar "
                 "os dados pelo botão no cabeçalho.")
     else:
+        _render_copa_styles()
         sim_copa = run_copa_sim(copa_doc["fetched_at"], data["fetched_at"],
                                 model_key, n_sims)
         st.markdown(f"### {copa_doc['edicao']} — "
@@ -619,16 +811,7 @@ if SELECTED_PAGE == "copa":
             st.subheader(f"🦁 {chave_remo['nome']}: "
                          f"{chave_remo['jogos'][0]['mandante']} × "
                          f"{chave_remo['jogos'][0]['visitante']}")
-            jogos_remo = pd.DataFrame([{
-                "Jogo": f"Jogo {i}",
-                "Tipo": "ida" if i == 1 else "volta",
-                "Mandante": j["mandante"],
-                "Placar": _fmt_placar_jogo(j),
-                "Visitante": j["visitante"],
-                "Quando": _fmt_data_hora(j["data"], j["hora"]),
-                "Local": j["sede"] or "a definir",
-            } for i, j in enumerate(chave_remo["jogos"], start=1)])
-            st.dataframe(jogos_remo, hide_index=True, use_container_width=True)
+            _render_copa_tie_card(chave_remo, destaque="Confronto do Remo")
 
             p_remo = sim_copa["probs"][REMO_ID]
             cols = st.columns(len(p_remo))

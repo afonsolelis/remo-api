@@ -25,7 +25,6 @@ from src import store
 from src.copa import jogos_do_time
 from src.projections import published_simulation
 from src.standings import compute_standings, cumulative_points, team_last_results
-from src.store import REMO_ID
 from src.viz import (
     BLUE,
     BLUE_LIGHT,
@@ -333,8 +332,9 @@ def _render_chaveamento_fase(ties: list[dict]) -> None:
 
 # ---------------------------------------------------------------- gráficos
 
-def fig_pos_dist_remo(res, team_ids) -> go.Figure:
-    i = team_ids.index(REMO_ID)
+def fig_pos_dist(res, team_ids, selected_team_id: int,
+                 selected_team_name: str) -> go.Figure:
+    i = team_ids.index(selected_team_id)
     probs = res.pos_dist[i]
     n = len(team_ids)
     labels = [pct(p) if p >= 0.01 else "" for p in probs]
@@ -353,11 +353,15 @@ def fig_pos_dist_remo(res, team_ids) -> go.Figure:
     fig.update_yaxes(tickformat=".0%", rangemode="tozero")
     fig.update_xaxes(title_text="posição final", showgrid=False)
     fig.update_layout(showlegend=False)
-    return apply_layout(fig, title="Onde o Remo termina o campeonato? (simulações)")
+    return apply_layout(
+        fig,
+        title=f"Onde o {selected_team_name} termina o campeonato? (simulações)",
+    )
 
 
-def fig_points_evolution(played) -> go.Figure:
-    cum = cumulative_points(played, REMO_ID)
+def fig_points_evolution(played, selected_team_id: int,
+                         selected_team_name: str) -> go.Figure:
+    cum = cumulative_points(played, selected_team_id)
     fig = go.Figure(
         go.Scatter(
             x=cum["rodada"],
@@ -371,12 +375,12 @@ def fig_points_evolution(played) -> go.Figure:
     fig.update_xaxes(title_text="rodada", dtick=2)
     fig.update_yaxes(title_text="pontos acumulados", rangemode="tozero")
     fig.update_layout(showlegend=False)
-    return apply_layout(fig, title="Evolução de pontos do Remo")
+    return apply_layout(fig, title=f"Evolução de pontos do {selected_team_name}")
 
 
-def fig_prob_bar(names: list[str], values: np.ndarray, remo_mask: list[bool],
+def fig_prob_bar(names: list[str], values: np.ndarray, team_mask: list[bool],
                  title: str) -> go.Figure:
-    colors = [BLUE if r else OTHERS for r in remo_mask]
+    colors = [BLUE if selected else OTHERS for selected in team_mask]
     fig = go.Figure(
         go.Bar(
             x=values,
@@ -482,6 +486,11 @@ status = data["status"]
 df = store.matches_df(data)
 played, future = store.split_played_future(df)
 team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
+selected_team_id = int(st.session_state.get("selected_team_id", store.REMO_ID))
+if selected_team_id not in team_ids:
+    selected_team_id = store.REMO_ID if store.REMO_ID in team_ids else team_ids[0]
+    st.session_state.selected_team_id = selected_team_id
+selected_team_name = store.clube_nome(clubes, selected_team_id)
 
 projection = store.load_projection()
 model_key = projection.get("model_key", "ensemble") if projection else "ensemble"
@@ -502,7 +511,7 @@ if SELECTED_PAGE in _SIMULATION_PAGES:
     sim = run_sim(data["fetched_at"], model_key, n_sims)
     res = sim["res"]
     fixtures = sim["fixtures"]
-    i_remo = team_ids.index(REMO_ID)
+    selected_team_index = team_ids.index(selected_team_id)
 
 _rodada_atual = status.get("rodada_atual", 1)
 
@@ -511,29 +520,32 @@ def rotulo_rodada(r: int) -> str:
     """Rodadas antigas com jogo pendente são adiamentos (ex.: FLA×MIR da 4ª)."""
     return f"Rodada {r} · jogo adiado" if r < _rodada_atual else f"Rodada {r}"
 
-# ---- página Remo
+# ---- página do time selecionado
 if SELECTED_PAGE == "remo":
-    remo_row = standings[standings["clube_id"] == REMO_ID].iloc[0]
-    ultimos = team_last_results(played, REMO_ID)
+    team_row = standings[standings["clube_id"] == selected_team_id].iloc[0]
+    ultimos = team_last_results(played, selected_team_id)
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Posição", f"{remo_row['Pos']}º")
-    c2.metric("Pontos", int(remo_row["PTS"]))
-    c3.metric("Jogos", int(remo_row["J"]))
-    c4.metric("Aproveitamento", pct(remo_row["Aproveitamento"] / 100))
+    c1.metric("Posição", f"{team_row['Pos']}º")
+    c2.metric("Pontos", int(team_row["PTS"]))
+    c3.metric("Jogos", int(team_row["J"]))
+    c4.metric("Aproveitamento", pct(team_row["Aproveitamento"] / 100))
     c5.metric("Últimos 5", "".join(FORM_ICON[r] for r in ultimos))
 
     st.caption("Probabilidades nas simulações do restante da temporada "
                f"({res.n_sims:,} cenários · modelo: {sim['model']}):".replace(",", "."))
     p1, p2, p3, p4 = st.columns(4)
-    p1.metric("🏆 Título", pct(res.p_titulo[i_remo]))
-    p2.metric("🌎 Libertadores (G4)", pct(res.p_g4[i_remo]))
-    p3.metric("✈️ G6", pct(res.p_g6[i_remo]))
-    p4.metric("🚨 Rebaixamento (Z4)", pct(res.p_z4[i_remo]))
+    p1.metric("🏆 Título", pct(res.p_titulo[selected_team_index]))
+    p2.metric("🌎 Libertadores (G4)", pct(res.p_g4[selected_team_index]))
+    p3.metric("✈️ G6", pct(res.p_g6[selected_team_index]))
+    p4.metric("🚨 Rebaixamento (Z4)", pct(res.p_z4[selected_team_index]))
 
-    prox_remo = fixtures[(fixtures["casa_id"] == REMO_ID) | (fixtures["fora_id"] == REMO_ID)]
-    if not prox_remo.empty:
-        prox = prox_remo.iloc[0]
+    team_fixtures = fixtures[
+        (fixtures["casa_id"] == selected_team_id)
+        | (fixtures["fora_id"] == selected_team_id)
+    ].sort_values("timestamp")
+    if not team_fixtures.empty:
+        prox = team_fixtures.iloc[0]
         casa = store.clube_nome(clubes, prox["casa_id"])
         fora = store.clube_nome(clubes, prox["fora_id"])
         st.info(f"**Próximo jogo:** {casa} × {fora} — {prox['data']} — {prox['local']}  \n"
@@ -542,25 +554,35 @@ if SELECTED_PAGE == "remo":
 
     col_a, col_b = st.columns(2)
     with col_a:
-        st.plotly_chart(fig_pos_dist_remo(res, team_ids), width="stretch")
+        st.plotly_chart(
+            fig_pos_dist(res, team_ids, selected_team_id, selected_team_name),
+            width="stretch",
+        )
     with col_b:
-        st.plotly_chart(fig_points_evolution(played), width="stretch")
+        st.plotly_chart(
+            fig_points_evolution(played, selected_team_id, selected_team_name),
+            width="stretch",
+        )
 
-    if not prox_remo.empty:
-        prox_ordenados = prox_remo.sort_values("timestamp")
-        st.subheader(f"Todos os próximos jogos do Remo ({len(prox_ordenados)} restantes)")
+    if not team_fixtures.empty:
+        prox_ordenados = team_fixtures.sort_values("timestamp")
+        st.subheader(
+            f"Todos os próximos jogos do {selected_team_name} "
+            f"({len(prox_ordenados)} restantes)"
+        )
         exp_pts_restantes = float(
             (3 * prox_ordenados.apply(
-                lambda m: m["p_casa"] if m["casa_id"] == REMO_ID else m["p_fora"], axis=1)
+                lambda m: m["p_casa"]
+                if m["casa_id"] == selected_team_id else m["p_fora"], axis=1)
              + prox_ordenados["p_empate"]).sum()
         )
         st.caption(f"Pontos esperados nos jogos restantes: **+{exp_pts_restantes:.1f}** "
-                   f"→ projeção final: **{res.exp_pts[i_remo]:.1f} pts** "
+                   f"→ projeção final: **{res.exp_pts[selected_team_index]:.1f} pts** "
                    f"(modelo: {sim['model']}).")
 
         linhas = []
         for m in prox_ordenados.itertuples():
-            em_casa = m.casa_id == REMO_ID
+            em_casa = m.casa_id == selected_team_id
             adversario = store.clube_nome(clubes, m.fora_id if em_casa else m.casa_id)
             quando = pd.to_datetime(m.data)
             linhas.append({
@@ -569,37 +591,38 @@ if SELECTED_PAGE == "remo":
                 "Adversário": adversario,
                 "Mando": "🏠 Casa" if em_casa else "✈️ Fora",
                 "Estádio": m.local,
-                "Vitória do Remo": m.p_casa if em_casa else m.p_fora,
+                f"Vitória do {selected_team_name}": m.p_casa if em_casa else m.p_fora,
                 "Empate": m.p_empate,
                 "Derrota": m.p_fora if em_casa else m.p_casa,
             })
-        tabela_remo = pd.DataFrame(linhas)
+        tabela_time = pd.DataFrame(linhas)
         st.dataframe(
-            tabela_remo,
+            tabela_time,
             hide_index=True,
-            height=38 * (len(tabela_remo) + 1) + 3,
+            height=38 * (len(tabela_time) + 1) + 3,
             column_config={
                 c: st.column_config.ProgressColumn(
                     c, format="percent", min_value=0, max_value=1)
-                for c in ["Vitória do Remo", "Empate", "Derrota"]
+                for c in [f"Vitória do {selected_team_name}", "Empate", "Derrota"]
             },
         )
         st.plotly_chart(fig_next_matches(prox_ordenados, clubes), width="stretch")
 
-    st.divider()
-    st.subheader("🏅 Outras competições do Remo em 2026")
-    oc1, oc2 = st.columns(2)
-    with oc1:
-        st.markdown(
+    if selected_team_id == store.REMO_ID:
+        st.divider()
+        st.subheader("🏅 Outras competições do Remo em 2026")
+        oc1, oc2 = st.columns(2)
+        with oc1:
+            st.markdown(
             """
 **Campeonato Paraense** · jan–mar (encerrado)
 
 🥈 **Vice-campeão** — o Leão fez a final do Parazão 2026,
 mas o título ficou com o Paysandu (março/2026).
             """
-        )
-    with oc2:
-        st.markdown(
+            )
+        with oc2:
+            st.markdown(
             """
 **Copa Verde** · mar–jun (encerrada)
 
@@ -607,10 +630,10 @@ O Remo **não disputou** a edição 2026. O campeão foi o
 Paysandu, que virou sobre o Anápolis na final
 (3×1 fora, 4×0 em casa em 07/06).
             """
-        )
-    st.caption("Fonte: ge/Globo. As competições do Remo ainda em andamento — "
-               "Brasileirão e Copa do Brasil — estão nas abas ao lado, com "
-               "simulações ao vivo.")
+            )
+        st.caption("Fonte: ge/Globo. As competições do Remo ainda em andamento — "
+                   "Brasileirão e Copa do Brasil — estão nas abas ao lado, com "
+                   "simulações ao vivo.")
 
 # ---- página Classificação
 if SELECTED_PAGE == "classificacao":
@@ -625,7 +648,10 @@ if SELECTED_PAGE == "classificacao":
          "Aproveitamento", "Últimos 5"]
     ]
     styler = disp.style.apply(
-        lambda row: [f"background-color: {BLUE_LIGHT}" if row.name == REMO_ID else ""] * len(row),
+        lambda row: [
+            f"background-color: {BLUE_LIGHT}"
+            if row.name == selected_team_id else ""
+        ] * len(row),
         axis=1,
     )
     st.dataframe(
@@ -736,7 +762,7 @@ if SELECTED_PAGE == "partidas":
     st.divider()
     st.subheader("Plantel e estatísticas da temporada")
     clube_plantel = st.selectbox("Clube", team_ids,
-                                 index=team_ids.index(REMO_ID),
+                                 index=team_ids.index(selected_team_id),
                                  format_func=lambda t: store.clube_nome(clubes, t))
     plantel = []
     for a in atletas_doc["atletas"]:
@@ -804,19 +830,31 @@ if SELECTED_PAGE == "copa":
         st.markdown(f"### {copa_doc['edicao']} — "
                     f"{sim_copa['fase_nome'] if sim_copa else 'fase atual'}")
 
-        if sim_copa and REMO_ID in sim_copa["probs"]:
-            chave_remo = next(t for t in sim_copa["ties"]
-                              if REMO_ID in (t["jogos"][0]["mandante_id"],
-                                             t["jogos"][0]["visitante_id"]))
-            st.subheader(f"🦁 {chave_remo['nome']}: "
-                         f"{chave_remo['jogos'][0]['mandante']} × "
-                         f"{chave_remo['jogos'][0]['visitante']}")
-            _render_copa_tie_card(chave_remo, destaque="Confronto do Remo")
+        if sim_copa and selected_team_id in sim_copa["probs"]:
+            team_tie = next(
+                (
+                    tie for tie in sim_copa["ties"]
+                    if selected_team_id in (
+                        tie["jogos"][0]["mandante_id"],
+                        tie["jogos"][0]["visitante_id"],
+                    )
+                ),
+                None,
+            )
+            if team_tie:
+                st.subheader(f"⚽ {team_tie['nome']}: "
+                             f"{team_tie['jogos'][0]['mandante']} × "
+                             f"{team_tie['jogos'][0]['visitante']}")
+                _render_copa_tie_card(
+                    team_tie, destaque=f"Confronto do {selected_team_name}"
+                )
 
-            p_remo = sim_copa["probs"][REMO_ID]
-            cols = st.columns(len(p_remo))
-            for c, rotulo, p in zip(cols, sim_copa["rotulos"], p_remo):
+            team_probs = sim_copa["probs"][selected_team_id]
+            cols = st.columns(len(team_probs))
+            for c, rotulo, p in zip(cols, sim_copa["rotulos"], team_probs):
                 c.metric(rotulo, pct(p))
+        elif sim_copa:
+            st.info(f"O {selected_team_name} não está nesta fase da competição.")
 
         if sim_copa:
             st.subheader("Probabilidades de todos (simulação do chaveamento)")
@@ -843,9 +881,9 @@ if SELECTED_PAGE == "copa":
             st.subheader("Confrontos da fase")
             _render_chaveamento_fase(sim_copa["ties"])
 
-        campanha = jogos_do_time(copa_doc, REMO_ID)
+        campanha = jogos_do_time(copa_doc, selected_team_id)
         if campanha:
-            with st.expander("Campanha do Remo na competição"):
+            with st.expander(f"Campanha do {selected_team_name} na competição"):
                 for j in campanha:
                     placar = (f"{int(j['gols_mandante'])}×{int(j['gols_visitante'])}"
                               if j["gols_mandante"] is not None else "a jogar")
@@ -855,19 +893,20 @@ if SELECTED_PAGE == "copa":
                                 f"{j['visitante']} · {j['data'] or ''}")
 
 
-# ---- página Elenco do Remo (disponibilidade para o próximo jogo)
+# ---- página Elenco (disponibilidade para o próximo jogo)
 POS_ORDEM = {"Goleiro": 0, "Lateral": 1, "Zagueiro": 2, "Meia": 3,
              "Atacante": 4, "Técnico": 5}
 FORMACAO_433 = {"Goleiro": 1, "Lateral": 2, "Zagueiro": 2, "Meia": 3,
                 "Atacante": 3, "Técnico": 1}
 
 if SELECTED_PAGE == "elenco":
-    prox_remo = future[
-        (future["casa_id"] == REMO_ID) | (future["fora_id"] == REMO_ID)
+    team_fixtures = future[
+        (future["casa_id"] == selected_team_id)
+        | (future["fora_id"] == selected_team_id)
     ].sort_values("timestamp")
     elenco = []
     for a in atletas_doc["atletas"]:
-        if a.get("clube_id") != REMO_ID:
+        if a.get("clube_id") != selected_team_id:
             continue
         scout = a.get("scout") or {}
         ca = int(scout.get("CA", 0))
@@ -887,11 +926,13 @@ if SELECTED_PAGE == "elenco":
         })
     elenco.sort(key=lambda e: (POS_ORDEM.get(e["pos"], 9), -e["media"]))
 
-    if not prox_remo.empty:
-        p = prox_remo.iloc[0]
+    if not team_fixtures.empty:
+        p = team_fixtures.iloc[0]
         adversario = store.clube_nome(
-            clubes, p["fora_id"] if p["casa_id"] == REMO_ID else p["casa_id"])
-        mando = "em casa" if p["casa_id"] == REMO_ID else "fora"
+            clubes,
+            p["fora_id"] if p["casa_id"] == selected_team_id else p["casa_id"],
+        )
+        mando = "em casa" if p["casa_id"] == selected_team_id else "fora"
         quando = pd.to_datetime(p["data"]).strftime("%d/%m às %H:%M")
         st.markdown(f"### Próximo jogo: **{adversario}** ({mando}), {quando} — "
                     f"{p['local']}")
@@ -989,7 +1030,7 @@ if SELECTED_PAGE == "simulacoes":
         top = probs_df[probs_df["Título"] >= 0.001].head(8)
         st.plotly_chart(
             fig_prob_bar(top["Time"].tolist(), top["Título"].to_numpy(),
-                         (top["clube_id"] == REMO_ID).tolist(),
+                         (top["clube_id"] == selected_team_id).tolist(),
                          "Probabilidade de título"),
             width="stretch",
         )
@@ -998,7 +1039,7 @@ if SELECTED_PAGE == "simulacoes":
             "Rebaixamento (Z4)", ascending=False).head(8)
         st.plotly_chart(
             fig_prob_bar(z4["Time"].tolist(), z4["Rebaixamento (Z4)"].to_numpy(),
-                         (z4["clube_id"] == REMO_ID).tolist(),
+                         (z4["clube_id"] == selected_team_id).tolist(),
                          "Probabilidade de rebaixamento"),
             width="stretch",
         )

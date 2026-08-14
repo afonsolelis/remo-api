@@ -7,8 +7,8 @@ from src import store
 
 
 st.set_page_config(
-    page_title="Remo no Brasileirão",
-    page_icon="🦁",
+    page_title="Meu time no Brasileirão",
+    page_icon="⚽",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -16,7 +16,7 @@ st.set_page_config(
 
 pages = {
     "Visão geral": [
-        st.Page("pages/remo.py", title="Remo", icon="🦁", default=True),
+        st.Page("pages/remo.py", title="Meu time", icon="⚽", default=True),
         st.Page("pages/classificacao.py", title="Classificação", icon="📊"),
         st.Page("pages/proximos_jogos.py", title="Próximos jogos", icon="📅"),
     ],
@@ -33,7 +33,7 @@ pages = {
         st.Page("pages/copa.py", title="Copa do Brasil", icon="🏆"),
     ],
     "Dados": [
-        st.Page("pages/elenco.py", title="Elenco do Remo", icon="👥"),
+        st.Page("pages/elenco.py", title="Elenco", icon="👥"),
         st.Page("pages/partidas.py", title="Partidas e elenco", icon="📋"),
     ],
     "Admin": [
@@ -49,14 +49,38 @@ if not data:
     st.error("Os dados públicos ainda estão sendo preparados. Tente novamente em breve.")
     st.stop()
 status = data["status"]
+clubes = data["clubes"]
+team_ids = sorted(
+    {int(team_id) for team_id in clubes},
+    key=lambda team_id: store.clube_nome(clubes, team_id),
+)
+if not team_ids:
+    st.error("Nenhum clube foi encontrado nos dados da temporada.")
+    st.stop()
+if st.session_state.get("selected_team_id") not in team_ids:
+    st.session_state.selected_team_id = (
+        store.REMO_ID if store.REMO_ID in team_ids else team_ids[0]
+    )
 
 with st.container(border=True):
-    brand, publication = st.columns([2.4, 2.2], vertical_alignment="center")
+    brand, selector, publication = st.columns(
+        [2.2, 1.8, 2.2], vertical_alignment="center"
+    )
     with brand:
-        st.markdown("### 🦁 Remo no Brasileirão")
+        selected_team_name = store.clube_nome(
+            clubes, st.session_state.selected_team_id
+        )
+        st.markdown(f"### ⚽ {selected_team_name} no Brasileirão")
         st.caption(
             f"Temporada {status.get('temporada')} · Rodada "
             f"{status.get('rodada_atual')} de {status.get('rodada_final', 38)}"
+        )
+    with selector:
+        st.selectbox(
+            "Time em destaque",
+            team_ids,
+            format_func=lambda team_id: store.clube_nome(clubes, team_id),
+            key="selected_team_id",
         )
     with publication:
         if projection:

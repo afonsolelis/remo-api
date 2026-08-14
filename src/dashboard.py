@@ -438,8 +438,37 @@ def fig_heatmap(res, clubes) -> go.Figure:
     )
     fig.update_yaxes(autorange="reversed")
     fig.update_xaxes(title_text="posição final", side="top", showgrid=False)
-    return apply_layout(fig, height=620,
-                        title="Distribuição de posições finais (todas as equipes)")
+
+    zones = [
+        (0, 3, "LIBERTADORES · 1º–4º", "#238636", "rgba(35, 134, 54, 0.10)"),
+        (n - 4, n - 1, f"Z4 · {n - 3}º–{n}º", "#c9362b",
+         "rgba(201, 54, 43, 0.10)"),
+    ]
+    for start, end, label, color, fillcolor in zones:
+        fig.add_vrect(
+            x0=start - 0.5,
+            x1=end + 0.5,
+            fillcolor=fillcolor,
+            line=dict(color=color, width=2),
+            layer="above",
+        )
+        fig.add_annotation(
+            x=(start + end) / 2,
+            y=1.075,
+            xref="x",
+            yref="paper",
+            text=f"<b>{label}</b>",
+            showarrow=False,
+            font=dict(color=color, size=12),
+        )
+
+    fig = apply_layout(
+        fig,
+        height=650,
+        title="Distribuição de posições finais (todas as equipes)",
+    )
+    fig.update_layout(margin=dict(l=10, r=10, t=84, b=10))
+    return fig
 
 
 def fig_next_matches(fixtures, clubes) -> go.Figure:

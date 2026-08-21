@@ -279,12 +279,12 @@ def _render_copa_match_card(jogo: dict, rotulo: str) -> None:
                 <div class="{status_class}">{status}</div>
             </div>
             <div class="copa-scoreline">
-                <div class="copa-team">{html.escape(jogo['mandante'])}</div>
+                <div class="copa-team">{html.escape(jogo['mandante'] or 'a definir')}</div>
                 <div class="copa-score-box">
                     <div class="copa-score-main">{placar}</div>
                     {penais}
                 </div>
-                <div class="copa-team is-away">{html.escape(jogo['visitante'])}</div>
+                <div class="copa-team is-away">{html.escape(jogo['visitante'] or 'a definir')}</div>
             </div>
             <div class="copa-match-meta">{data_local}</div>
         </div>
@@ -297,7 +297,8 @@ def _render_copa_tie_card(tie: dict, destaque: str | None = None) -> None:
     jogos = tie.get("jogos", [])
     duelo = "a definir"
     if jogos:
-        duelo = f"{jogos[0]['mandante']} × {jogos[0]['visitante']}"
+        duelo = (f"{jogos[0]['mandante'] or 'a definir'} × "
+                 f"{jogos[0]['visitante'] or 'a definir'}")
 
     badge = (
         f"<div class='copa-tie-badge'>{html.escape(destaque)}</div>"
@@ -662,7 +663,8 @@ Paysandu, que virou sobre o Anápolis na final
             )
         st.caption("Fonte: ge/Globo. As competições do Remo ainda em andamento — "
                    "Brasileirão e Copa do Brasil — estão nas abas ao lado, com "
-                   "simulações ao vivo.")
+                   "simulações ao vivo. A Libertadores (sem o Remo em 2026) "
+                   "também tem página própria.")
 
 # ---- página Classificação
 if SELECTED_PAGE == "classificacao":
@@ -826,100 +828,185 @@ if SELECTED_PAGE == "partidas":
     st.caption("Fonte: mercado do Cartola (scout agregado da temporada). "
                "Preço e média são da pontuação Cartola, não do jogo real.")
 
-# ---- página Copa do Brasil
+# ---- páginas de mata-mata (Copa do Brasil e Libertadores)
 @st.cache_data(ttl=3600, show_spinner="Carregando a Copa do Brasil…")
 def load_copa_data(fetched_at: str) -> dict | None:
     return store.load_copa()
 
 
-@st.cache_data(show_spinner="Carregando projeção da Copa do Brasil…")
-def run_copa_sim(copa_fetched_at: str, cartola_fetched_at: str,
-                 model_key: str, n_sims: int) -> dict | None:
+@st.cache_data(ttl=3600, show_spinner="Carregando a Libertadores…")
+def load_libertadores_data(fetched_at: str) -> dict | None:
+    return store.load_libertadores()
+
+
+@st.cache_data(show_spinner="Carregando projeção do mata-mata…")
+def run_knockout_sim(competicao: str, doc_fetched_at: str,
+                     cartola_fetched_at: str, model_key: str,
+                     n_sims: int) -> dict | None:
     projection = store.load_projection()
-    if not projection or not projection.get("copa"):
+    if not projection or not projection.get(competicao):
         return None
-    copa = projection["copa"]
+    sim = projection[competicao]
     return {
-        **copa,
-        "probs": {int(time): valores for time, valores in copa["probs"].items()},
-        "nomes": {int(time): nome for time, nome in copa["nomes"].items()},
-        "fora_serie_a": [int(time) for time in copa["fora_serie_a"]],
+        **sim,
+        "probs": {int(time): valores for time, valores in sim["probs"].items()},
+        "nomes": {int(time): nome for time, nome in sim["nomes"].items()},
+        "fora_serie_a": [int(time) for time in sim["fora_serie_a"]],
+        "forca_estimada": [int(time) for time in sim.get("forca_estimada", [])],
     }
 
 
-if SELECTED_PAGE == "copa":
-    copa_doc = load_copa_data(data["fetched_at"])
-    if not copa_doc:
-        st.info("Não consegui carregar a Copa do Brasil agora — tente atualizar "
-                "os dados pelo botão no cabeçalho.")
-    else:
-        _render_copa_styles()
-        sim_copa = run_copa_sim(copa_doc["fetched_at"], data["fetched_at"],
-                                model_key, n_sims)
-        st.markdown(f"### {copa_doc['edicao']} — "
-                    f"{sim_copa['fase_nome'] if sim_copa else 'fase atual'}")
-
-        if sim_copa and selected_team_id in sim_copa["probs"]:
-            team_tie = next(
-                (
-                    tie for tie in sim_copa["ties"]
-                    if selected_team_id in (
-                        tie["jogos"][0]["mandante_id"],
-                        tie["jogos"][0]["visitante_id"],
-                    )
-                ),
-                None,
-            )
-            if team_tie:
-                st.subheader(f"⚽ {team_tie['nome']}: "
-                             f"{team_tie['jogos'][0]['mandante']} × "
-                             f"{team_tie['jogos'][0]['visitante']}")
-                _render_copa_tie_card(
-                    team_tie, destaque=f"Confronto do {selected_team_name}"
-                )
-
-            team_probs = sim_copa["probs"][selected_team_id]
-            cols = st.columns(len(team_probs))
-            for c, rotulo, p in zip(cols, sim_copa["rotulos"], team_probs):
-                c.metric(rotulo, pct(p))
-        elif sim_copa:
-            st.info(f"O {selected_team_name} não está nesta fase da competição.")
-
-        if sim_copa:
-            st.subheader("Probabilidades de todos (simulação do chaveamento)")
-            tabela_copa = pd.DataFrame([
-                {"Time": sim_copa["nomes"].get(t, str(t)),
-                 **{r: p for r, p in zip(sim_copa["rotulos"], ps)}}
-                for t, ps in sim_copa["probs"].items()
-            ]).sort_values(sim_copa["rotulos"][-1], ascending=False)
+def _render_grupos(fase: dict) -> None:
+    """Tabelas finais da fase de grupos (Libertadores), dois grupos por linha."""
+    grupos = fase.get("grupos", [])
+    colunas = st.columns(2)
+    for i, grupo in enumerate(grupos):
+        tabela = pd.DataFrame([
+            {
+                "Escudo": c["escudo"],
+                "Time": c["nome"],
+                "P": c["pontos"],
+                "J": c["jogos"],
+                "V": c["vitorias"],
+                "E": c["empates"],
+                "D": c["derrotas"],
+                "GP": c["gols_pro"],
+                "GC": c["gols_contra"],
+                "SG": c["saldo_gols"],
+            }
+            for c in grupo["classificacao"]
+        ])
+        with colunas[i % 2]:
+            st.markdown(f"**{grupo['nome']}**")
             st.dataframe(
-                tabela_copa, hide_index=True,
-                height=38 * (len(tabela_copa) + 1) + 3,
-                column_config={r: st.column_config.ProgressColumn(
-                    r, format="percent", min_value=0, max_value=1)
-                    for r in sim_copa["rotulos"]},
+                tabela, hide_index=True,
+                height=38 * (len(tabela) + 1) + 3,
+                column_config={
+                    "Escudo": st.column_config.ImageColumn("", width="small"),
+                },
             )
-            fora = [sim_copa["nomes"][t] for t in sim_copa["fora_serie_a"]]
-            aviso_fora = (f" Clubes fora da Série A ({', '.join(fora)}) entram com "
-                          "força estimada abaixo da média da elite." if fora else "")
-            st.caption("Ida e volta simulados por Poisson com o modelo selecionado "
-                       "no cabeçalho; agregado empatado vai para pênaltis "
-                       "(50/50); chaveamento padrão e mando das fases futuras "
-                       f"alternado.{aviso_fora}")
+    st.caption("Os dois primeiros de cada grupo avançaram às oitavas; os "
+               "terceiros foram para os playoffs da Sul-Americana.")
 
+
+def _render_mata_mata_page(
+    doc: dict | None, competicao: str, nome_competicao: str,
+    aviso_erro: str,
+) -> None:
+    if not doc:
+        st.info(f"Não consegui carregar a {nome_competicao} agora — {aviso_erro}")
+        return
+    _render_copa_styles()
+    sim = run_knockout_sim(competicao, doc["fetched_at"], data["fetched_at"],
+                           model_key, n_sims)
+    fase_atual = next((f for f in doc["fases"] if f["atual"]), None)
+    fase_nome = sim["fase_nome"] if sim else (
+        fase_atual["nome"] if fase_atual else "fase atual")
+    st.markdown(f"### {doc['edicao']} — {fase_nome}")
+    campanha = jogos_do_time(doc, selected_team_id)
+
+    if sim and selected_team_id in sim["probs"]:
+        team_tie = next(
+            (
+                tie for tie in sim["ties"]
+                if selected_team_id in (
+                    tie["jogos"][0]["mandante_id"],
+                    tie["jogos"][0]["visitante_id"],
+                )
+            ),
+            None,
+        )
+        if team_tie:
+            st.subheader(f"⚽ {team_tie['nome']}: "
+                         f"{team_tie['jogos'][0]['mandante']} × "
+                         f"{team_tie['jogos'][0]['visitante']}")
+            _render_copa_tie_card(
+                team_tie, destaque=f"Confronto do {selected_team_name}"
+            )
+
+        team_probs = sim["probs"][selected_team_id]
+        cols = st.columns(len(team_probs))
+        for c, rotulo, p in zip(cols, sim["rotulos"], team_probs):
+            c.metric(rotulo, pct(p))
+    elif not campanha:
+        st.info(f"O {selected_team_name} não disputa a {nome_competicao} "
+                "nesta temporada.")
+    elif sim:
+        st.info(f"O {selected_team_name} não está nesta fase da competição.")
+
+    if sim:
+        st.subheader("Probabilidades de todos (simulação do chaveamento)")
+        tabela = pd.DataFrame([
+            {"Time": sim["nomes"].get(t, str(t)),
+             **{r: p for r, p in zip(sim["rotulos"], ps)}}
+            for t, ps in sim["probs"].items()
+        ]).sort_values(sim["rotulos"][-1], ascending=False)
+        st.dataframe(
+            tabela, hide_index=True,
+            height=38 * (len(tabela) + 1) + 3,
+            column_config={r: st.column_config.ProgressColumn(
+                r, format="percent", min_value=0, max_value=1)
+                for r in sim["rotulos"]},
+        )
+        estimados = set(sim["forca_estimada"])
+        com_grupos = [sim["nomes"][t] for t in sim["fora_serie_a"] if t in estimados]
+        sem_dados = [sim["nomes"][t] for t in sim["fora_serie_a"]
+                     if t not in estimados]
+        avisos = ""
+        if com_grupos:
+            avisos += (f" Clubes fora da Série A ({', '.join(com_grupos)}) têm "
+                       "ataque e defesa estimados pela campanha na fase de grupos.")
+        if sem_dados:
+            avisos += (f" Clubes fora da Série A ({', '.join(sem_dados)}) entram "
+                       "com força estimada abaixo da média da elite.")
+        final_txt = ("final em jogo único em campo neutro"
+                     if sim.get("final_jogo_unico") else
+                     "mando das fases futuras alternado")
+        st.caption("Ida e volta simulados por Poisson com o modelo selecionado "
+                   "no cabeçalho; agregado empatado vai para pênaltis "
+                   f"(50/50); chaveamento padrão e {final_txt}.{avisos}")
+
+        st.subheader("Confrontos da fase")
+        _render_chaveamento_fase(sim["ties"])
+    else:
+        ties = [c for c in (fase_atual or {}).get("chaves", []) if c.get("jogos")]
+        if ties:
+            st.info("A simulação do mata-mata ainda não foi publicada pelo "
+                    "atualizador — abaixo, os confrontos da fase atual.")
             st.subheader("Confrontos da fase")
-            _render_chaveamento_fase(sim_copa["ties"])
+            _render_chaveamento_fase(ties)
 
-        campanha = jogos_do_time(copa_doc, selected_team_id)
-        if campanha:
-            with st.expander(f"Campanha do {selected_team_name} na competição"):
-                for j in campanha:
-                    placar = (f"{int(j['gols_mandante'])}×{int(j['gols_visitante'])}"
-                              if j["gols_mandante"] is not None else "a jogar")
-                    pen = (f" (pên. {int(j['pen_mandante'])}×{int(j['pen_visitante'])})"
-                           if j["pen_mandante"] is not None else "")
-                    st.markdown(f"- **{j['fase']}**: {j['mandante']} {placar}{pen} "
-                                f"{j['visitante']} · {j['data'] or ''}")
+    if campanha:
+        with st.expander(f"Campanha do {selected_team_name} na competição"):
+            for j in campanha:
+                placar = (f"{int(j['gols_mandante'])}×{int(j['gols_visitante'])}"
+                          if j["gols_mandante"] is not None else "a jogar")
+                pen = (f" (pên. {int(j['pen_mandante'])}×{int(j['pen_visitante'])})"
+                       if j["pen_mandante"] is not None else "")
+                st.markdown(f"- **{j['fase']}**: {j['mandante']} {placar}{pen} "
+                            f"{j['visitante']} · {j['data'] or ''}")
+
+
+if SELECTED_PAGE == "copa":
+    _render_mata_mata_page(
+        load_copa_data(data["fetched_at"]), "copa", "Copa do Brasil",
+        "tente atualizar os dados pelo botão no cabeçalho.",
+    )
+
+if SELECTED_PAGE == "libertadores":
+    libertadores_doc = load_libertadores_data(data["fetched_at"])
+    _render_mata_mata_page(
+        libertadores_doc, "libertadores", "Libertadores",
+        "os dados são baixados pelo atualizador (08h e 22h) ou pela página Admin.",
+    )
+    if libertadores_doc:
+        fase_grupos = next(
+            (f for f in libertadores_doc["fases"] if f.get("grupos")), None
+        )
+        if fase_grupos:
+            with st.expander("Fase de grupos (classificação final)",
+                             expanded=bool(fase_grupos["atual"])):
+                _render_grupos(fase_grupos)
 
 
 # ---- página Elenco (disponibilidade para o próximo jogo)

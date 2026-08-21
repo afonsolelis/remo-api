@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-`app.py` is the Streamlit entry point and composes the dashboard UI. Keep domain logic in `src/`: API access lives in `cartola.py` and `history.py`, persistence in `store.py`, prediction logic in `features.py` and `model.py`, simulations in `simulate.py` and `copa.py`, and presentation helpers in `viz.py`. Operational utilities belong in `scripts/`, including scheduled and manual data refreshes. Runtime caches and JSON snapshots are written under `data/`; do not commit generated data or model artifacts unless a change explicitly requires them. Container configuration is defined by `Dockerfile` and `docker-compose.yml`.
+`app.py` is the Streamlit entry point and composes the dashboard UI. Keep domain logic in `src/`: API access lives in `cartola.py` and `history.py`, persistence in `store.py`, prediction logic in `features.py` and `model.py`, simulations in `simulate.py` and `copa.py` (the ge bracket client in `copa.py` is shared with `libertadores.py`), and presentation helpers in `viz.py`. Operational utilities belong in `scripts/`, including scheduled and manual data refreshes. Runtime caches and JSON snapshots are written under `data/`; do not commit generated data or model artifacts unless a change explicitly requires them. Container configuration is defined by `Dockerfile` and `docker-compose.yml`.
 
 ## Build, Test, and Development Commands
 

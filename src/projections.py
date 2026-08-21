@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
-from . import store
-from .copa import simulate_knockout
+from . import libertadores, store
+from .copa import UNKNOWN_ATK, UNKNOWN_DEF, simulate_knockout
 from .evaluate import backtest
 from .history import load_historical
 from .model import PoissonBaseline, make_predictor, outcome_probs
@@ -63,8 +63,17 @@ def _league_projection(
     }
 
 
-def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None:
-    doc = store.load_copa()
+def _knockout_projection(
+    doc: dict | None,
+    data: dict,
+    played: pd.DataFrame,
+    predictor,
+    final_jogo_unico: bool = False,
+    forca_extra: dict[int, tuple[float, float]] | None = None,
+) -> dict | None:
+    """Simula o mata-mata de uma competição (documento do ge) a partir da
+    fase atual. ``forca_extra`` dá (ataque, defesa) para clubes fora da Série
+    A — quem não estiver nem lá entra com a força genérica ``UNKNOWN_*``."""
     if not doc:
         return None
     fase_atual = next((fase for fase in doc["fases"] if fase["atual"]), None)
@@ -73,6 +82,10 @@ def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None
     ties = [chave for chave in fase_atual["chaves"] if chave.get("jogos")]
     if not ties:
         return None
+    for tie in ties:
+        jogo = tie["jogos"][0]
+        if jogo["mandante_id"] is None or jogo["visitante_id"] is None:
+            return None  # chave ainda sem os dois clubes definidos
 
     df = store.matches_df(data)
     serie_a = set(df["casa_id"]) | set(df["fora_id"])
@@ -85,6 +98,7 @@ def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None
         nomes[jogo["visitante_id"]] = jogo["visitante"]
 
     base = PoissonBaseline().fit(played)
+    forca_extra = forca_extra or {}
     pares = [
         (casa, fora)
         for casa in times_copa
@@ -102,19 +116,26 @@ def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None
             for i, par in enumerate(pares)
         }
 
+    def forca(time: int) -> tuple[float, float]:
+        if time in base.atk:
+            return base.atk[time], base.dfn[time]
+        if time in forca_extra:
+            return forca_extra[time]
+        return UNKNOWN_ATK, UNKNOWN_DEF
+
     def lam_pair(casa: int, fora: int) -> tuple[float, float]:
         if (casa, fora) in conhecidos:
             return conhecidos[(casa, fora)]
-        atk_h = base.atk.get(casa, 0.85)
-        dfn_h = base.dfn.get(casa, 1.15)
-        atk_a = base.atk.get(fora, 0.85)
-        dfn_a = base.dfn.get(fora, 1.15)
+        atk_h, dfn_h = forca(casa)
+        atk_a, dfn_a = forca(fora)
         return (
             float(np.clip(base.mu_home * atk_h * dfn_a, 0.05, 6.0)),
             float(np.clip(base.mu_away * atk_a * dfn_h, 0.05, 6.0)),
         )
 
-    probs = simulate_knockout(ties, lam_pair, n_sims=N_SIMS)
+    probs = simulate_knockout(
+        ties, lam_pair, n_sims=N_SIMS, final_jogo_unico=final_jogo_unico
+    )
     fases_seguintes = []
     encontrou_atual = False
     for fase in doc["fases"]:
@@ -124,6 +145,10 @@ def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None
             encontrou_atual = True
     rotulos = fases_seguintes + ["🏆 Título"]
     n_fases = len(next(iter(probs.values())))
+    estimados = [
+        time for time in times_copa
+        if time not in serie_a and time in forca_extra
+    ]
     return {
         "probs": {str(time): list(valores) for time, valores in probs.items()},
         "rotulos": rotulos[:n_fases],
@@ -131,7 +156,26 @@ def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None
         "ties": ties,
         "fase_nome": fase_atual["nome"],
         "fora_serie_a": [time for time in times_copa if time not in serie_a],
+        "forca_estimada": estimados,
+        "final_jogo_unico": final_jogo_unico,
     }
+
+
+def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None:
+    return _knockout_projection(store.load_copa(), data, played, predictor)
+
+
+def _libertadores_projection(
+    data: dict, played: pd.DataFrame, predictor
+) -> dict | None:
+    doc = store.load_libertadores()
+    if not doc:
+        return None
+    return _knockout_projection(
+        doc, data, played, predictor,
+        final_jogo_unico=True,
+        forca_extra=libertadores.forca_por_grupos(doc),
+    )
 
 
 def generate(data: dict | None = None) -> dict:
@@ -149,6 +193,7 @@ def generate(data: dict | None = None) -> dict:
 
     league = _league_projection(data, played, future, team_ids, predictor)
     copa = _copa_projection(data, played, predictor)
+    liberta = _libertadores_projection(data, played, predictor)
     evaluation = backtest(
         played, n_rounds=BACKTEST_ROUNDS, historical=historical
     )
@@ -161,6 +206,7 @@ def generate(data: dict | None = None) -> dict:
         "n_sims": N_SIMS,
         "league": league,
         "copa": copa,
+        "libertadores": liberta,
         "backtest": _json_records(evaluation),
         "backtest_rounds": BACKTEST_ROUNDS,
     }

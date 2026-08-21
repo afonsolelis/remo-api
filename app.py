@@ -31,6 +31,7 @@ pages = {
     ],
     "Competições": [
         st.Page("pages/copa.py", title="Copa do Brasil", icon="🏆"),
+        st.Page("pages/libertadores.py", title="Libertadores", icon="🌎"),
     ],
     "Dados": [
         st.Page("pages/elenco.py", title="Elenco", icon="👥"),

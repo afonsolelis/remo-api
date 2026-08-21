@@ -3,16 +3,22 @@
 Os IDs de clube são os mesmos do Cartola (base SDE da Globo), então o modelo
 de previsão da Série A funciona direto nos confrontos entre clubes da elite.
 
+O cliente da API é genérico (``fetch_bracket(tabela_uuid)``) e também serve a
+Libertadores (``src/libertadores.py``): fases de mata-mata viram ``chaves`` e
+fases de pontos corridos em grupos viram ``grupos``.
+
 Também contém a simulação Monte Carlo do mata-mata: ida e volta por Poisson,
 agregado, pênaltis 50/50, chaveamento padrão (O1×O2, O3×O4… nas fases
-seguintes) e mando futuro alternado.
+seguintes), mando futuro alternado e, opcionalmente, final em jogo único.
 """
+
+import re
 
 import numpy as np
 import requests
 
-# Edição 2026 — o UUID muda a cada temporada (está embutido na página
-# ge.globo.com/futebol/copa-do-brasil/).
+# Edição 2026 — o UUID muda a cada temporada (está no atributo
+# ``data-bs-resource-id`` da página ge.globo.com/futebol/copa-do-brasil/).
 TABELA_UUID = "11c5766c-f8f6-4e1b-b5e0-7309f67b54e9"
 BASE_URL = "https://api.globoesporte.globo.com/tabela"
 TIMEOUT = 20
@@ -59,23 +65,69 @@ def _parse_chaves(payload: dict) -> list[dict]:
     return chaves
 
 
-def fetch_bracket() -> dict:
-    """Todas as fases da edição: {'fase_atual', 'fases': [{slug, nome, atual,
-    chaves}]} — uma requisição por fase (9 no total, sem autenticação)."""
-    atual = _get(f"{BASE_URL}/{TABELA_UUID}/classificacao/")
+def _parse_grupos(payload: dict) -> list[dict]:
+    """Fases de pontos corridos em grupos (ex.: fase de grupos da
+    Libertadores): classificação de cada grupo, já ordenada pela API."""
+    grupos = []
+    for g in payload.get("grupos", []):
+        tabela = []
+        for c in g.get("classificacao", []):
+            tabela.append({
+                "ordem": c.get("ordem"),
+                "equipe_id": c.get("equipe_id"),
+                "nome": c.get("nome_popular"),
+                "sigla": c.get("sigla"),
+                "escudo": c.get("escudo"),
+                "pontos": c.get("pontos"),
+                "jogos": c.get("jogos"),
+                "vitorias": c.get("vitorias"),
+                "empates": c.get("empates"),
+                "derrotas": c.get("derrotas"),
+                "gols_pro": c.get("gols_pro"),
+                "gols_contra": c.get("gols_contra"),
+                "saldo_gols": c.get("saldo_gols"),
+                "faixa_cor": c.get("faixa_classificacao_cor"),
+            })
+        grupos.append({"nome": g.get("nome_grupo"), "classificacao": tabela})
+    return grupos
+
+
+def _numero_chave(nome: str | None) -> int:
+    m = re.search(r"(\d+)\s*$", nome or "")
+    return int(m.group(1)) if m else 0
+
+
+def ordenar_chaves(chaves: list[dict]) -> list[dict]:
+    """Ordena as chaves pelo número no nome ("Oitavas 1", "Oitavas 2", …).
+
+    A API devolve as chaves agrupadas em seções (os pares da fase seguinte),
+    não necessariamente em ordem; a simulação assume O1×O2, O3×O4, … ."""
+    if all(_numero_chave(c.get("nome")) for c in chaves):
+        return sorted(chaves, key=lambda c: _numero_chave(c.get("nome")))
+    return list(chaves)
+
+
+def fetch_bracket(tabela_uuid: str = TABELA_UUID,
+                  nome_padrao: str = "Copa do Brasil") -> dict:
+    """Todas as fases da edição: {'edicao', 'fase_atual', 'fases': [{slug,
+    nome, atual, chaves, grupos}]} — uma requisição por fase, sem
+    autenticação. ``chaves`` vem de fases de mata-mata e ``grupos`` de fases
+    de pontos corridos em grupos (lista vazia quando não se aplica)."""
+    atual = _get(f"{BASE_URL}/{tabela_uuid}/classificacao/")
     fases = []
     for f in atual.get("fases_navegacao", []):
         slug = f["slug"]
         try:
             payload = atual if f.get("atual") else _get(
-                f"{BASE_URL}/{TABELA_UUID}/fase/{slug}/classificacao/")
-            chaves = _parse_chaves(payload)
+                f"{BASE_URL}/{tabela_uuid}/fase/{slug}/classificacao/")
+            chaves = ordenar_chaves(_parse_chaves(payload))
+            grupos = _parse_grupos(payload)
         except Exception:
-            chaves = []
+            chaves, grupos = [], []
         fases.append({"slug": slug, "nome": f.get("nome"), "atual": bool(f.get("atual")),
-                      "chaves": chaves})
+                      "chaves": chaves, "grupos": grupos})
     return {
-        "edicao": atual.get("edicao", {}).get("nome", "Copa do Brasil"),
+        "edicao": atual.get("edicao", {}).get("nome", nome_padrao),
         "fase_atual": atual.get("fase", {}).get("slug"),
         "fases": fases,
     }
@@ -105,13 +157,16 @@ def simulate_knockout(
     lam_pair,
     n_sims: int = 5000,
     seed: int = 7,
+    final_jogo_unico: bool = False,
 ):
     """Simula o mata-mata a partir da fase atual.
 
     ``ties``: lista de chaves da fase atual, cada uma com ``jogos`` (ida/volta,
     placares preenchidos quando já disputados). ``lam_pair(h, a)`` devolve
-    (lam_casa, lam_fora) para um jogo h×a. Retorna dict
-    team_id -> [P(avançar fase 1), P(avançar fase 2), …] até o título.
+    (lam_casa, lam_fora) para um jogo h×a. Com ``final_jogo_unico`` a última
+    rodada é decidida em partida única em campo neutro (Libertadores): as
+    taxas de gols são a média do jogo em casa e fora de cada lado. Retorna
+    dict team_id -> [P(avançar fase 1), P(avançar fase 2), …] até o título.
     """
     rng = np.random.default_rng(seed)
 
@@ -168,6 +223,12 @@ def simulate_knockout(
                         pen_vence_m = j["pen_mandante"] > j["pen_visitante"]
                         ga = ga + np.where(a == hi, 0.5 if pen_vence_m else -0.5,
                                            -0.5 if pen_vence_m else 0.5)
+            elif final_jogo_unico and rodada == n_rounds - 1:
+                # final única em campo neutro: média do mando de cada lado
+                la = (lam_h[a, b] + lam_a[b, a]) / 2
+                lb = (lam_a[a, b] + lam_h[b, a]) / 2
+                ga = rng.poisson(la).astype(float)
+                gb = rng.poisson(lb).astype(float)
             else:
                 g1m, g1v = _leg(a, b)  # ida: A manda
                 g2m, g2v = _leg(b, a)  # volta: B manda

@@ -46,14 +46,14 @@ if snapshot:
     st.caption(f"Última atualização dos dados: {fetched:%d/%m/%Y às %H:%M}")
 
 st.markdown(
-    "Baixa a temporada, elenco/pontuações e a Copa do Brasil, e re-treina os "
-    "modelos e simulações publicadas. O mesmo processo do atualizador "
+    "Baixa a temporada, elenco/pontuações, Copa do Brasil e Libertadores, e "
+    "re-treina os modelos e simulações publicadas. O mesmo processo do atualizador "
     "automático (08h e 22h)."
 )
 
 if st.button("🔄 Atualizar sistema agora", type="primary"):
     try:
-        with st.spinner("Baixando temporada, elenco e Copa do Brasil…"):
+        with st.spinner("Baixando temporada, elenco, Copa do Brasil e Libertadores…"):
             data = store.refresh()
         with st.spinner("Treinando modelos e gerando projeções…"):
             projection = generate_and_save(data)

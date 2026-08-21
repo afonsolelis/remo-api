@@ -16,6 +16,11 @@ treinam em segundos).
   (mesmos IDs de clube do Cartola), campanha do Remo e **simulação Monte
   Carlo do mata-mata**: ida/volta por Poisson, pênaltis, probabilidade de
   cada clube avançar fase a fase até o título. Guardado no banco (`copa`).
+- **🌎 Libertadores** — mesma API do ge: tabelas finais da fase de grupos,
+  chaveamento do mata-mata, campanha do time e simulação Monte Carlo até o
+  título (final em jogo único). Clubes estrangeiros entram com ataque/defesa
+  estimados pela campanha na fase de grupos. Guardado no banco
+  (`libertadores`).
 - **📋 Partidas & elenco** — pontuação e scout do Cartola de cada jogador em
   cada partida (gols, assistências, desarmes, defesas, cartões…) e o plantel
   de qualquer clube com estatísticas da temporada (preço, média, status).
@@ -121,7 +126,8 @@ docker-compose.yml      # mongo + app + updater (2x/dia)
 scripts/scheduler.py    # agendador do updater (08h e 22h)
 scripts/update_data.py  # atualização manual/cron dos dados
 src/cartola.py          # cliente da API do Cartola
-src/copa.py             # Copa do Brasil (API do ge) + simulação do mata-mata
+src/copa.py             # cliente da API de tabela do ge + simulação do mata-mata
+src/libertadores.py     # Libertadores: edição, grupos e força dos clubes estrangeiros
 src/store.py            # persistência: MongoDB (Docker) ou JSON local
 src/history.py          # histórico 2012+ (football-data.co.uk)
 src/standings.py        # classificação e forma

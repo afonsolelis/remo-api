@@ -110,6 +110,10 @@ def refresh() -> dict:
         refresh_copa()  # chaveamento da Copa do Brasil (API do ge)
     except Exception:
         pass
+    try:
+        refresh_libertadores()  # grupos + chaveamento da Libertadores (API do ge)
+    except Exception:
+        pass
     return data
 
 
@@ -212,6 +216,49 @@ def ensure_copa(max_age_hours: float = 24.0) -> dict:
         if age_h < max_age_hours:
             return doc
     return refresh_copa()
+
+
+LIBERTADORES_FILE = DATA_DIR / "libertadores.json"
+
+
+def _store_libertadores(doc: dict):
+    if MONGO_URL:
+        _mongo().libertadores.replace_one(
+            {"_id": "bracket"}, {"_id": "bracket", **doc}, upsert=True)
+    else:
+        DATA_DIR.mkdir(exist_ok=True)
+        LIBERTADORES_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+
+
+def load_libertadores() -> dict | None:
+    if MONGO_URL:
+        doc = _mongo().libertadores.find_one({"_id": "bracket"})
+        if doc:
+            doc.pop("_id", None)
+            return doc
+        return None
+    if LIBERTADORES_FILE.exists():
+        return json.loads(LIBERTADORES_FILE.read_text())
+    return None
+
+
+def refresh_libertadores() -> dict:
+    from . import libertadores
+
+    doc = libertadores.fetch_bracket()
+    doc["fetched_at"] = datetime.now(timezone.utc).isoformat()
+    _store_libertadores(doc)
+    return doc
+
+
+def ensure_libertadores(max_age_hours: float = 24.0) -> dict:
+    doc = load_libertadores()
+    if doc:
+        fetched_at = datetime.fromisoformat(doc["fetched_at"])
+        age_h = (datetime.now(timezone.utc) - fetched_at).total_seconds() / 3600
+        if age_h < max_age_hours:
+            return doc
+    return refresh_libertadores()
 
 
 def refresh_atletas(status: dict | None = None) -> dict:

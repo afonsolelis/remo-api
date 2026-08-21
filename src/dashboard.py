@@ -406,6 +406,7 @@ def fig_heatmap(res, clubes) -> go.Figure:
     names = [store.clube_nome(clubes, res.team_ids[i]) for i in order]
     z = res.pos_dist[order]
     n = len(names)
+    positions = list(range(1, n + 1))
     # Escala ancorada em probabilidades absolutas: zero fica visualmente vazio,
     # enquanto diferenças nas faixas mais úteis continuam fáceis de comparar.
     zmax = max(0.30, float(np.nanmax(z)))
@@ -421,7 +422,7 @@ def fig_heatmap(res, clubes) -> go.Figure:
     fig = go.Figure(
         go.Heatmap(
             z=z,
-            x=[str(p) for p in range(1, n + 1)],
+            x=positions,
             y=names,
             colorscale=colorscale,
             zmin=0,
@@ -438,11 +439,18 @@ def fig_heatmap(res, clubes) -> go.Figure:
         )
     )
     fig.update_yaxes(autorange="reversed")
-    fig.update_xaxes(title_text="posição final", side="top", showgrid=False)
+    fig.update_xaxes(
+        title_text="posição final",
+        side="top",
+        showgrid=False,
+        tickmode="array",
+        tickvals=positions,
+        range=[0.5, n + 0.5],
+    )
 
     zones = [
-        (0, 3, "LIBERTADORES · 1º–4º", "#238636", "rgba(35, 134, 54, 0.10)"),
-        (n - 4, n - 1, f"Z4 · {n - 3}º–{n}º", "#c9362b",
+        (1, 4, "LIBERTADORES · 1º–4º", "#238636", "rgba(35, 134, 54, 0.10)"),
+        (n - 3, n, f"Z4 · {n - 3}º–{n}º", "#c9362b",
          "rgba(201, 54, 43, 0.10)"),
     ]
     for start, end, label, color, fillcolor in zones:

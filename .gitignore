@@ -2,6 +2,7 @@
 .venv/
 __pycache__/
 *.pyc
+.claude/worktrees/
 
 # dados baixados e artefatos gerados (recriados pelo app/updater)
 data/

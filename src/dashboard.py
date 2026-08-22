@@ -271,7 +271,7 @@ def _render_copa_match_card(jogo: dict, rotulo: str) -> None:
         f"{html.escape(_fmt_data_hora(jogo['data'], jogo['hora']))} · "
         f"{html.escape(jogo['sede'] or 'local a definir')}"
     )
-    st.markdown(
+    st.html(
         f"""
         <div class="copa-match-card">
             <div class="copa-match-top">
@@ -289,7 +289,6 @@ def _render_copa_match_card(jogo: dict, rotulo: str) -> None:
             <div class="copa-match-meta">{data_local}</div>
         </div>
         """,
-        unsafe_allow_html=True,
     )
 
 
@@ -304,7 +303,7 @@ def _render_copa_tie_card(tie: dict, destaque: str | None = None) -> None:
         f"<div class='copa-tie-badge'>{html.escape(destaque)}</div>"
         if destaque else ""
     )
-    st.markdown(
+    st.html(
         f"""
         <div class="copa-tie-card">
             <div class="copa-tie-header">
@@ -318,7 +317,6 @@ def _render_copa_tie_card(tie: dict, destaque: str | None = None) -> None:
             </div>
         </div>
         """,
-        unsafe_allow_html=True,
     )
     for j, jogo in enumerate(jogos, start=1):
         _render_copa_match_card(jogo, "Jogo de ida" if j == 1 else "Jogo de volta")

@@ -62,10 +62,12 @@ if st.session_state.get("selected_team_id") not in team_ids:
     st.session_state.selected_team_id = (
         store.REMO_ID if store.REMO_ID in team_ids else team_ids[0]
     )
+if "visit_count" not in st.session_state:
+    st.session_state.visit_count = store.register_visit()
 
 with st.container(border=True):
-    brand, selector, publication = st.columns(
-        [2.2, 1.8, 2.2], vertical_alignment="center"
+    brand, selector, publication, visits = st.columns(
+        [2.2, 1.8, 2.2, 1.0], vertical_alignment="center"
     )
     with brand:
         selected_team_name = store.clube_nome(
@@ -93,6 +95,14 @@ with st.container(border=True):
             st.caption(f"Projeção atualizada em {generated:%d/%m/%Y às %H:%M}")
         else:
             st.warning("As projeções estão sendo preparadas pelo atualizador.")
+    with visits:
+        visit_count = st.session_state.visit_count
+        formatted_count = (
+            f"{visit_count:,}".replace(",", ".")
+            if visit_count is not None
+            else "—"
+        )
+        st.metric("👁️ Visitas", formatted_count)
 
 fetched = datetime.fromisoformat(data["fetched_at"])
 age_h = (datetime.now(timezone.utc) - fetched).total_seconds() / 3600

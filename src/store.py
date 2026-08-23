@@ -36,6 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 SEASON_FILE = DATA_DIR / "season.json"
 PROJECTION_FILE = DATA_DIR / "projection.json"
+VISITS_FILE = DATA_DIR / "visits.json"
 
 REMO_ID = 364
 
@@ -66,6 +67,38 @@ NOMES_REAIS = {
 
 # Um jogo é considerado encerrado este tempo depois do apito inicial.
 MATCH_DURATION_S = 2 * 3600
+
+
+def register_visit() -> int | None:
+    """Registra uma nova sessão e devolve o total acumulado de visitas."""
+    updated_at = datetime.now(timezone.utc).isoformat()
+    try:
+        if MONGO_URL:
+            from pymongo import ReturnDocument
+
+            doc = _mongo().metrics.find_one_and_update(
+                {"_id": "visits"},
+                {"$inc": {"count": 1}, "$set": {"updated_at": updated_at}},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+            return int(doc["count"])
+
+        count = 0
+        if VISITS_FILE.exists():
+            count = int(json.loads(VISITS_FILE.read_text()).get("count", 0))
+        count += 1
+        DATA_DIR.mkdir(exist_ok=True)
+        VISITS_FILE.write_text(
+            json.dumps(
+                {"count": count, "updated_at": updated_at},
+                ensure_ascii=False,
+            )
+        )
+        return count
+    except Exception:
+        # A métrica é opcional e nunca deve impedir a abertura do dashboard.
+        return None
 
 
 def refresh() -> dict:

@@ -58,11 +58,10 @@ def run_backtest(fetched_at: str, n_rounds: int) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner="Carregando simulações publicadas…")
-def run_sim(fetched_at: str, model_key: str, n_sims: int) -> dict:
+def run_sim(fetched_at: str, model_key: str, n_sims: int) -> dict | None:
     projection = store.load_projection()
     if not projection:
-        st.info("As projeções ainda estão sendo preparadas. Tente novamente em breve.")
-        st.stop()
+        return None
     return published_simulation(projection)
 
 
@@ -532,19 +531,42 @@ projection = store.load_projection()
 model_key = projection.get("model_key", "ensemble") if projection else "ensemble"
 n_sims = int(projection.get("n_sims", 0)) if projection else 0
 
-_SIMULATION_PAGES = {
-    "remo",
-    "simulacoes",
-    "classificacao_projetada",
-    "proximos_jogos",
-}
-if SELECTED_PAGE in _SIMULATION_PAGES and future.empty:
-    st.info("Temporada encerrada — não há jogos futuros para simular.")
-    st.stop()
+# A página do Brasileirão empilha todas as seções da Série A numa rolagem só;
+# as de competição renderizam apenas a sua. Daqui para baixo nada de
+# ``st.stop()``: numa página empilhada ele derrubaria as seções seguintes.
+SECOES_BRASILEIRAO = (
+    "remo", "classificacao", "proximos_jogos", "simulacoes",
+    "cenarios", "elenco", "partidas", "modelo",
+)
+_SIMULATION_PAGES = ("remo", "simulacoes", "cenarios", "proximos_jogos")
+
+
+def ativa(*nomes: str) -> bool:
+    """Se alguma das seções pedidas entra na página atual."""
+    if SELECTED_PAGE == "brasileirao":
+        return any(nome in SECOES_BRASILEIRAO for nome in nomes)
+    return SELECTED_PAGE in nomes
+
+
+def secao(titulo: str) -> None:
+    """Cabeçalho que separa as seções empilhadas do Brasileirão."""
+    if SELECTED_PAGE == "brasileirao":
+        st.divider()
+        st.header(titulo)
+
 
 standings = compute_standings(played, clubes, team_ids)
-if SELECTED_PAGE in _SIMULATION_PAGES:
-    sim = run_sim(data["fetched_at"], model_key, n_sims)
+sim = None
+if ativa(*_SIMULATION_PAGES):
+    if future.empty:
+        st.info("Temporada encerrada — não há jogos futuros para simular.")
+    else:
+        sim = run_sim(data["fetched_at"], model_key, n_sims)
+        if sim is None:
+            st.info("As projeções ainda estão sendo preparadas. "
+                    "Tente novamente em breve.")
+sim_ok = sim is not None
+if sim_ok:
     res = sim["res"]
     fixtures = sim["fixtures"]
     selected_team_index = team_ids.index(selected_team_id)
@@ -556,8 +578,47 @@ def rotulo_rodada(r: int) -> str:
     """Rodadas antigas com jogo pendente são adiamentos (ex.: FLA×MIR da 4ª)."""
     return f"Rodada {r} · jogo adiado" if r < _rodada_atual else f"Rodada {r}"
 
+@st.cache_data(show_spinner=False)
+def heatmap_publicado(fetched_at: str) -> go.Figure:
+    """Cacheado por snapshot: independe do time em destaque."""
+    return fig_heatmap(res, clubes)
+
+
+# ---- dados de atletas (usados por Elenco e Partidas)
+STATUS_ICON = {"Provável": "🟢", "Dúvida": "🟡", "Suspenso": "🔴",
+               "Contundido": "🚑", "Nulo": "⚪"}
+SCOUT_COLS = ["G", "A", "FD", "FF", "DS", "FS", "DE", "SG", "CA", "CV"]
+SCOUT_HELP = {"G": "Gols", "A": "Assistências", "FD": "Finalizações defendidas",
+              "FF": "Finalizações para fora", "DS": "Desarmes",
+              "FS": "Faltas sofridas", "DE": "Defesas",
+              "SG": "Jogo sem sofrer gol", "CA": "Cartões amarelos",
+              "CV": "Cartões vermelhos"}
+
+
+@st.cache_data(ttl=3600, show_spinner="Carregando elencos e pontuações…")
+def load_atletas_data(fetched_at: str):
+    doc = store.load_atletas()
+    return doc, store.load_pontuados_all()
+
+
+atletas_ok = False
+if ativa("partidas", "elenco"):
+    atletas_doc, pontuados = load_atletas_data(data["fetched_at"])
+    if not atletas_doc:
+        st.info("Os dados de atletas ainda estão sendo preparados.")
+    else:
+        atletas_ok = True
+        posicoes_map = {
+            int(k): v["nome"] for k, v in atletas_doc["posicoes"].items()
+        }
+        status_map = {
+            int(k): v["nome"] for k, v in atletas_doc["status_atletas"].items()
+        }
+
+
 # ---- página do time selecionado
-if SELECTED_PAGE == "remo":
+if ativa("remo") and sim_ok:
+    secao(f"⚽ {selected_team_name}")
     team_row = standings[standings["clube_id"] == selected_team_id].iloc[0]
     ultimos = team_last_results(played, selected_team_id)
 
@@ -642,8 +703,6 @@ if SELECTED_PAGE == "remo":
                 for c in [f"Vitória do {selected_team_name}", "Empate", "Derrota"]
             },
         )
-        st.plotly_chart(fig_next_matches(prox_ordenados, clubes), width="stretch")
-
     if selected_team_id == store.REMO_ID:
         st.divider()
         st.subheader("🏅 Outras competições do Remo em 2026")
@@ -673,7 +732,8 @@ Paysandu, que virou sobre o Anápolis na final
                    "também tem página própria.")
 
 # ---- página Classificação
-if SELECTED_PAGE == "classificacao":
+if ativa("classificacao"):
+    secao("📊 Classificação")
     disp = standings.copy()
     disp["Escudo"] = disp["clube_id"].map(lambda t: store.clube_escudo(clubes, t))
     disp["Últimos 5"] = disp["clube_id"].map(
@@ -700,35 +760,356 @@ if SELECTED_PAGE == "classificacao":
     st.caption("Desempate: pontos, vitórias, saldo de gols e gols pró "
                "(confronto direto não é aplicado).")
 
-# ---- página Partidas & elenco
-STATUS_ICON = {"Provável": "🟢", "Dúvida": "🟡", "Suspenso": "🔴",
-               "Contundido": "🚑", "Nulo": "⚪"}
-SCOUT_COLS = ["G", "A", "FD", "FF", "DS", "FS", "DE", "SG", "CA", "CV"]
-SCOUT_HELP = {"G": "Gols", "A": "Assistências", "FD": "Finalizações defendidas",
-              "FF": "Finalizações para fora", "DS": "Desarmes",
-              "FS": "Faltas sofridas", "DE": "Defesas",
-              "SG": "Jogo sem sofrer gol", "CA": "Cartões amarelos",
-              "CV": "Cartões vermelhos"}
+# ---- página Próximos jogos
+if ativa("proximos_jogos") and sim_ok:
+    secao("📅 Próximos jogos")
+    rodadas_futuras = sorted(fixtures["rodada"].unique())
+    rodada_sel = st.selectbox("Rodada", rodadas_futuras,
+                              format_func=rotulo_rodada,
+                              key="rodada_proximos")
+    jogos = fixtures[fixtures["rodada"] == rodada_sel].sort_values("timestamp")
+    st.plotly_chart(fig_next_matches(jogos, clubes), width="stretch")
+    st.caption("Probabilidades do modelo para cada jogo (vitória do mandante, "
+               "empate, vitória do visitante).")
 
+# ---- página Simulações
+if ativa("simulacoes") and sim_ok:
+    secao("🔮 Simulações")
+    st.caption(f"{res.n_sims:,} temporadas simuladas com o modelo "
+               f"**{sim['model']}** · jogos restantes: {len(fixtures)}".replace(",", "."))
 
-@st.cache_data(ttl=3600, show_spinner="Carregando elencos e pontuações…")
-def load_atletas_data(fetched_at: str):
-    doc = store.load_atletas()
-    return doc, store.load_pontuados_all()
+    probs_df = pd.DataFrame({
+        "clube_id": res.team_ids,
+        "Time": [store.clube_nome(clubes, t) for t in res.team_ids],
+        "Pontos esperados": np.round(res.exp_pts, 1),
+        "Título": res.p_titulo,
+        "Libertadores (G4)": res.p_g4,
+        "G6": res.p_g6,
+        "Rebaixamento (Z4)": res.p_z4,
+    }).sort_values("Pontos esperados", ascending=False).reset_index(drop=True)
 
+    st.plotly_chart(heatmap_publicado(data["fetched_at"]), width="stretch")
 
-if SELECTED_PAGE in {"partidas", "elenco"}:
-    atletas_doc, pontuados = load_atletas_data(data["fetched_at"])
-    if not atletas_doc:
-        st.info("Os dados de atletas ainda estão sendo preparados.")
-        st.stop()
-    posicoes_map = {int(k): v["nome"] for k, v in atletas_doc["posicoes"].items()}
-    status_map = {
-        int(k): v["nome"] for k, v in atletas_doc["status_atletas"].items()
-    }
+    col1, col2 = st.columns(2)
+    with col1:
+        top = probs_df[probs_df["Título"] >= 0.001].head(8)
+        st.plotly_chart(
+            fig_prob_bar(top["Time"].tolist(), top["Título"].to_numpy(),
+                         (top["clube_id"] == selected_team_id).tolist(),
+                         "Probabilidade de título"),
+            width="stretch",
+        )
+    with col2:
+        z4 = probs_df[probs_df["Rebaixamento (Z4)"] >= 0.001].sort_values(
+            "Rebaixamento (Z4)", ascending=False).head(8)
+        st.plotly_chart(
+            fig_prob_bar(z4["Time"].tolist(), z4["Rebaixamento (Z4)"].to_numpy(),
+                         (z4["clube_id"] == selected_team_id).tolist(),
+                         "Probabilidade de rebaixamento"),
+            width="stretch",
+        )
 
+    st.divider()
+    st.markdown("### 🏁 Classificação projetada ao fim do Brasileirão")
+    st.caption(
+        "Projeção após a última rodada. A posição média agrega todos os "
+        "cenários e pode conter valores decimais."
+    )
 
-if SELECTED_PAGE == "partidas":
+    posicoes = np.arange(1, len(res.team_ids) + 1)
+    pos_media = res.pos_dist @ posicoes
+    pos_mais_provavel = np.argmax(res.pos_dist, axis=1) + 1
+    pos_atual = dict(zip(standings["clube_id"], standings["Pos"]))
+
+    projecao = pd.DataFrame({
+        "clube_id": res.team_ids,
+        "Time": [store.clube_nome(clubes, t) for t in res.team_ids],
+        "Posição média": pos_media,
+        "Posição mais provável": pos_mais_provavel,
+        "Pontos projetados": res.exp_pts,
+        "Posição atual": [pos_atual[t] for t in res.team_ids],
+        "Título": res.p_titulo,
+        "G4": res.p_g4,
+        "G6": res.p_g6,
+        "Z4": res.p_z4,
+    }).sort_values(
+        ["Posição média", "Pontos projetados"], ascending=[True, False]
+    ).reset_index(drop=True)
+
+    projecao.insert(0, "Pos. projetada", np.arange(1, len(projecao) + 1))
+    projecao["Variação"] = (
+        projecao["Posição atual"] - projecao["Pos. projetada"]
+    ).map(lambda v: f"▲ {v}" if v > 0 else (f"▼ {abs(v)}" if v < 0 else "—"))
+
+    n_times = len(projecao)
+
+    def zona(posicao: int) -> str:
+        if posicao <= 4:
+            return "🌎 Libertadores"
+        if posicao <= 6:
+            return "✈️ G6"
+        if posicao >= n_times - 3:
+            return "🚨 Z4"
+        return "Série A"
+
+    projecao["Zona"] = projecao["Pos. projetada"].map(zona)
+
+    st.dataframe(
+        projecao.drop(columns=["clube_id"]),
+        hide_index=True,
+        height=775,
+        column_order=[
+            "Pos. projetada",
+            "Time",
+            "Pontos projetados",
+            "Posição média",
+            "Posição mais provável",
+            "Posição atual",
+            "Variação",
+            "Zona",
+            "Título",
+            "G4",
+            "G6",
+            "Z4",
+        ],
+        column_config={
+            "Pos. projetada": st.column_config.NumberColumn(
+                "Pos.", format="%d", width="small"
+            ),
+            "Pontos projetados": st.column_config.NumberColumn(
+                "Pontos", format="%.1f"
+            ),
+            "Posição média": st.column_config.NumberColumn(format="%.1f"),
+            "Posição mais provável": st.column_config.NumberColumn(
+                "Pos. mais provável", format="%d"
+            ),
+            **{
+                c: st.column_config.ProgressColumn(
+                    c, format="percent", min_value=0, max_value=1
+                )
+                for c in ["Título", "G4", "G6", "Z4"]
+            },
+        },
+    )
+    st.caption(
+        "A ordem usa a posição média em todos os cenários; por isso, pontos "
+        "projetados e posição mais provável são indicadores complementares e "
+        "não representam uma única temporada simulada."
+    )
+
+# ---- página Melhor cenário
+analise = None
+if ativa("cenarios") and sim_ok:
+    secao("🎯 Melhor cenário")
+    league = (projection or {}).get("league") or {}
+    analise = (league.get("cenarios") or {}).get(str(selected_team_id))
+    if not analise:
+        st.info("A análise de cenários é gerada junto com as simulações, 2× ao "
+                "dia. Ela aparece aqui no próximo ciclo de atualização.")
+
+if analise:
+    st.markdown(f"### 🎯 O melhor cenário possível para o {selected_team_name}")
+    st.caption(
+        f"Entre as {res.n_sims:,} temporadas simuladas, estas são as "
+        f"{analise['n_cenarios']} em que o {selected_team_name} terminou mais "
+        "alto. As probabilidades abaixo são condicionais a esse recorte: dizem "
+        "o que aconteceu nele, não o que é mais provável em "
+        "geral.".replace(",", ".")
+    )
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Melhor posição atingida", f"{analise['pos_melhor']}º")
+    m2.metric("Teto do recorte", f"até {analise['pos_corte']}º")
+    m3.metric("Posição média no recorte", f"{analise['pos_media']:.1f}º")
+    m4.metric("Pontos no recorte", f"{analise['pts_media']:.0f}")
+    st.caption(f"Terminar em {analise['pos_corte']}º ou melhor acontece em "
+               f"{pct(analise['p_corte'])} de todos os cenários simulados.")
+
+    st.subheader(f"O que o {selected_team_name} precisa fazer")
+    proprios = []
+    for item in analise["proprios"]:
+        m = fixtures.iloc[item["jogo"]]
+        em_casa = m["casa_id"] == selected_team_id
+        proprios.append({
+            "Rodada": int(m["rodada"]),
+            "Adversário": store.clube_nome(
+                clubes, m["fora_id"] if em_casa else m["casa_id"]),
+            "Mando": "🏠 Casa" if em_casa else "✈️ Fora",
+            "Vitória": item["p_vitoria"],
+            "Empate": item["p_empate"],
+            "Derrota": item["p_derrota"],
+            "Vitória (geral)": item["base_vitoria"],
+        })
+    df_proprios = pd.DataFrame(proprios).sort_values("Rodada")
+    st.dataframe(
+        df_proprios, hide_index=True,
+        height=38 * (len(df_proprios) + 1) + 3,
+        column_config={
+            c: st.column_config.ProgressColumn(
+                c, format="percent", min_value=0, max_value=1)
+            for c in ["Vitória", "Empate", "Derrota", "Vitória (geral)"]
+        },
+    )
+    st.caption("**Vitória (geral)** é a chance do mesmo jogo em todos os "
+               "cenários — a distância entre as duas colunas mostra onde o "
+               "melhor caminho exige mais do que o esperado.")
+
+    st.subheader("O que precisa acontecer nos outros jogos")
+    st.caption("Ordenado pelo quanto cada resultado se destaca no recorte em "
+               "relação à média — são os tropeços e vitórias alheias que mais "
+               "separam o melhor caminho do caminho comum.")
+    rivais = []
+    for item in analise["rivais"]:
+        m = fixtures.iloc[item["jogo"]]
+        casa = store.clube_nome(clubes, m["casa_id"])
+        fora = store.clube_nome(clubes, m["fora_id"])
+        rotulo = {"casa": f"{casa} vence", "empate": "Empate",
+                  "fora": f"{fora} vence"}[item["resultado"]]
+        rivais.append({
+            "Rodada": int(m["rodada"]),
+            "Jogo": f"{casa} × {fora}",
+            "Resultado necessário": rotulo,
+            "No melhor cenário": item["p_cond"],
+            "Na média geral": item["p_base"],
+        })
+    df_rivais = pd.DataFrame(rivais)
+    st.dataframe(
+        df_rivais, hide_index=True,
+        height=38 * (len(df_rivais) + 1) + 3,
+        column_config={
+            c: st.column_config.ProgressColumn(
+                c, format="percent", min_value=0, max_value=1)
+            for c in ["No melhor cenário", "Na média geral"]
+        },
+    )
+    st.caption("Nenhum desses resultados é uma previsão: é o retrato do que "
+               "aconteceu nas temporadas simuladas que terminaram melhor para "
+               "o clube. Estimativas para diversão, não aposta. 🦁")
+
+# ---- página Elenco (disponibilidade para o próximo jogo)
+POS_ORDEM = {"Goleiro": 0, "Lateral": 1, "Zagueiro": 2, "Meia": 3,
+             "Atacante": 4, "Técnico": 5}
+FORMACAO_433 = {"Goleiro": 1, "Lateral": 2, "Zagueiro": 2, "Meia": 3,
+                "Atacante": 3, "Técnico": 1}
+
+if ativa("elenco") and atletas_ok:
+    secao("👥 Elenco")
+    team_fixtures = future[
+        (future["casa_id"] == selected_team_id)
+        | (future["fora_id"] == selected_team_id)
+    ].sort_values("timestamp")
+    elenco = []
+    for a in atletas_doc["atletas"]:
+        if a.get("clube_id") != selected_team_id:
+            continue
+        scout = a.get("scout") or {}
+        ca = int(scout.get("CA", 0))
+        status_nome = status_map.get(a.get("status_id"), "?")
+        elenco.append({
+            "foto": (a.get("foto") or "").replace("FORMATO", "140x140") or None,
+            "jogador": a.get("apelido", "?"),
+            "pos": posicoes_map.get(a.get("posicao_id"), "?"),
+            "status": status_nome,
+            "ca": ca,
+            "ciclo": ca % 3,
+            "pendurado": ca % 3 == 2,
+            "cv": int(scout.get("CV", 0)),
+            "media": a.get("media_num", 0.0),
+            "jogos": a.get("jogos_num", 0),
+            "preco": a.get("preco_num", 0.0),
+            "scout": {c: scout.get(c, 0) for c in SCOUT_COLS},
+        })
+    elenco.sort(key=lambda e: (POS_ORDEM.get(e["pos"], 9), -e["media"]))
+
+    if not team_fixtures.empty:
+        p = team_fixtures.iloc[0]
+        adversario = store.clube_nome(
+            clubes,
+            p["fora_id"] if p["casa_id"] == selected_team_id else p["casa_id"],
+        )
+        mando = "em casa" if p["casa_id"] == selected_team_id else "fora"
+        quando = pd.to_datetime(p["data"]).strftime("%d/%m às %H:%M")
+        st.markdown(f"### Próximo jogo: **{adversario}** ({mando}), {quando} — "
+                    f"{p['local']}")
+
+    por_status = lambda s: [e for e in elenco if e["status"] == s]
+    pendurados = [e for e in elenco if e["pendurado"] and e["status"] != "Nulo"]
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("🟢 Prováveis", len(por_status("Provável")))
+    c2.metric("🟡 Dúvidas", len(por_status("Dúvida")))
+    c3.metric("🚑 Contundidos", len(por_status("Contundido")))
+    c4.metric("🔴 Suspensos", len(por_status("Suspenso")))
+    c5.metric("⚠️ Pendurados", len(pendurados))
+
+    avisos = []
+    if por_status("Suspenso"):
+        avisos.append("🔴 **Suspensos:** "
+                      + ", ".join(e["jogador"] for e in por_status("Suspenso")))
+    if por_status("Contundido"):
+        avisos.append("🚑 **Contundidos:** "
+                      + ", ".join(e["jogador"] for e in por_status("Contundido")))
+    if por_status("Dúvida"):
+        avisos.append("🟡 **Dúvidas:** "
+                      + ", ".join(e["jogador"] for e in por_status("Dúvida")))
+    if pendurados:
+        avisos.append("⚠️ **Pendurados (próximo amarelo suspende):** "
+                      + ", ".join(f"{e['jogador']} ({e['ca']} CA)" for e in pendurados))
+    if avisos:
+        st.warning("  \n".join(avisos))
+    else:
+        st.success("Nenhum desfalque ou pendurado no momento. 🎉")
+
+    st.subheader("Provável escalação (estimativa)")
+    st.caption("Prováveis do mercado do Cartola escalados num 4-3-3 pela maior "
+               "média — é uma estimativa estatística, não a escalação oficial.")
+    titulares = []
+    for pos, vagas in FORMACAO_433.items():
+        aptos = [e for e in elenco if e["pos"] == pos and e["status"] == "Provável"]
+        if len(aptos) < vagas:  # completa com dúvidas se faltar gente
+            aptos += [e for e in elenco if e["pos"] == pos and e["status"] == "Dúvida"]
+        titulares.extend(aptos[:vagas])
+    df_tit = pd.DataFrame([{
+        "Foto": e["foto"], "Jogador": e["jogador"], "Posição": e["pos"],
+        "Status": f"{STATUS_ICON.get(e['status'], '')} {e['status']}",
+        "Média": e["media"], "Preço (C$)": e["preco"],
+    } for e in titulares])
+    st.dataframe(
+        df_tit, hide_index=True, height=38 * (len(df_tit) + 1) + 3,
+        column_config={
+            "Foto": st.column_config.ImageColumn("", width=40),
+            "Média": st.column_config.NumberColumn(format="%.1f"),
+            "Preço (C$)": st.column_config.NumberColumn(format="%.2f"),
+        },
+    )
+
+    st.subheader("Situação completa do elenco")
+    df_e = pd.DataFrame([{
+        "Foto": e["foto"], "Jogador": e["jogador"], "Posição": e["pos"],
+        "Status": f"{STATUS_ICON.get(e['status'], '')} {e['status']}",
+        "Amarelos (ciclo)": f"{e['ciclo']}/3" + (" ⚠️" if e["pendurado"] else ""),
+        "Média": e["media"], "Jogos": e["jogos"], "Preço (C$)": e["preco"],
+        **e["scout"],
+    } for e in elenco])
+    st.dataframe(
+        df_e, hide_index=True, height=min(740, 38 * (len(df_e) + 1) + 3),
+        column_config={
+            "Foto": st.column_config.ImageColumn("", width=40),
+            "Média": st.column_config.NumberColumn(format="%.1f"),
+            "Preço (C$)": st.column_config.NumberColumn(format="%.2f"),
+            **{c: st.column_config.NumberColumn(c, help=SCOUT_HELP[c], width=44)
+               for c in SCOUT_COLS},
+        },
+    )
+    st.caption("Scout do Cartola — " +
+               " · ".join(f"**{c}** {SCOUT_HELP[c]}" for c in SCOUT_COLS))
+    st.caption("Status vem do mercado do Cartola (atualizado pela Globo ao longo "
+               "da semana). O ciclo de amarelos é estimado pelo scout do Cartola: "
+               "a cada 3 amarelos há suspensão automática — jogos antecipados/"
+               "adiados não pontuam no Cartola e podem não entrar nessa conta.")
+
+# ---- página Partidas
+if ativa("partidas") and atletas_ok:
+    secao("📋 Partidas")
     st.subheader("Estatísticas por partida")
     rodadas_scout = sorted(pontuados)
     if not rodadas_scout:
@@ -796,43 +1177,63 @@ if SELECTED_PAGE == "partidas":
             st.caption("Scout do Cartola — " +
                        " · ".join(f"**{c}** {SCOUT_HELP[c]}" for c in SCOUT_COLS))
 
+
+# ---- página Modelo
+if ativa("modelo"):
+    secao("🧠 Modelo")
+    st.subheader("Qual modelo prevê melhor? (backtest)")
+    st.caption("Replay das últimas rodadas: cada modelo treina só com os jogos "
+               "anteriores e é avaliado nos jogos que não viu. RPS e log loss: "
+               "quanto menor, melhor. Resultado atualizado automaticamente "
+               "duas vezes ao dia.")
+    bt = run_backtest(data["fetched_at"], 0)
+    if bt.empty:
+        st.info("O backtest publicado ainda está sendo preparado.")
+    else:
+        melhor = bt.iloc[0]
+        st.success(f"Melhor modelo no backtest: **{melhor['Modelo']}** "
+                   f"(RPS {melhor['RPS']:.4f}, acurácia {pct(melhor['Acurácia 1X2'])} "
+                   f"em {melhor['Jogos']} jogos)")
+        st.dataframe(
+            bt.drop(columns=["chave"]),
+            hide_index=True,
+            column_config={
+                "Acurácia 1X2": st.column_config.ProgressColumn(
+                    format="percent", min_value=0, max_value=1),
+                "Log loss": st.column_config.NumberColumn(format="%.4f"),
+                "RPS": st.column_config.NumberColumn(format="%.4f"),
+            },
+        )
+
     st.divider()
-    st.subheader("Plantel e estatísticas da temporada")
-    clube_plantel = st.selectbox("Clube", team_ids,
-                                 index=team_ids.index(selected_team_id),
-                                 format_func=lambda t: store.clube_nome(clubes, t))
-    plantel = []
-    for a in atletas_doc["atletas"]:
-        if a.get("clube_id") != clube_plantel:
-            continue
-        scout = a.get("scout") or {}
-        status_nome = status_map.get(a.get("status_id"), "?")
-        plantel.append({
-            "Foto": (a.get("foto") or "").replace("FORMATO", "140x140") or None,
-            "Jogador": a.get("apelido", "?"),
-            "Pos": posicoes_map.get(a.get("posicao_id"), "?"),
-            "Status": f"{STATUS_ICON.get(status_nome, '')} {status_nome}",
-            "Preço (C$)": a.get("preco_num", 0.0),
-            "Média": a.get("media_num", 0.0),
-            "Última": a.get("pontos_num", 0.0),
-            "Jogos": a.get("jogos_num", 0),
-            **{c: scout.get(c, 0) for c in SCOUT_COLS},
-        })
-    df_p = pd.DataFrame(plantel).sort_values(["Média", "Jogos"], ascending=False)
-    st.dataframe(
-        df_p, hide_index=True,
-        height=min(740, 38 * (len(df_p) + 1) + 3),
-        column_config={
-            "Foto": st.column_config.ImageColumn("", width=40),
-            "Preço (C$)": st.column_config.NumberColumn(format="%.2f"),
-            "Média": st.column_config.NumberColumn(format="%.1f"),
-            "Última": st.column_config.NumberColumn(format="%.1f"),
-            **{c: st.column_config.NumberColumn(c, help=SCOUT_HELP[c], width=44)
-               for c in SCOUT_COLS},
-        },
-    )
-    st.caption("Fonte: mercado do Cartola (scout agregado da temporada). "
-               "Preço e média são da pontuação Cartola, não do jogo real.")
+    with st.expander("Como funciona a previsão"):
+        st.markdown(
+            """
+**Pipeline (100% leve — todos os treinos levam segundos):**
+
+1. **Dados** — todas as partidas da Série A vêm da API pública do Cartola
+   (`api.cartola.globo.com`), atualizadas 2× ao dia; o XGBoost treina também
+   com o histórico do Brasileirão **2012+** (~5.300 jogos), com peso
+   decrescente por ano de distância.
+2. **Features** — indicadores de forma das duas equipes antes de cada jogo
+   (pontos por jogo, média de gols nos últimos 5, desempenho por mando) e o
+   **rating Elo**, atualizado jogo a jogo.
+3. **Modelos** — todos preveem **taxas de gols** (λ) via regressão de Poisson:
+   - **XGBoost** — árvores de decisão com boosting (treina em ~2 s);
+   - **Poisson** — força de ataque/defesa por médias da temporada;
+   - **Poisson temporal** — idem, mas jogos recentes pesam mais
+     (meia-vida de 90 dias, à la Dixon-Coles);
+   - **Ensemble** — média das taxas dos três acima (o padrão do app).
+4. **Simulação Monte Carlo** — cada jogo restante é sorteado milhares de vezes
+   a partir das taxas previstas; a tabela final é recalculada em cada cenário
+   (com desempate por vitórias, saldo e gols pró), o que gera as
+   probabilidades de título, G4, G6 e rebaixamento.
+
+O **backtest** acima é o juiz: ele refaz as últimas rodadas fingindo que o
+futuro não aconteceu e mede qual modelo chegou mais perto. Estimativas para
+diversão, não aposta. 🦁
+            """
+        )
 
 # ---- páginas de mata-mata (Copa do Brasil e Libertadores)
 @st.cache_data(ttl=3600, show_spinner="Carregando a Copa do Brasil…")
@@ -993,13 +1394,13 @@ def _render_mata_mata_page(
                             f"{j['visitante']} · {j['data'] or ''}")
 
 
-if SELECTED_PAGE == "copa":
+if ativa("copa"):
     _render_mata_mata_page(
         load_copa_data(data["fetched_at"]), "copa", "Copa do Brasil",
         "tente atualizar os dados pelo botão no cabeçalho.",
     )
 
-if SELECTED_PAGE == "libertadores":
+if ativa("libertadores"):
     libertadores_doc = load_libertadores_data(data["fetched_at"])
     _render_mata_mata_page(
         libertadores_doc, "libertadores", "Libertadores",
@@ -1014,320 +1415,3 @@ if SELECTED_PAGE == "libertadores":
                              expanded=bool(fase_grupos["atual"])):
                 _render_grupos(fase_grupos)
 
-
-# ---- página Elenco (disponibilidade para o próximo jogo)
-POS_ORDEM = {"Goleiro": 0, "Lateral": 1, "Zagueiro": 2, "Meia": 3,
-             "Atacante": 4, "Técnico": 5}
-FORMACAO_433 = {"Goleiro": 1, "Lateral": 2, "Zagueiro": 2, "Meia": 3,
-                "Atacante": 3, "Técnico": 1}
-
-if SELECTED_PAGE == "elenco":
-    team_fixtures = future[
-        (future["casa_id"] == selected_team_id)
-        | (future["fora_id"] == selected_team_id)
-    ].sort_values("timestamp")
-    elenco = []
-    for a in atletas_doc["atletas"]:
-        if a.get("clube_id") != selected_team_id:
-            continue
-        scout = a.get("scout") or {}
-        ca = int(scout.get("CA", 0))
-        status_nome = status_map.get(a.get("status_id"), "?")
-        elenco.append({
-            "foto": (a.get("foto") or "").replace("FORMATO", "140x140") or None,
-            "jogador": a.get("apelido", "?"),
-            "pos": posicoes_map.get(a.get("posicao_id"), "?"),
-            "status": status_nome,
-            "ca": ca,
-            "ciclo": ca % 3,
-            "pendurado": ca % 3 == 2,
-            "cv": int(scout.get("CV", 0)),
-            "media": a.get("media_num", 0.0),
-            "jogos": a.get("jogos_num", 0),
-            "preco": a.get("preco_num", 0.0),
-        })
-    elenco.sort(key=lambda e: (POS_ORDEM.get(e["pos"], 9), -e["media"]))
-
-    if not team_fixtures.empty:
-        p = team_fixtures.iloc[0]
-        adversario = store.clube_nome(
-            clubes,
-            p["fora_id"] if p["casa_id"] == selected_team_id else p["casa_id"],
-        )
-        mando = "em casa" if p["casa_id"] == selected_team_id else "fora"
-        quando = pd.to_datetime(p["data"]).strftime("%d/%m às %H:%M")
-        st.markdown(f"### Próximo jogo: **{adversario}** ({mando}), {quando} — "
-                    f"{p['local']}")
-
-    por_status = lambda s: [e for e in elenco if e["status"] == s]
-    pendurados = [e for e in elenco if e["pendurado"] and e["status"] != "Nulo"]
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("🟢 Prováveis", len(por_status("Provável")))
-    c2.metric("🟡 Dúvidas", len(por_status("Dúvida")))
-    c3.metric("🚑 Contundidos", len(por_status("Contundido")))
-    c4.metric("🔴 Suspensos", len(por_status("Suspenso")))
-    c5.metric("⚠️ Pendurados", len(pendurados))
-
-    avisos = []
-    if por_status("Suspenso"):
-        avisos.append("🔴 **Suspensos:** "
-                      + ", ".join(e["jogador"] for e in por_status("Suspenso")))
-    if por_status("Contundido"):
-        avisos.append("🚑 **Contundidos:** "
-                      + ", ".join(e["jogador"] for e in por_status("Contundido")))
-    if por_status("Dúvida"):
-        avisos.append("🟡 **Dúvidas:** "
-                      + ", ".join(e["jogador"] for e in por_status("Dúvida")))
-    if pendurados:
-        avisos.append("⚠️ **Pendurados (próximo amarelo suspende):** "
-                      + ", ".join(f"{e['jogador']} ({e['ca']} CA)" for e in pendurados))
-    if avisos:
-        st.warning("  \n".join(avisos))
-    else:
-        st.success("Nenhum desfalque ou pendurado no momento. 🎉")
-
-    st.subheader("Provável escalação (estimativa)")
-    st.caption("Prováveis do mercado do Cartola escalados num 4-3-3 pela maior "
-               "média — é uma estimativa estatística, não a escalação oficial.")
-    titulares = []
-    for pos, vagas in FORMACAO_433.items():
-        aptos = [e for e in elenco if e["pos"] == pos and e["status"] == "Provável"]
-        if len(aptos) < vagas:  # completa com dúvidas se faltar gente
-            aptos += [e for e in elenco if e["pos"] == pos and e["status"] == "Dúvida"]
-        titulares.extend(aptos[:vagas])
-    df_tit = pd.DataFrame([{
-        "Foto": e["foto"], "Jogador": e["jogador"], "Posição": e["pos"],
-        "Status": f"{STATUS_ICON.get(e['status'], '')} {e['status']}",
-        "Média": e["media"], "Preço (C$)": e["preco"],
-    } for e in titulares])
-    st.dataframe(
-        df_tit, hide_index=True, height=38 * (len(df_tit) + 1) + 3,
-        column_config={
-            "Foto": st.column_config.ImageColumn("", width=40),
-            "Média": st.column_config.NumberColumn(format="%.1f"),
-            "Preço (C$)": st.column_config.NumberColumn(format="%.2f"),
-        },
-    )
-
-    st.subheader("Situação completa do elenco")
-    df_e = pd.DataFrame([{
-        "Foto": e["foto"], "Jogador": e["jogador"], "Posição": e["pos"],
-        "Status": f"{STATUS_ICON.get(e['status'], '')} {e['status']}",
-        "Amarelos (ciclo)": f"{e['ciclo']}/3" + (" ⚠️" if e["pendurado"] else ""),
-        "CA total": e["ca"], "CV": e["cv"],
-        "Média": e["media"], "Jogos": e["jogos"], "Preço (C$)": e["preco"],
-    } for e in elenco])
-    st.dataframe(
-        df_e, hide_index=True, height=min(740, 38 * (len(df_e) + 1) + 3),
-        column_config={
-            "Foto": st.column_config.ImageColumn("", width=40),
-            "Média": st.column_config.NumberColumn(format="%.1f"),
-            "Preço (C$)": st.column_config.NumberColumn(format="%.2f"),
-        },
-    )
-    st.caption("Status vem do mercado do Cartola (atualizado pela Globo ao longo "
-               "da semana). O ciclo de amarelos é estimado pelo scout do Cartola: "
-               "a cada 3 amarelos há suspensão automática — jogos antecipados/"
-               "adiados não pontuam no Cartola e podem não entrar nessa conta.")
-
-# ---- página Simulações
-if SELECTED_PAGE == "simulacoes":
-    st.caption(f"{res.n_sims:,} temporadas simuladas com o modelo "
-               f"**{sim['model']}** · jogos restantes: {len(fixtures)}".replace(",", "."))
-
-    probs_df = pd.DataFrame({
-        "clube_id": res.team_ids,
-        "Time": [store.clube_nome(clubes, t) for t in res.team_ids],
-        "Pontos esperados": np.round(res.exp_pts, 1),
-        "Título": res.p_titulo,
-        "Libertadores (G4)": res.p_g4,
-        "G6": res.p_g6,
-        "Rebaixamento (Z4)": res.p_z4,
-    }).sort_values("Pontos esperados", ascending=False).reset_index(drop=True)
-
-    st.plotly_chart(fig_heatmap(res, clubes), width="stretch")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        top = probs_df[probs_df["Título"] >= 0.001].head(8)
-        st.plotly_chart(
-            fig_prob_bar(top["Time"].tolist(), top["Título"].to_numpy(),
-                         (top["clube_id"] == selected_team_id).tolist(),
-                         "Probabilidade de título"),
-            width="stretch",
-        )
-    with col2:
-        z4 = probs_df[probs_df["Rebaixamento (Z4)"] >= 0.001].sort_values(
-            "Rebaixamento (Z4)", ascending=False).head(8)
-        st.plotly_chart(
-            fig_prob_bar(z4["Time"].tolist(), z4["Rebaixamento (Z4)"].to_numpy(),
-                         (z4["clube_id"] == selected_team_id).tolist(),
-                         "Probabilidade de rebaixamento"),
-            width="stretch",
-        )
-
-    st.dataframe(
-        probs_df.drop(columns=["clube_id"]),
-        hide_index=True,
-        height=740,
-        column_config={
-            c: st.column_config.ProgressColumn(c, format="percent", min_value=0, max_value=1)
-            for c in ["Título", "Libertadores (G4)", "G6", "Rebaixamento (Z4)"]
-        },
-    )
-
-# ---- página Classificação projetada
-if SELECTED_PAGE == "classificacao_projetada":
-    st.markdown("## 🏁 Classificação projetada ao fim do Brasileirão")
-    st.caption(
-        f"Projeção após a última rodada baseada em {res.n_sims:,} temporadas "
-        f"simuladas com **{sim['model']}**. A posição média agrega todos os "
-        "cenários e pode conter valores decimais.".replace(",", ".")
-    )
-
-    posicoes = np.arange(1, len(res.team_ids) + 1)
-    pos_media = res.pos_dist @ posicoes
-    pos_mais_provavel = np.argmax(res.pos_dist, axis=1) + 1
-    pos_atual = dict(zip(standings["clube_id"], standings["Pos"]))
-
-    projecao = pd.DataFrame({
-        "clube_id": res.team_ids,
-        "Time": [store.clube_nome(clubes, t) for t in res.team_ids],
-        "Posição média": pos_media,
-        "Posição mais provável": pos_mais_provavel,
-        "Pontos projetados": res.exp_pts,
-        "Posição atual": [pos_atual[t] for t in res.team_ids],
-        "Título": res.p_titulo,
-        "G4": res.p_g4,
-        "G6": res.p_g6,
-        "Z4": res.p_z4,
-    }).sort_values(
-        ["Posição média", "Pontos projetados"], ascending=[True, False]
-    ).reset_index(drop=True)
-
-    projecao.insert(0, "Pos. projetada", np.arange(1, len(projecao) + 1))
-    projecao["Variação"] = (
-        projecao["Posição atual"] - projecao["Pos. projetada"]
-    ).map(lambda v: f"▲ {v}" if v > 0 else (f"▼ {abs(v)}" if v < 0 else "—"))
-
-    n_times = len(projecao)
-
-    def zona(posicao: int) -> str:
-        if posicao <= 4:
-            return "🌎 Libertadores"
-        if posicao <= 6:
-            return "✈️ G6"
-        if posicao >= n_times - 3:
-            return "🚨 Z4"
-        return "Série A"
-
-    projecao["Zona"] = projecao["Pos. projetada"].map(zona)
-
-    st.dataframe(
-        projecao.drop(columns=["clube_id"]),
-        hide_index=True,
-        height=775,
-        column_order=[
-            "Pos. projetada",
-            "Time",
-            "Pontos projetados",
-            "Posição média",
-            "Posição mais provável",
-            "Posição atual",
-            "Variação",
-            "Zona",
-            "Título",
-            "G4",
-            "G6",
-            "Z4",
-        ],
-        column_config={
-            "Pos. projetada": st.column_config.NumberColumn(
-                "Pos.", format="%d", width="small"
-            ),
-            "Pontos projetados": st.column_config.NumberColumn(
-                "Pontos", format="%.1f"
-            ),
-            "Posição média": st.column_config.NumberColumn(format="%.1f"),
-            "Posição mais provável": st.column_config.NumberColumn(
-                "Pos. mais provável", format="%d"
-            ),
-            **{
-                c: st.column_config.ProgressColumn(
-                    c, format="percent", min_value=0, max_value=1
-                )
-                for c in ["Título", "G4", "G6", "Z4"]
-            },
-        },
-    )
-    st.caption(
-        "A ordem usa a posição média em todos os cenários; por isso, pontos "
-        "projetados e posição mais provável são indicadores complementares e "
-        "não representam uma única temporada simulada."
-    )
-
-# ---- página Próximos jogos
-if SELECTED_PAGE == "proximos_jogos":
-    rodadas_futuras = sorted(fixtures["rodada"].unique())
-    rodada_sel = st.selectbox("Rodada", rodadas_futuras,
-                              format_func=rotulo_rodada)
-    jogos = fixtures[fixtures["rodada"] == rodada_sel].sort_values("timestamp")
-    st.plotly_chart(fig_next_matches(jogos, clubes), width="stretch")
-    st.caption("Probabilidades do modelo para cada jogo (vitória do mandante, "
-               "empate, vitória do visitante).")
-
-# ---- página Modelo
-if SELECTED_PAGE == "modelo":
-    st.subheader("Qual modelo prevê melhor? (backtest)")
-    st.caption("Replay das últimas rodadas: cada modelo treina só com os jogos "
-               "anteriores e é avaliado nos jogos que não viu. RPS e log loss: "
-               "quanto menor, melhor. Resultado atualizado automaticamente "
-               "duas vezes ao dia.")
-    bt = run_backtest(data["fetched_at"], 0)
-    if bt.empty:
-        st.info("O backtest publicado ainda está sendo preparado.")
-    else:
-        melhor = bt.iloc[0]
-        st.success(f"Melhor modelo no backtest: **{melhor['Modelo']}** "
-                   f"(RPS {melhor['RPS']:.4f}, acurácia {pct(melhor['Acurácia 1X2'])} "
-                   f"em {melhor['Jogos']} jogos)")
-        st.dataframe(
-            bt.drop(columns=["chave"]),
-            hide_index=True,
-            column_config={
-                "Acurácia 1X2": st.column_config.ProgressColumn(
-                    format="percent", min_value=0, max_value=1),
-                "Log loss": st.column_config.NumberColumn(format="%.4f"),
-                "RPS": st.column_config.NumberColumn(format="%.4f"),
-            },
-        )
-
-    st.divider()
-    with st.expander("Como funciona a previsão"):
-        st.markdown(
-            """
-**Pipeline (100% leve — todos os treinos levam segundos):**
-
-1. **Dados** — todas as partidas da Série A vêm da API pública do Cartola
-   (`api.cartola.globo.com`), atualizadas 2× ao dia; o XGBoost treina também
-   com o histórico do Brasileirão **2012+** (~5.300 jogos), com peso
-   decrescente por ano de distância.
-2. **Features** — indicadores de forma das duas equipes antes de cada jogo
-   (pontos por jogo, média de gols nos últimos 5, desempenho por mando) e o
-   **rating Elo**, atualizado jogo a jogo.
-3. **Modelos** — todos preveem **taxas de gols** (λ) via regressão de Poisson:
-   - **XGBoost** — árvores de decisão com boosting (treina em ~2 s);
-   - **Poisson** — força de ataque/defesa por médias da temporada;
-   - **Poisson temporal** — idem, mas jogos recentes pesam mais
-     (meia-vida de 90 dias, à la Dixon-Coles);
-   - **Ensemble** — média das taxas dos três acima (o padrão do app).
-4. **Simulação Monte Carlo** — cada jogo restante é sorteado milhares de vezes
-   a partir das taxas previstas; a tabela final é recalculada em cada cenário
-   (com desempate por vitórias, saldo e gols pró), o que gera as
-   probabilidades de título, G4, G6 e rebaixamento.
-
-O **backtest** acima é o juiz: ele refaz as últimas rodadas fingindo que o
-futuro não aconteceu e mede qual modelo chegou mais perto. Estimativas para
-diversão, não aposta. 🦁
-            """
-        )

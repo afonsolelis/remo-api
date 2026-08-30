@@ -14,33 +14,12 @@ st.set_page_config(
 )
 
 
-pages = {
-    "Visão geral": [
-        st.Page("pages/remo.py", title="Meu time", icon="⚽", default=True),
-        st.Page("pages/classificacao.py", title="Classificação", icon="📊"),
-        st.Page("pages/proximos_jogos.py", title="Próximos jogos", icon="📅"),
-    ],
-    "Análises": [
-        st.Page("pages/simulacoes.py", title="Simulações", icon="🔮"),
-        st.Page(
-            "pages/classificacao_projetada.py",
-            title="Classificação projetada",
-            icon="🏁",
-        ),
-        st.Page("pages/modelo.py", title="Modelo", icon="🧠"),
-    ],
-    "Competições": [
-        st.Page("pages/copa.py", title="Copa do Brasil", icon="🏆"),
-        st.Page("pages/libertadores.py", title="Libertadores", icon="🌎"),
-    ],
-    "Dados": [
-        st.Page("pages/elenco.py", title="Elenco", icon="👥"),
-        st.Page("pages/partidas.py", title="Partidas e elenco", icon="📋"),
-    ],
-    "Admin": [
-        st.Page("pages/admin.py", title="Admin", icon="🔒"),
-    ],
-}
+pages = [
+    st.Page("pages/brasileirao.py", title="Brasileirão", icon="⚽", default=True),
+    st.Page("pages/copa.py", title="Copa do Brasil", icon="🏆"),
+    st.Page("pages/libertadores.py", title="Libertadores", icon="🌎"),
+    st.Page("pages/admin.py", title="Admin", icon="🔒"),
+]
 
 current_page = st.navigation(pages, position="top")
 

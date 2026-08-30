@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
-from . import libertadores, store
+from . import liga, libertadores, serie_d, store
 from .copa import UNKNOWN_ATK, UNKNOWN_DEF, simulate_knockout
 from .evaluate import backtest
 from .history import load_historical
@@ -78,6 +78,7 @@ def _knockout_projection(
     predictor,
     final_jogo_unico: bool = False,
     forca_extra: dict[int, tuple[float, float]] | None = None,
+    ignora_fase=None,
 ) -> dict | None:
     """Simula o mata-mata de uma competição (documento do ge) a partir da
     fase atual. ``forca_extra`` dá (ataque, defesa) para clubes fora da Série
@@ -147,7 +148,7 @@ def _knockout_projection(
     fases_seguintes = []
     encontrou_atual = False
     for fase in doc["fases"]:
-        if encontrou_atual:
+        if encontrou_atual and not (ignora_fase and ignora_fase(fase)):
             fases_seguintes.append(fase["nome"])
         if fase["atual"]:
             encontrou_atual = True
@@ -181,7 +182,8 @@ def _liga_projection(chave: str) -> dict | None:
     df = store.matches_df(doc)
     played, future = store.split_played_future(df)
     if future.empty or len(played) < 40:
-        return None
+        # fase encerrada ou recém-começada: só a tabela, sem simulação
+        return {"liga": doc, "model_name": None, "league": None, "backtest": []}
     team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
     predictor = Ensemble(
         [make_predictor(chave_modelo, played) for chave_modelo in LIGA_MODEL_KEYS],
@@ -212,6 +214,17 @@ def _libertadores_projection(
     )
 
 
+def _serie_d_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None:
+    doc = store.load_serie_d()
+    if not doc:
+        return None
+    return _knockout_projection(
+        doc, data, played, predictor,
+        forca_extra=serie_d.forca_por_chaveamento(doc),
+        ignora_fase=serie_d.fora_do_titulo,
+    )
+
+
 def generate(data: dict | None = None) -> dict:
     """Treina, simula e devolve um snapshot integral pronto para publicação."""
     data = data or store.load_snapshot()
@@ -228,13 +241,19 @@ def generate(data: dict | None = None) -> dict:
     league = _league_projection(played, future, team_ids, predictor)
     copa = _copa_projection(data, played, predictor)
     liberta = _libertadores_projection(data, played, predictor)
+    try:
+        serie_d_proj = _serie_d_projection(data, played, predictor)
+    except Exception:
+        serie_d_proj = None
     evaluation = backtest(
         played, n_rounds=BACKTEST_ROUNDS, historical=historical
     )
-    try:
-        serie_b = _liga_projection("serie_b")
-    except Exception:
-        serie_b = None  # a Série A publica mesmo se a API do ge falhar
+    ligas = {}
+    for chave in liga.LIGAS:
+        try:
+            ligas[chave] = _liga_projection(chave)
+        except Exception:
+            ligas[chave] = None  # a Série A publica mesmo se o ge falhar
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_fetched_at": data["fetched_at"],
@@ -245,7 +264,8 @@ def generate(data: dict | None = None) -> dict:
         "league": league,
         "copa": copa,
         "libertadores": liberta,
-        "serie_b": serie_b,
+        "serie_d": serie_d_proj,
+        **ligas,
         "backtest": _json_records(evaluation),
         "backtest_rounds": BACKTEST_ROUNDS,
     }
@@ -280,13 +300,14 @@ def published_liga(doc: dict, chave: str = "serie_b") -> dict | None:
     bloco = doc.get(chave)
     if not bloco:
         return None
+    league = bloco.get("league")  # ausente quando a fase não tem jogo futuro
     return {
-        "res": _result_from(bloco["league"], int(doc["n_sims"])),
-        "fixtures": pd.DataFrame(bloco["league"]["fixtures"]),
-        "cenarios": bloco["league"].get("cenarios") or {},
-        "model": bloco["model_name"],
+        "res": _result_from(league, int(doc["n_sims"])) if league else None,
+        "fixtures": pd.DataFrame(league["fixtures"]) if league else None,
+        "cenarios": (league or {}).get("cenarios") or {},
+        "model": bloco.get("model_name"),
         "liga": bloco["liga"],
-        "backtest": bloco["backtest"],
+        "backtest": bloco.get("backtest") or [],
     }
 
 

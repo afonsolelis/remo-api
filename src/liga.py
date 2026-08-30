@@ -35,7 +35,16 @@ SERIE_B = Liga(
     tabela_uuid="009b5a68-dd09-46b8-95b3-293a2d494366",
 )
 
-LIGAS = {liga.chave: liga for liga in (SERIE_B,)}
+# A Série C é turno único: a primeira fase classifica oito para os
+# quadrangulares. Enquanto a fase seguinte não é sorteada, o ge devolve
+# ``grupos: []`` e só a tabela da fase corrente existe.
+SERIE_C = Liga(
+    chave="serie_c",
+    nome="Brasileirão Série C",
+    tabela_uuid="1339e172-bd81-4490-af97-27ff29b9c3df",
+)
+
+LIGAS = {liga.chave: liga for liga in (SERIE_B, SERIE_C)}
 
 
 def _timestamp(data_realizacao: str | None) -> float | None:
@@ -81,16 +90,25 @@ def _partida(jogo: dict, rodada: int) -> dict | None:
 
 
 def _faixas(classificacao: dict) -> list[dict]:
-    """Zonas da tabela (acesso, playoff, rebaixamento) e suas posições."""
+    """Zonas da tabela (acesso, playoff, rebaixamento) e suas posições.
+
+    ``ordem`` se repete quando há empate na tabela do ge (a Série C traz
+    ``…4, 5, 5, 7…``), então a faixa é reconstruída como um intervalo
+    contíguo: tantas posições quantos forem os clubes marcados com a cor.
+    """
     nomes = {f["cor"]: f["nome"] for f in classificacao.get("faixas_classificacao", [])}
-    posicoes: dict[str, list[int]] = {}
+    ordens: dict[str, list[int]] = {}
     for time_ in classificacao.get("classificacao", []):
         cor = time_.get("faixa_classificacao_cor")
         if cor in nomes:
-            posicoes.setdefault(cor, []).append(int(time_["ordem"]))
+            ordens.setdefault(cor, []).append(int(time_["ordem"]))
     return [
-        {"nome": nomes[cor], "cor": cor, "posicoes": sorted(pos)}
-        for cor, pos in posicoes.items()
+        {
+            "nome": nomes[cor],
+            "cor": cor,
+            "posicoes": list(range(min(pos), min(pos) + len(pos))),
+        }
+        for cor, pos in ordens.items()
     ]
 
 
@@ -114,6 +132,11 @@ def fetch_liga(liga: Liga = SERIE_B) -> dict:
             for equipe in (jogo["equipes"]["mandante"], jogo["equipes"]["visitante"]):
                 clubes.setdefault(str(equipe["id"]), _clube(equipe))
 
+    if not partidas:
+        # fase corrente sem jogos por rodada (ex.: grupos ainda não sorteados)
+        # — quem chamou preserva o documento anterior
+        raise RuntimeError(f"{liga.nome}: fase {fase} não tem jogos por rodada")
+
     inicio = edicao.get("data_inicio") or ""
     return {
         "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -122,6 +145,11 @@ def fetch_liga(liga: Liga = SERIE_B) -> dict:
         "clubes": clubes,
         "partidas": partidas,
         "faixas": _faixas(classificacao),
+        "fase": {
+            "slug": fase,
+            "nome": next((f["nome"] for f in classificacao.get("fases_navegacao", [])
+                          if f.get("atual")), None),
+        },
         "status": {
             "temporada": int(inicio[:4]) if inicio[:4].isdigit() else None,
             "rodada_atual": int(rodada.get("atual") or 1),

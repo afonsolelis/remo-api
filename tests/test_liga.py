@@ -39,6 +39,23 @@ def test_faixas_saem_do_regulamento_publicado():
     assert faixas == {"Acesso à Série A": [1, 2], "Rebaixados à Série C": [4]}
 
 
+def test_faixa_sobrevive_a_empate_na_ordem():
+    """O ge repete ``ordem`` em empate (a Série C traz …4, 5, 5, 7…): a faixa
+    precisa continuar sendo um intervalo contíguo do tamanho certo."""
+    payload = {
+        "faixas_classificacao": [{"cor": "#0000ff", "nome": "Classificados"}],
+        "classificacao": [
+            {"ordem": 1, "faixa_classificacao_cor": "#0000ff"},
+            {"ordem": 2, "faixa_classificacao_cor": "#0000ff"},
+            {"ordem": 2, "faixa_classificacao_cor": "#0000ff"},
+            {"ordem": 4, "faixa_classificacao_cor": "#0000ff"},
+            {"ordem": 5, "faixa_classificacao_cor": None},
+        ],
+    }
+    faixa = _faixas(payload)[0]
+    assert faixa["posicoes"] == [1, 2, 3, 4]
+
+
 def test_partida_no_formato_do_cartola():
     p = _partida(JOGO, rodada=25)
     # o mesmo shape que store.matches_df consome
@@ -56,6 +73,7 @@ def test_chave_sem_os_dois_clubes_e_descartada():
 
 if __name__ == "__main__":
     test_faixas_saem_do_regulamento_publicado()
+    test_faixa_sobrevive_a_empate_na_ordem()
     test_partida_no_formato_do_cartola()
     test_chave_sem_os_dois_clubes_e_descartada()
     print("ok — formatação da liga validada")

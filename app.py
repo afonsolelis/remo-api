@@ -17,6 +17,8 @@ st.set_page_config(
 pages = [
     st.Page("pages/brasileirao.py", title="Brasileirão", icon="⚽", default=True),
     st.Page("pages/serie_b.py", title="Série B", icon="🥈"),
+    st.Page("pages/serie_c.py", title="Série C", icon="🥉"),
+    st.Page("pages/serie_d.py", title="Série D", icon="🏅"),
     st.Page("pages/copa.py", title="Copa do Brasil", icon="🏆"),
     st.Page("pages/libertadores.py", title="Libertadores", icon="🌎"),
     st.Page("pages/admin.py", title="Admin", icon="🔒"),

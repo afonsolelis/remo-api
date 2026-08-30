@@ -148,7 +148,11 @@ def refresh() -> dict:
     except Exception:
         pass
     try:
-        refresh_liga()  # Série B em pontos corridos (API do ge)
+        refresh_ligas()  # Séries B e C em pontos corridos (API do ge)
+    except Exception:
+        pass
+    try:
+        refresh_serie_d()  # chaveamento da Série D (API do ge)
     except Exception:
         pass
     return data
@@ -298,6 +302,39 @@ def ensure_libertadores(max_age_hours: float = 24.0) -> dict:
     return refresh_libertadores()
 
 
+SERIE_D_FILE = DATA_DIR / "serie_d.json"
+
+
+def _store_serie_d(doc: dict):
+    if MONGO_URL:
+        _mongo().serie_d.replace_one({"_id": "bracket"},
+                                     {"_id": "bracket", **doc}, upsert=True)
+    else:
+        DATA_DIR.mkdir(exist_ok=True)
+        SERIE_D_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+
+
+def load_serie_d() -> dict | None:
+    if MONGO_URL:
+        doc = _mongo().serie_d.find_one({"_id": "bracket"})
+        if doc:
+            doc.pop("_id", None)
+            return doc
+        return None
+    if SERIE_D_FILE.exists():
+        return json.loads(SERIE_D_FILE.read_text())
+    return None
+
+
+def refresh_serie_d() -> dict:
+    from . import serie_d
+
+    doc = serie_d.fetch_bracket()
+    doc["fetched_at"] = datetime.now(timezone.utc).isoformat()
+    _store_serie_d(doc)
+    return doc
+
+
 LIGA_FILE = DATA_DIR / "ligas"
 
 
@@ -332,6 +369,17 @@ def refresh_liga(chave: str = "serie_b") -> dict:
     doc = liga.fetch_liga(liga.LIGAS[chave])
     _store_liga(doc)
     return doc
+
+
+def refresh_ligas() -> None:
+    """Atualiza cada liga por conta própria: uma falha não derruba as outras."""
+    from . import liga
+
+    for chave in liga.LIGAS:
+        try:
+            refresh_liga(chave)
+        except Exception:
+            pass  # a liga mantém o último documento válido
 
 
 def ensure_liga(chave: str = "serie_b", max_age_hours: float = 24.0) -> dict:

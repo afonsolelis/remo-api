@@ -8,7 +8,8 @@ from streamlit.testing.v1 import AppTest
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-PAGINAS = ["brasileirao", "serie_b", "copa", "libertadores"]
+PAGINAS = ["brasileirao", "serie_b", "serie_c", "serie_d",
+           "copa", "libertadores"]
 
 # a página do Brasileirão empilha todas as seções da Série A, nesta ordem
 SECOES = [
@@ -43,6 +44,14 @@ def test_serie_b_tem_suas_secoes():
     assert "Time em destaque na Série B" in [s.label for s in at.selectbox]
 
 
+def test_serie_c_mostra_tabela_e_explica_a_ausencia_de_simulacao():
+    """A primeira fase acabou e os quadrangulares não foram sorteados: a
+    página tem a tabela final, e só ela."""
+    at = _roda("serie_c")
+    assert [h.value for h in at.header] == ["📊 Classificação"]
+    assert any("não foi sorteada" in i.value for i in at.info)
+
+
 def test_brasileirao_empilha_todas_as_secoes():
     at = _roda("brasileirao")
     assert [h.value for h in at.header] == SECOES
@@ -56,4 +65,5 @@ if __name__ == "__main__":
     test_todas_as_paginas_renderizam()
     test_brasileirao_empilha_todas_as_secoes()
     test_serie_b_tem_suas_secoes()
+    test_serie_c_mostra_tabela_e_explica_a_ausencia_de_simulacao()
     print("ok — páginas renderizam e as seções aparecem na ordem esperada")

@@ -613,7 +613,7 @@ n_sims = int(projection.get("n_sims", 0)) if projection else 0
 # A página do Brasileirão empilha todas as seções da Série A numa rolagem só;
 # as de competição renderizam apenas a sua. Daqui para baixo nada de
 # ``st.stop()``: numa página empilhada ele derrubaria as seções seguintes.
-PAGINAS_EMPILHADAS = {"brasileirao", "serie_b"}
+PAGINAS_EMPILHADAS = {"brasileirao", "serie_b", "serie_c"}
 SECOES_BRASILEIRAO = (
     "remo", "classificacao", "proximos_jogos", "simulacoes",
     "cenarios", "elenco", "partidas", "modelo",
@@ -1405,6 +1405,17 @@ if ativa("copa"):
         "tente atualizar os dados pelo botão no cabeçalho.",
     )
 
+@st.cache_data(ttl=3600, show_spinner="Carregando a Série D…")
+def load_serie_d_data(fetched_at: str) -> dict | None:
+    return store.load_serie_d()
+
+
+if ativa("serie_d"):
+    _render_mata_mata_page(
+        load_serie_d_data(data["fetched_at"]), "serie_d", "Série D",
+        "o chaveamento é atualizado pelo mesmo ciclo das outras competições.",
+    )
+
 if ativa("libertadores"):
     libertadores_doc = load_libertadores_data(data["fetched_at"])
     _render_mata_mata_page(
@@ -1420,68 +1431,56 @@ if ativa("libertadores"):
                              expanded=bool(fase_grupos["atual"])):
                 _render_grupos(fase_grupos)
 
+# ---- páginas de ligas de pontos corridos do ge (Séries B e C)
+def render_liga(bloco: dict) -> None:
+    """Tabela sempre; simulações só quando a fase corrente tem jogo futuro."""
+    res = bloco["res"]
+    fixtures = bloco["fixtures"]
+    doc = bloco["liga"]
+    clubes = doc["clubes"]
+    info = doc["status"]
+    faixas = doc["faixas"]
+    played, _ = store.split_played_future(store.matches_df(doc))
+    team_ids = ([int(t) for t in res.team_ids] if res
+                else sorted({int(t) for t in clubes}))
+    tabela = compute_standings(played, clubes, team_ids)
 
-# ---- página Série B (liga de pontos corridos do ge)
-bloco_b = None
-if ativa("serie_b"):
-    bloco_b = published_liga(projection) if projection else None
-    if not bloco_b:
-        st.info("As projeções da Série B são geradas pelo atualizador 2× ao "
-                "dia. Elas aparecem aqui no próximo ciclo.")
-
-if bloco_b:
-    b_res = bloco_b["res"]
-    b_fixtures = bloco_b["fixtures"]
-    b_liga = bloco_b["liga"]
-    b_clubes = b_liga["clubes"]
-    b_status = b_liga["status"]
-    b_faixas = b_liga["faixas"]
-    b_team_ids = [int(t) for t in b_res.team_ids]
-    b_played, _ = store.split_played_future(store.matches_df(b_liga))
-    b_standings = compute_standings(b_played, b_clubes, b_team_ids)
-
-    # o time em destaque do cabeçalho só serve se estiver na divisão
-    b_default = (selected_team_id if selected_team_id in b_team_ids
-                 else int(b_standings.iloc[0]["clube_id"]))
-    b_time_id = st.selectbox(
-        "Time em destaque na Série B",
-        sorted(b_team_ids, key=lambda t: store.clube_nome(b_clubes, t)),
-        index=sorted(b_team_ids,
-                     key=lambda t: store.clube_nome(b_clubes, t)).index(b_default),
-        format_func=lambda t: store.clube_nome(b_clubes, t),
-        key="serie_b_time",
+    # o time em destaque do cabeçalho só serve se estiver nesta divisão
+    padrao = (selected_team_id if selected_team_id in team_ids
+              else int(tabela.iloc[0]["clube_id"]))
+    ordenados = sorted(team_ids, key=lambda t: store.clube_nome(clubes, t))
+    time_id = st.selectbox(
+        f"Time em destaque na {' '.join(doc['nome'].split()[-2:])}",
+        ordenados,
+        index=ordenados.index(padrao),
+        format_func=lambda t: store.clube_nome(clubes, t),
+        key=f"time_{doc['chave']}",
     )
-    b_nome = store.clube_nome(b_clubes, b_time_id)
-    st.caption(f"{b_status['nome']} · rodada {b_status['rodada_atual']} de "
-               f"{b_status['rodada_final']} · projeções com "
-               f"**{bloco_b['model']}**")
+    nome_time = store.clube_nome(clubes, time_id)
 
-    # as zonas (acesso, playoff, rebaixamento) vêm das faixas do próprio ge
-    b_pos_dist = b_res.pos_dist
-    b_zona_de_pos = {}
-    for faixa in b_faixas:
-        for posicao in faixa["posicoes"]:
-            b_zona_de_pos[posicao] = faixa["nome"]
+    fase_nome = (doc.get("fase") or {}).get("nome")
+    contexto = f"{info['nome']} · rodada {info['rodada_atual']} de {info['rodada_final']}"
+    if fase_nome:
+        contexto += f" · {fase_nome}"
+    st.caption(contexto + (f" · projeções com **{bloco['model']}**" if res else ""))
 
-    def prob_faixa(posicoes: list[int]) -> np.ndarray:
-        return b_pos_dist[:, [p - 1 for p in posicoes]].sum(axis=1)
+    zona_de_pos = {p: f["nome"] for f in faixas for p in f["posicoes"]}
 
     secao("📊 Classificação")
-    b_disp = b_standings.copy()
-    b_disp["Escudo"] = b_disp["clube_id"].map(
-        lambda t: store.clube_escudo(b_clubes, t))
-    b_disp["Últimos 5"] = b_disp["clube_id"].map(
-        lambda t: "".join(FORM_ICON[r] for r in team_last_results(b_played, t)))
-    b_disp["Zona"] = b_disp["Pos"].map(lambda p: b_zona_de_pos.get(p, "—"))
-    b_disp["Aproveitamento"] = b_disp["Aproveitamento"].map(lambda v: pct(v / 100))
-    b_disp = b_disp.set_index("clube_id")[
+    disp = tabela.copy()
+    disp["Escudo"] = disp["clube_id"].map(lambda t: store.clube_escudo(clubes, t))
+    disp["Últimos 5"] = disp["clube_id"].map(
+        lambda t: "".join(FORM_ICON[r] for r in team_last_results(played, t)))
+    disp["Zona"] = disp["Pos"].map(lambda p: zona_de_pos.get(p, "—"))
+    disp["Aproveitamento"] = disp["Aproveitamento"].map(lambda v: pct(v / 100))
+    disp = disp.set_index("clube_id")[
         ["Pos", "Escudo", "Time", "PTS", "J", "V", "E", "D", "GP", "GC", "SG",
          "Aproveitamento", "Últimos 5", "Zona"]
     ]
     st.dataframe(
-        b_disp.style.apply(
+        disp.style.apply(
             lambda row: [f"background-color: {BLUE_LIGHT}"
-                         if row.name == b_time_id else ""] * len(row),
+                         if row.name == time_id else ""] * len(row),
             axis=1,
         ),
         hide_index=True,
@@ -1489,22 +1488,29 @@ if bloco_b:
         column_config={"Escudo": st.column_config.ImageColumn("", width=36)},
     )
 
-    secao("🔮 Simulações")
-    st.caption(f"{b_res.n_sims:,} temporadas simuladas · jogos restantes: "
-               f"{len(b_fixtures)}".replace(",", "."))
-    st.plotly_chart(fig_heatmap(b_res, b_clubes), width="stretch")
+    if not res:
+        st.info(f"**{fase_nome or 'Fase atual'} encerrada.** A fase seguinte "
+                "ainda não foi sorteada pela CBF — quando o ge publicar os "
+                "confrontos, as simulações e o melhor cenário aparecem aqui "
+                "automaticamente.")
+        return
 
-    b_projecao = pd.DataFrame({
-        "clube_id": b_team_ids,
-        "Time": [store.clube_nome(b_clubes, t) for t in b_team_ids],
-        "Pontos projetados": np.round(b_res.exp_pts, 1),
-        "Posição média": b_pos_dist @ np.arange(1, len(b_team_ids) + 1),
-        "Título": b_pos_dist[:, 0],
-        **{faixa["nome"]: prob_faixa(faixa["posicoes"]) for faixa in b_faixas},
+    secao("🔮 Simulações")
+    st.caption(f"{res.n_sims:,} temporadas simuladas · jogos restantes: "
+               f"{len(fixtures)}".replace(",", "."))
+    st.plotly_chart(fig_heatmap(res, clubes), width="stretch")
+
+    projecao = pd.DataFrame({
+        "Time": [store.clube_nome(clubes, t) for t in team_ids],
+        "Pontos projetados": np.round(res.exp_pts, 1),
+        "Posição média": res.pos_dist @ np.arange(1, len(team_ids) + 1),
+        "Título": res.pos_dist[:, 0],
+        **{f["nome"]: res.pos_dist[:, [p - 1 for p in f["posicoes"]]].sum(axis=1)
+           for f in faixas},
     }).sort_values("Posição média").reset_index(drop=True)
-    b_projecao.insert(0, "Pos.", np.arange(1, len(b_projecao) + 1))
+    projecao.insert(0, "Pos.", np.arange(1, len(projecao) + 1))
     st.dataframe(
-        b_projecao.drop(columns=["clube_id"]),
+        projecao,
         hide_index=True,
         height=740,
         column_config={
@@ -1513,43 +1519,42 @@ if bloco_b:
             "Posição média": st.column_config.NumberColumn(format="%.1f"),
             **{c: st.column_config.ProgressColumn(
                 c, format="percent", min_value=0, max_value=1)
-               for c in ["Título"] + [f["nome"] for f in b_faixas]},
+               for c in ["Título"] + [f["nome"] for f in faixas]},
         },
     )
-    st.caption("As zonas vêm do regulamento publicado pelo ge para esta "
-               "edição, não de valores fixos no código.")
+    st.caption("As zonas vêm do regulamento que o próprio ge publica para "
+               "esta edição, não de valores fixos no código.")
 
     secao("🎯 Melhor cenário")
-    b_analise = (bloco_b["cenarios"] or {}).get(str(b_time_id))
-    if b_analise:
-        render_melhor_cenario(b_analise, b_fixtures, b_clubes, b_time_id,
-                              b_nome, b_res.n_sims)
+    analise = (bloco["cenarios"] or {}).get(str(time_id))
+    if analise:
+        render_melhor_cenario(analise, fixtures, clubes, time_id, nome_time,
+                              res.n_sims)
     else:
         st.info("A análise de cenários aparece no próximo ciclo do atualizador.")
 
     secao("📅 Próximos jogos")
-    b_rodadas = sorted(b_fixtures["rodada"].unique())
-    b_rodada = st.selectbox("Rodada", b_rodadas,
-                            format_func=lambda r: f"Rodada {r}",
-                            key="rodada_serie_b")
+    rodada = st.selectbox("Rodada", sorted(fixtures["rodada"].unique()),
+                          format_func=lambda r: f"Rodada {r}",
+                          key=f"rodada_{doc['chave']}")
     st.plotly_chart(
         fig_next_matches(
-            b_fixtures[b_fixtures["rodada"] == b_rodada].sort_values("timestamp"),
-            b_clubes),
+            fixtures[fixtures["rodada"] == rodada].sort_values("timestamp"),
+            clubes),
         width="stretch",
     )
 
     secao("🧠 Modelo")
-    b_bt = pd.DataFrame(bloco_b["backtest"])
-    if b_bt.empty:
-        st.info("O backtest da Série B ainda está sendo preparado.")
+    bt = pd.DataFrame(bloco["backtest"])
+    if bt.empty:
+        st.info("O backtest desta divisão ainda está sendo preparado.")
     else:
-        st.caption("Replay das últimas rodadas da própria Série B. Sem o "
+        st.caption("Replay das últimas rodadas da própria divisão. Sem o "
                    "histórico 2012+ (que só cobre a Série A), o XGBoost treina "
                    "com poucos jogos e fica atrás — por isso a simulação usa "
                    "apenas os modelos estatísticos.")
         st.dataframe(
-            b_bt.drop(columns=["chave"]),
+            bt.drop(columns=["chave"]),
             hide_index=True,
             column_config={
                 "Acurácia 1X2": st.column_config.ProgressColumn(
@@ -1558,3 +1563,13 @@ if bloco_b:
                 "RPS": st.column_config.NumberColumn(format="%.4f"),
             },
         )
+
+
+for _chave in ("serie_b", "serie_c"):
+    if ativa(_chave):
+        _bloco = published_liga(projection, _chave) if projection else None
+        if _bloco:
+            render_liga(_bloco)
+        else:
+            st.info("As projeções desta divisão são geradas pelo atualizador "
+                    "2× ao dia. Elas aparecem aqui no próximo ciclo.")

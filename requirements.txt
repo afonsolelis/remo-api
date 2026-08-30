@@ -4,5 +4,7 @@ pandas>=2.2
 numpy>=1.26
 plotly>=5.22
 xgboost>=2.1
+# scikit-learn: dependência indireta — xgboost.XGBRegressor exige sklearn
+# instalado (XGBModel.__init__ levanta ImportError sem ele). Não remover.
 scikit-learn>=1.5
 pymongo>=4.6

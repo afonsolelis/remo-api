@@ -16,6 +16,7 @@ from .copa import UNKNOWN_ATK, UNKNOWN_DEF, simulate_knockout
 from .evaluate import backtest
 from .history import load_historical
 from .model import PoissonBaseline, make_predictor, outcome_probs
+from .scenarios import best_case
 from .simulate import SimulationResult, simulate_season
 
 MODEL_KEY = os.environ.get("SIMULATION_MODEL", "ensemble")
@@ -44,7 +45,8 @@ def _league_projection(
 ) -> dict:
     lam_h, lam_a = predictor.predict(future, played)
     result = simulate_season(
-        played, future, lam_h, lam_a, team_ids, n_sims=N_SIMS
+        played, future, lam_h, lam_a, team_ids, n_sims=N_SIMS,
+        keep_details=True,
     )
     p_home, p_draw, p_away = outcome_probs(lam_h, lam_a)
     fixtures = future.copy()
@@ -60,6 +62,7 @@ def _league_projection(
         "p_g6": result.p_g6.tolist(),
         "p_z4": result.p_z4.tolist(),
         "fixtures": _json_records(fixtures),
+        "cenarios": best_case(result.details, fixtures, result.team_ids),
     }
 
 

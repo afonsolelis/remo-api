@@ -13,6 +13,15 @@ import pandas as pd
 
 
 @dataclass
+class ScenarioDetails:
+    """Recorte bruto de cada temporada simulada (só o updater consome)."""
+
+    outcomes: np.ndarray         # (n_sims, n_jogos) int8: 0 casa, 1 empate, 2 fora
+    positions: np.ndarray        # (n_sims, n_times) posição final
+    points: np.ndarray           # (n_sims, n_times) pontos finais
+
+
+@dataclass
 class SimulationResult:
     team_ids: list[int]          # ordem das linhas das matrizes abaixo
     pos_dist: np.ndarray         # (n_times, n_times) P(time t terminar na posição p+1)
@@ -22,6 +31,7 @@ class SimulationResult:
     p_g6: np.ndarray
     p_z4: np.ndarray
     n_sims: int
+    details: ScenarioDetails | None = None   # só quando ``keep_details``
 
 
 def simulate_season(
@@ -33,10 +43,14 @@ def simulate_season(
     n_sims: int = 5000,
     seed: int = 7,
     fixed_scores: dict[int, tuple[int, int]] | None = None,
+    keep_details: bool = False,
 ) -> SimulationResult:
     """``fixed_scores`` trava placares escolhidos pelo usuário: mapeia o índice
     posicional do jogo em ``fixtures`` para (gols_casa, gols_fora) — esses jogos
-    deixam de ser sorteados e a simulação fica condicionada a eles."""
+    deixam de ser sorteados e a simulação fica condicionada a eles.
+
+    ``keep_details`` devolve também o desfecho de cada jogo em cada cenário,
+    consumido pela análise de melhor cenário (``src/scenarios.py``)."""
     rng = np.random.default_rng(seed)
     n_t = len(team_ids)
     idx = {t: i for i, t in enumerate(team_ids)}
@@ -108,6 +122,14 @@ def simulate_season(
     for t in range(n_t):
         pos_dist[t] = np.bincount(positions[:, t], minlength=n_t + 1)[1:] / n_sims
 
+    details = None
+    if keep_details:
+        details = ScenarioDetails(
+            outcomes=np.where(casa_vence, 0, np.where(empate, 1, 2)).astype(np.int8),
+            positions=positions.astype(np.int16),
+            points=pts.astype(np.int16),
+        )
+
     return SimulationResult(
         team_ids=team_ids,
         pos_dist=pos_dist,
@@ -117,4 +139,5 @@ def simulate_season(
         p_g6=(positions <= 6).mean(axis=0),
         p_z4=(positions >= n_t - 3).mean(axis=0),
         n_sims=n_sims,
+        details=details,
     )

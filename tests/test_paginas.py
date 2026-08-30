@@ -8,7 +8,7 @@ from streamlit.testing.v1 import AppTest
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-PAGINAS = ["brasileirao", "copa", "libertadores"]
+PAGINAS = ["brasileirao", "serie_b", "copa", "libertadores"]
 
 # a página do Brasileirão empilha todas as seções da Série A, nesta ordem
 SECOES = [
@@ -33,6 +33,16 @@ def test_todas_as_paginas_renderizam():
               f"{len(at.markdown)} blocos de texto")
 
 
+def test_serie_b_tem_suas_secoes():
+    at = _roda("serie_b")
+    assert [h.value for h in at.header] == [
+        "📊 Classificação", "🔮 Simulações", "🎯 Melhor cenário",
+        "📅 Próximos jogos", "🧠 Modelo",
+    ]
+    # a divisão tem seletor próprio: o do cabeçalho é de clubes da Série A
+    assert "Time em destaque na Série B" in [s.label for s in at.selectbox]
+
+
 def test_brasileirao_empilha_todas_as_secoes():
     at = _roda("brasileirao")
     assert [h.value for h in at.header] == SECOES
@@ -45,4 +55,5 @@ def test_brasileirao_empilha_todas_as_secoes():
 if __name__ == "__main__":
     test_todas_as_paginas_renderizam()
     test_brasileirao_empilha_todas_as_secoes()
+    test_serie_b_tem_suas_secoes()
     print("ok — páginas renderizam e as seções aparecem na ordem esperada")

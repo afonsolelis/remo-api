@@ -15,13 +15,19 @@ from . import libertadores, store
 from .copa import UNKNOWN_ATK, UNKNOWN_DEF, simulate_knockout
 from .evaluate import backtest
 from .history import load_historical
-from .model import PoissonBaseline, make_predictor, outcome_probs
+from .model import Ensemble, PoissonBaseline, make_predictor, outcome_probs
 from .scenarios import best_case
 from .simulate import SimulationResult, simulate_season
 
 MODEL_KEY = os.environ.get("SIMULATION_MODEL", "ensemble")
 N_SIMS = int(os.environ.get("SIMULATION_COUNT", "20000"))
 BACKTEST_ROUNDS = int(os.environ.get("BACKTEST_ROUNDS", "6"))
+
+# Ligas do ge não têm o histórico 2012+ (o football-data.co.uk só cobre a
+# Série A), então o XGBoost treina com poucos jogos e piora o resultado. No
+# walk-forward das últimas 6 rodadas da Série B: RPS 0,242 sozinho e 0,220 no
+# ensemble com ele, contra 0,213 sem. A liga usa só os modelos estatísticos.
+LIGA_MODEL_KEYS = ("poisson", "dixoncoles")
 
 
 def _historical() -> pd.DataFrame | None:
@@ -37,7 +43,6 @@ def _json_records(df: pd.DataFrame) -> list[dict]:
 
 
 def _league_projection(
-    data: dict,
     played: pd.DataFrame,
     future: pd.DataFrame,
     team_ids: list[int],
@@ -164,6 +169,32 @@ def _knockout_projection(
     }
 
 
+def _liga_projection(chave: str) -> dict | None:
+    """Liga de pontos corridos do ge (Série B) com a mesma máquina da Série A.
+
+    Sem o histórico 2012+ — o football-data.co.uk só cobre a Série A —, então
+    os modelos treinam apenas com a própria temporada.
+    """
+    doc = store.load_liga(chave)
+    if not doc:
+        return None
+    df = store.matches_df(doc)
+    played, future = store.split_played_future(df)
+    if future.empty or len(played) < 40:
+        return None
+    team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
+    predictor = Ensemble(
+        [make_predictor(chave_modelo, played) for chave_modelo in LIGA_MODEL_KEYS],
+        nome="Ensemble Poisson (2 modelos)",
+    )
+    return {
+        "liga": doc,
+        "model_name": predictor.name,
+        "league": _league_projection(played, future, team_ids, predictor),
+        "backtest": _json_records(backtest(played, n_rounds=BACKTEST_ROUNDS)),
+    }
+
+
 def _copa_projection(data: dict, played: pd.DataFrame, predictor) -> dict | None:
     return _knockout_projection(store.load_copa(), data, played, predictor)
 
@@ -194,12 +225,16 @@ def generate(data: dict | None = None) -> dict:
     historical = _historical()
     predictor = make_predictor(MODEL_KEY, played, historical)
 
-    league = _league_projection(data, played, future, team_ids, predictor)
+    league = _league_projection(played, future, team_ids, predictor)
     copa = _copa_projection(data, played, predictor)
     liberta = _libertadores_projection(data, played, predictor)
     evaluation = backtest(
         played, n_rounds=BACKTEST_ROUNDS, historical=historical
     )
+    try:
+        serie_b = _liga_projection("serie_b")
+    except Exception:
+        serie_b = None  # a Série A publica mesmo se a API do ge falhar
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_fetched_at": data["fetched_at"],
@@ -210,6 +245,7 @@ def generate(data: dict | None = None) -> dict:
         "league": league,
         "copa": copa,
         "libertadores": liberta,
+        "serie_b": serie_b,
         "backtest": _json_records(evaluation),
         "backtest_rounds": BACKTEST_ROUNDS,
     }
@@ -221,9 +257,7 @@ def generate_and_save(data: dict | None = None) -> dict:
     return doc
 
 
-def simulation_result(doc: dict) -> SimulationResult:
-    """Reconstrói o objeto usado pelas visualizações a partir do snapshot."""
-    league = doc["league"]
+def _result_from(league: dict, n_sims: int) -> SimulationResult:
     return SimulationResult(
         team_ids=[int(time) for time in league["team_ids"]],
         pos_dist=np.asarray(league["pos_dist"], dtype=float),
@@ -232,8 +266,28 @@ def simulation_result(doc: dict) -> SimulationResult:
         p_g4=np.asarray(league["p_g4"], dtype=float),
         p_g6=np.asarray(league["p_g6"], dtype=float),
         p_z4=np.asarray(league["p_z4"], dtype=float),
-        n_sims=int(doc["n_sims"]),
+        n_sims=n_sims,
     )
+
+
+def simulation_result(doc: dict) -> SimulationResult:
+    """Reconstrói o objeto usado pelas visualizações a partir do snapshot."""
+    return _result_from(doc["league"], int(doc["n_sims"]))
+
+
+def published_liga(doc: dict, chave: str = "serie_b") -> dict | None:
+    """Bloco pronto para a página de uma liga de pontos corridos do ge."""
+    bloco = doc.get(chave)
+    if not bloco:
+        return None
+    return {
+        "res": _result_from(bloco["league"], int(doc["n_sims"])),
+        "fixtures": pd.DataFrame(bloco["league"]["fixtures"]),
+        "cenarios": bloco["league"].get("cenarios") or {},
+        "model": bloco["model_name"],
+        "liga": bloco["liga"],
+        "backtest": bloco["backtest"],
+    }
 
 
 def published_simulation(doc: dict) -> dict:

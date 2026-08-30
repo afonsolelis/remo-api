@@ -150,9 +150,9 @@ class XGBPredictor:
 class Ensemble:
     """Média das taxas de gols dos modelos que a compõem."""
 
-    def __init__(self, predictors: list):
+    def __init__(self, predictors: list, nome: str | None = None):
         self.predictors = predictors
-        self.name = f"Ensemble ({len(predictors)} modelos)"
+        self.name = nome or f"Ensemble ({len(predictors)} modelos)"
 
     def predict(self, fixtures: pd.DataFrame, played: pd.DataFrame):
         lams = [p.predict(fixtures, played) for p in self.predictors]

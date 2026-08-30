@@ -147,6 +147,10 @@ def refresh() -> dict:
         refresh_libertadores()  # grupos + chaveamento da Libertadores (API do ge)
     except Exception:
         pass
+    try:
+        refresh_liga()  # Série B em pontos corridos (API do ge)
+    except Exception:
+        pass
     return data
 
 
@@ -292,6 +296,52 @@ def ensure_libertadores(max_age_hours: float = 24.0) -> dict:
         if age_h < max_age_hours:
             return doc
     return refresh_libertadores()
+
+
+LIGA_FILE = DATA_DIR / "ligas"
+
+
+def _store_liga(doc: dict):
+    chave = doc["chave"]
+    if MONGO_URL:
+        _mongo().ligas.replace_one({"_id": chave}, {"_id": chave, **doc},
+                                   upsert=True)
+    else:
+        LIGA_FILE.mkdir(parents=True, exist_ok=True)
+        (LIGA_FILE / f"{chave}.json").write_text(
+            json.dumps(doc, ensure_ascii=False)
+        )
+
+
+def load_liga(chave: str = "serie_b") -> dict | None:
+    if MONGO_URL:
+        doc = _mongo().ligas.find_one({"_id": chave})
+        if doc:
+            doc.pop("_id", None)
+            return doc
+        return None
+    arquivo = LIGA_FILE / f"{chave}.json"
+    if arquivo.exists():
+        return json.loads(arquivo.read_text())
+    return None
+
+
+def refresh_liga(chave: str = "serie_b") -> dict:
+    from . import liga
+
+    doc = liga.fetch_liga(liga.LIGAS[chave])
+    _store_liga(doc)
+    return doc
+
+
+def ensure_liga(chave: str = "serie_b", max_age_hours: float = 24.0) -> dict:
+    doc = load_liga(chave)
+    if doc:
+        fetched_at = datetime.fromisoformat(doc["fetched_at"])
+        age_h = (datetime.now(timezone.utc) - fetched_at).total_seconds() / 3600
+        if age_h < max_age_hours:
+            return doc
+    return refresh_liga(chave)
 
 
 def refresh_atletas(status: dict | None = None) -> dict:

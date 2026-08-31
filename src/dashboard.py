@@ -11,6 +11,7 @@ durante a migração do antigo layout baseado em abas.
 
 import html
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from src import store
 from src.copa import jogos_do_time
+from src.liga import LIGAS
 from src.projections import published_liga, published_simulation
 from src.standings import compute_standings, cumulative_points, team_last_results
 from src.viz import (
@@ -41,8 +43,14 @@ FORM_ICON = {"V": "🟢", "E": "⚪", "D": "🔴"}
 
 # ---------------------------------------------------------------- dados
 
-def load_data() -> dict:
-    projection = store.load_projection()
+@st.cache_resource(max_entries=1, show_spinner="Carregando projeções publicadas…")
+def projecao_publicada(ttl_bucket: int) -> dict | None:
+    """O snapshot publicado é grande (megabytes) e é lido várias vezes por
+    render — fica em cache de processo, revalidado a cada poucos minutos."""
+    return store.load_projection()
+
+
+def load_data(projection: dict | None) -> dict:
     data = projection.get("season") if projection else store.load_snapshot()
     if not data:
         raise RuntimeError("snapshot público da temporada não encontrado")
@@ -51,7 +59,7 @@ def load_data() -> dict:
 
 @st.cache_data(show_spinner="Carregando backtest publicado…")
 def run_backtest(fetched_at: str, n_rounds: int) -> pd.DataFrame:
-    projection = store.load_projection()
+    projection = projecao_publicada(int(time.time()) // 300)
     if not projection:
         return pd.DataFrame()
     return pd.DataFrame(projection.get("backtest", []))
@@ -59,7 +67,7 @@ def run_backtest(fetched_at: str, n_rounds: int) -> pd.DataFrame:
 
 @st.cache_data(show_spinner="Carregando simulações publicadas…")
 def run_sim(fetched_at: str, model_key: str, n_sims: int) -> dict | None:
-    projection = store.load_projection()
+    projection = projecao_publicada(int(time.time()) // 300)
     if not projection:
         return None
     return published_simulation(projection)
@@ -594,7 +602,8 @@ def render_melhor_cenario(analise: dict, fixtures, clubes: dict,
 
 # ---------------------------------------------------------------- app
 
-data = load_data()
+projection = projecao_publicada(int(time.time()) // 300)
+data = load_data(projection)
 clubes = data["clubes"]
 status = data["status"]
 df = store.matches_df(data)
@@ -606,14 +615,13 @@ if selected_team_id not in team_ids:
     st.session_state.selected_team_id = selected_team_id
 selected_team_name = store.clube_nome(clubes, selected_team_id)
 
-projection = store.load_projection()
 model_key = projection.get("model_key", "ensemble") if projection else "ensemble"
 n_sims = int(projection.get("n_sims", 0)) if projection else 0
 
 # A página do Brasileirão empilha todas as seções da Série A numa rolagem só;
 # as de competição renderizam apenas a sua. Daqui para baixo nada de
 # ``st.stop()``: numa página empilhada ele derrubaria as seções seguintes.
-PAGINAS_EMPILHADAS = {"brasileirao", "serie_b", "serie_c", "mls"}
+PAGINAS_EMPILHADAS = {"brasileirao", *LIGAS}
 SECOES_BRASILEIRAO = (
     "remo", "classificacao", "proximos_jogos", "simulacoes",
     "cenarios", "elenco", "partidas", "modelo",
@@ -1523,6 +1531,15 @@ def render_liga(bloco: dict) -> None:
     secao("🔮 Simulações")
     st.caption(f"{res.n_sims:,} temporadas simuladas · jogos restantes: "
                f"{len(fixtures)}".replace(",", "."))
+    treino = int(bloco.get("jogos_treino") or len(played))
+    if treino > len(played) * 1.5:
+        st.warning(
+            f"**Temporada no começo:** só {len(played)} jogos disputados. O "
+            f"modelo treina com {treino} partidas incluindo a temporada "
+            "passada, então a projeção reflete sobretudo o ano anterior — e "
+            "clubes recém-promovidos, sem campanha anterior na divisão, "
+            "aparecem puxados para a média. A incerteza cai rodada a rodada."
+        )
     st.plotly_chart(fig_heatmap(res, clubes), width="stretch")
 
     por_grupo = res.pos_dist_grupo is not None
@@ -1608,7 +1625,7 @@ def render_liga(bloco: dict) -> None:
         )
 
 
-for _chave in ("serie_b", "serie_c", "mls"):
+for _chave in LIGAS:
     if ativa(_chave):
         _bloco = published_liga(projection, _chave) if projection else None
         if _bloco:

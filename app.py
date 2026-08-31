@@ -14,16 +14,28 @@ st.set_page_config(
 )
 
 
-pages = [
-    st.Page("pages/brasileirao.py", title="Brasileirão", icon="⚽", default=True),
-    st.Page("pages/serie_b.py", title="Série B", icon="🥈"),
-    st.Page("pages/serie_c.py", title="Série C", icon="🥉"),
-    st.Page("pages/serie_d.py", title="Série D", icon="🏅"),
-    st.Page("pages/mls.py", title="MLS", icon="🇺🇸"),
-    st.Page("pages/copa.py", title="Copa do Brasil", icon="🏆"),
-    st.Page("pages/libertadores.py", title="Libertadores", icon="🌎"),
-    st.Page("pages/admin.py", title="Admin", icon="🔒"),
-]
+pages = {
+    "Brasil": [
+        st.Page("pages/brasileirao.py", title="Brasileirão", icon="⚽",
+                default=True),
+        st.Page("pages/serie_b.py", title="Série B", icon="🥈"),
+        st.Page("pages/serie_c.py", title="Série C", icon="🥉"),
+        st.Page("pages/serie_d.py", title="Série D", icon="🏅"),
+        st.Page("pages/copa.py", title="Copa do Brasil", icon="🏆"),
+    ],
+    "Mundo": [
+        st.Page("pages/libertadores.py", title="Libertadores", icon="🌎"),
+        st.Page("pages/mls.py", title="MLS", icon="🇺🇸"),
+        st.Page("pages/premier_league.py", title="Premier League", icon="🏴"),
+        st.Page("pages/la_liga.py", title="La Liga", icon="🇪🇸"),
+        st.Page("pages/serie_a_italia.py", title="Serie A", icon="🇮🇹"),
+        st.Page("pages/bundesliga.py", title="Bundesliga", icon="🇩🇪"),
+        st.Page("pages/ligue_1.py", title="Ligue 1", icon="🇫🇷"),
+    ],
+    "Admin": [
+        st.Page("pages/admin.py", title="Admin", icon="🔒"),
+    ],
+}
 
 current_page = st.navigation(pages, position="top")
 

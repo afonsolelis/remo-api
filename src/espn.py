@@ -81,85 +81,155 @@ def _partida(evento: dict, rodada: int) -> dict | None:
     }
 
 
-def _conferencias(slug: str) -> tuple[dict[str, str], list[dict]]:
-    """Mapa clube -> conferência e as faixas de classificação de cada uma.
+def _rank(entrada: dict) -> int | None:
+    for stat in entrada.get("stats") or []:
+        if stat.get("name") == "rank" and stat.get("value") is not None:
+            return int(stat["value"])
+    return None
 
-    As faixas saem das notas que a própria ESPN publica ("Qualifies for MLS
-    Cup Playoffs - …"), contadas por descrição — o mesmo princípio usado com
-    as faixas coloridas do ge. A lista de entradas **não vem ordenada**, por
-    isso a posição é recalculada por pontos.
+
+def _grupos_e_faixas(slug: str) -> tuple[dict[str, str], list[dict], bool]:
+    """Mapa clube -> grupo, faixas de classificação, e se há conferências.
+
+    As faixas saem das notas que a ESPN publica em cada clube ("Champions
+    League", "Relegation", "Qualifies for MLS Cup Playoffs - …") — o mesmo
+    princípio das faixas coloridas do ge. A posição de cada faixa vem do
+    ``rank`` de quem a carrega, e não da ordem do array, que não vem
+    ordenado: assim uma faixa de rebaixamento cai na base da tabela, não no
+    topo.
     """
     payload = _get(f"{BASE}/v2/sports/soccer/{slug}/standings")
+    filhos = payload.get("children") or []
+    tem_conferencias = len(filhos) > 1
+
     grupos: dict[str, str] = {}
     faixas: list[dict] = []
-    for grupo in payload.get("children") or []:
-        nome_grupo = grupo.get("name") or grupo.get("abbreviation")
+    for grupo in filhos:
+        nome_grupo = (grupo.get("name") or grupo.get("abbreviation")
+                      if tem_conferencias else None)
         entradas = ((grupo.get("standings") or {}).get("entries")) or []
         for e in entradas:
-            grupos[str(e["team"]["id"])] = nome_grupo
+            if nome_grupo:
+                grupos[str(e["team"]["id"])] = nome_grupo
 
-        # tamanho de cada faixa = quantos clubes carregam aquela nota
-        contagem: dict[str, int] = {}
+        ranks: dict[str, list[int]] = {}
         for e in entradas:
             descricao = (e.get("note") or {}).get("description")
-            if descricao:
-                contagem[descricao] = contagem.get(descricao, 0) + 1
-        posicao = 1
-        # da nota mais forte para a mais fraca: a ESPN descreve a fase que o
-        # clube alcança, e quem entra direto aparece antes do repescagem
-        for descricao in sorted(contagem, key=lambda d: "Wild Card" in d):
-            n = contagem[descricao]
+            posicao = _rank(e)
+            if descricao and posicao:
+                ranks.setdefault(descricao, []).append(posicao)
+        for descricao, posicoes in ranks.items():
+            inicio = min(posicoes)
             faixas.append({
                 "grupo": nome_grupo,
                 "nome": descricao.replace("Qualifies for ", ""),
-                "posicoes": list(range(posicao, posicao + n)),
+                "posicoes": list(range(inicio, inicio + len(posicoes))),
             })
-            posicao += n
-    return grupos, faixas
+    faixas.sort(key=lambda f: (f["grupo"] or "", f["posicoes"][0]))
+    return grupos, faixas, tem_conferencias
 
 
-def fetch_liga(liga) -> dict:
-    """Temporada regular inteira da liga: uma requisição de calendário e uma
-    de classificação. ``liga`` é um ``liga.Liga`` com ``espn_slug``."""
-    ano = datetime.now(timezone.utc).year
+def _ano_inicial(cruzada: bool) -> int:
+    """Ano em que a temporada corrente começou. Ligas europeias viram em
+    julho; MLS e brasileiras seguem o ano civil."""
+    agora = datetime.now(timezone.utc)
+    if cruzada and agora.month < 7:
+        return agora.year - 1
+    return agora.year
+
+
+def _janela(ano: int, cruzada: bool) -> str:
+    if cruzada:
+        return f"{ano}0701-{ano + 1}0630"
+    return f"{ano}0101-{ano}1231"
+
+
+def _eventos(slug: str, janela: str) -> list[dict]:
+    """Eventos de uma janela, restritos à temporada dominante nela.
+
+    Descarta o que não pertence à competição principal daquele intervalo —
+    a ESPN mistura amistosos e jogos de exibição no mesmo calendário.
+    """
     payload = _get(
-        f"{BASE}/site/v2/sports/soccer/{liga.espn_slug}/scoreboard"
-        f"?dates={ano}0101-{ano}1231&limit=1000"
+        f"{BASE}/site/v2/sports/soccer/{slug}/scoreboard"
+        f"?dates={janela}&limit=1000"
     )
-    eventos = [
-        e for e in payload.get("events") or []
-        if (e.get("season") or {}).get("slug") == "regular-season"
-    ]
+    eventos = payload.get("events") or []
     if not eventos:
-        raise RuntimeError(f"{liga.nome}: temporada regular sem jogos na ESPN")
+        return []
+    contagem: dict[str, int] = {}
+    for e in eventos:
+        chave = (e.get("season") or {}).get("slug") or ""
+        contagem[chave] = contagem.get(chave, 0) + 1
+    dominante = max(contagem, key=contagem.get)
+    eventos = [e for e in eventos
+               if (e.get("season") or {}).get("slug") == dominante]
     eventos.sort(key=lambda e: e.get("date") or "")
-    grupos, faixas = _conferencias(liga.espn_slug)
+    return eventos
 
+
+def _monta(eventos: list[dict], validos: set[str]) -> tuple[dict, list[dict]]:
+    """Clubes e partidas de uma temporada, no formato do snapshot do Cartola."""
     clubes: dict[str, dict] = {}
     partidas = []
     for evento in eventos:
-        # a ESPN não numera rodadas; a data serve de referência para a UI
         partida = _partida(evento, rodada=0)
         if not partida:
             continue
-        # o jogo das estrelas entra como temporada regular na ESPN: só valem
+        # o jogo das estrelas da MLS entra como temporada regular: só valem
         # confrontos entre clubes que a classificação reconhece
-        if (str(partida["clube_casa_id"]) not in grupos
-                or str(partida["clube_visitante_id"]) not in grupos):
+        if (str(partida["clube_casa_id"]) not in validos
+                or str(partida["clube_visitante_id"]) not in validos):
             continue
         partidas.append(partida)
         for lado in evento["competitions"][0]["competitors"]:
             clubes.setdefault(str(lado["team"]["id"]), _clube(lado["team"]))
 
-    # rodada aproximada por semana de calendário, só para agrupar a UI
+    # a ESPN não numera rodadas; a semana de calendário serve para a UI
     if partidas:
         base = min(p["timestamp"] for p in partidas)
         for p in partidas:
             p["rodada"] = int((p["timestamp"] - base) // (7 * 86400)) + 1
+    return clubes, partidas
+
+
+def fetch_liga(liga) -> dict:
+    """Temporada corrente da liga, com a anterior anexada para treino.
+
+    Ligas europeias começam em agosto: com poucas rodadas jogadas, a
+    temporada passada é a única informação de peso disponível. Ela vem da
+    mesma fonte, com os mesmos ids de clube, e entra apenas no treino dos
+    modelos — a tabela exibida é só da temporada corrente.
+    """
+    cruzada = bool(getattr(liga, "temporada_cruzada", False))
+    ano = _ano_inicial(cruzada)
+    grupos, faixas, tem_conferencias = _grupos_e_faixas(liga.espn_slug)
+
+    eventos = _eventos(liga.espn_slug, _janela(ano, cruzada))
+    if not eventos:
+        raise RuntimeError(f"{liga.nome}: temporada sem jogos na ESPN")
+    validos = set(grupos) if grupos else {
+        str(lado["team"]["id"]) for e in eventos
+        for lado in e["competitions"][0]["competitors"]
+    }
+    clubes, partidas = _monta(eventos, validos)
+
+    anteriores: list[dict] = []
+    if getattr(liga, "usa_temporada_anterior", False):
+        try:
+            passados = _eventos(liga.espn_slug, _janela(ano - 1, cruzada))
+            ids_passados = {
+                str(lado["team"]["id"]) for e in passados
+                for lado in e["competitions"][0]["competitors"]
+            }
+            _, anteriores = _monta(passados, ids_passados)
+        except Exception:
+            anteriores = []  # o treino cai para a temporada corrente
 
     rodadas = [p["rodada"] for p in partidas]
     disputados = [p for p in partidas if p["placar_oficial_mandante"] is not None]
     return {
+        "partidas_anteriores": anteriores,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "chave": liga.chave,
         "nome": liga.nome,
@@ -167,11 +237,12 @@ def fetch_liga(liga) -> dict:
         "partidas": partidas,
         "grupos": grupos,
         "faixas": faixas,
-        "fase": {"slug": "regular-season", "nome": "Temporada regular"},
+        "fase": {"slug": "temporada", "nome": "Temporada regular"},
         "status": {
             "temporada": ano,
             "rodada_atual": max((p["rodada"] for p in disputados), default=1),
             "rodada_final": max(rodadas, default=1),
-            "nome": f"{liga.nome} {ano}",
+            "nome": f"{liga.nome} {ano}/{str(ano + 1)[2:]}" if cruzada
+                    else f"{liga.nome} {ano}",
         },
     }

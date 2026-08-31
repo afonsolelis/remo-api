@@ -27,6 +27,8 @@ class Liga:
     tabela_uuid: str = ""   # fonte ge — muda a cada temporada
     espn_slug: str = ""     # fonte ESPN (ex.: "usa.1")
     historico: str = ""     # arquivo do football-data para treinar o XGBoost
+    temporada_cruzada: bool = False       # vira em julho (ligas europeias)
+    usa_temporada_anterior: bool = False  # anexa a anterior para treino
 
 
 # Edição 2026 — o UUID está no atributo ``data-bs-resource-id`` da página
@@ -55,7 +57,25 @@ MLS = Liga(
     historico="USA.csv",
 )
 
-LIGAS = {liga.chave: liga for liga in (SERIE_B, SERIE_C, MLS)}
+# As ligas europeias começam em agosto: com poucas rodadas jogadas, a
+# temporada passada é anexada para o treino dos modelos e para o backtest.
+# Não usam o histórico do football-data — a ESPN já entrega as temporadas
+# anteriores com os mesmos ids de clube, sem precisar casar nomes.
+EUROPA = [
+    Liga(chave="premier_league", nome="Premier League", espn_slug="eng.1",
+         temporada_cruzada=True, usa_temporada_anterior=True),
+    Liga(chave="la_liga", nome="La Liga", espn_slug="esp.1",
+         temporada_cruzada=True, usa_temporada_anterior=True),
+    Liga(chave="serie_a_italia", nome="Serie A", espn_slug="ita.1",
+         temporada_cruzada=True, usa_temporada_anterior=True),
+    Liga(chave="bundesliga", nome="Bundesliga", espn_slug="ger.1",
+         temporada_cruzada=True, usa_temporada_anterior=True),
+    Liga(chave="ligue_1", nome="Ligue 1", espn_slug="fra.1",
+         temporada_cruzada=True, usa_temporada_anterior=True),
+]
+
+LIGAS = {liga.chave: liga
+         for liga in [SERIE_B, SERIE_C, MLS, *EUROPA]}
 
 
 def _timestamp(data_realizacao: str | None) -> float | None:

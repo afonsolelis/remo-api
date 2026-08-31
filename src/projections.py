@@ -48,8 +48,11 @@ def _league_projection(
     team_ids: list[int],
     predictor,
     grupos: list[int] | None = None,
+    treino: pd.DataFrame | None = None,
 ) -> dict:
-    lam_h, lam_a = predictor.predict(future, played)
+    # ``treino`` pode incluir a temporada anterior; a tabela simulada parte
+    # apenas da campanha corrente
+    lam_h, lam_a = predictor.predict(future, played if treino is None else treino)
     result = simulate_season(
         played, future, lam_h, lam_a, team_ids, n_sims=N_SIMS,
         keep_details=True, grupos=grupos,
@@ -184,9 +187,28 @@ def _liga_projection(chave: str) -> dict | None:
         return None
     df = store.matches_df(doc)
     played, future = store.split_played_future(df)
-    if future.empty or len(played) < 40:
+
+    # ligas europeias começam em agosto: a temporada passada entra só no
+    # treino e no backtest, com rodadas deslocadas para o negativo para não
+    # se misturarem às da corrente no walk-forward
+    treino = played
+    anteriores = doc.get("partidas_anteriores") or []
+    if anteriores:
+        passado, _ = store.split_played_future(
+            store.matches_df({"partidas": anteriores})
+        )
+        if not passado.empty:
+            passado = passado.copy()
+            passado["rodada"] = passado["rodada"] - 1000
+            treino = pd.concat([passado, played], ignore_index=True)
+            treino = treino.sort_values("timestamp").reset_index(drop=True)
+
+    if future.empty or len(treino) < 40:
         # fase encerrada ou recém-começada: só a tabela, sem simulação
-        return {"liga": doc, "model_name": None, "league": None, "backtest": []}
+        return {
+            "liga": {k: v for k, v in doc.items() if k != "partidas_anteriores"},
+            "model_name": None, "league": None, "backtest": [],
+        }
     team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
 
     # conferências (MLS): todos os jogos contam, mas a posição é apurada
@@ -207,16 +229,22 @@ def _liga_projection(chave: str) -> dict | None:
             historico = None
 
     predictor = Ensemble(
-        [make_predictor(chave_modelo, played) for chave_modelo in LIGA_MODEL_KEYS],
+        [make_predictor(chave_modelo, treino) for chave_modelo in LIGA_MODEL_KEYS],
         nome="Ensemble Poisson (2 modelos)",
     )
+    league = _league_projection(played, future, team_ids, predictor, grupos,
+                               treino=treino)
+    # a temporada anterior serviu ao treino; publicá-la só inflaria o
+    # snapshot que o dashboard carrega a cada render
+    publicado = {k: v for k, v in doc.items() if k != "partidas_anteriores"}
     return {
-        "liga": doc,
+        "liga": publicado,
         "model_name": predictor.name,
         "grupos_ordem": nomes_grupos,
-        "league": _league_projection(played, future, team_ids, predictor, grupos),
+        "jogos_treino": int(len(treino)),
+        "league": league,
         "backtest": _json_records(
-            backtest(played, n_rounds=BACKTEST_ROUNDS, historical=historico)
+            backtest(treino, n_rounds=BACKTEST_ROUNDS, historical=historico)
         ),
     }
 

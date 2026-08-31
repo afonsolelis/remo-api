@@ -9,7 +9,8 @@ RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
 PAGINAS = ["brasileirao", "serie_b", "serie_c", "serie_d", "mls",
-           "copa", "libertadores"]
+           "premier_league", "la_liga", "serie_a_italia", "bundesliga",
+           "ligue_1", "copa", "libertadores"]
 
 # a página do Brasileirão empilha todas as seções da Série A, nesta ordem
 SECOES = [
@@ -52,6 +53,25 @@ def test_serie_c_mostra_tabela_e_explica_a_ausencia_de_simulacao():
     assert any("não foi sorteada" in i.value for i in at.info)
 
 
+def test_liga_europeia_tem_faixas_na_base_da_tabela():
+    """As zonas vêm do rank de quem carrega a nota na ESPN: rebaixamento
+    precisa cair no fim da tabela, não no começo."""
+    import json
+    from pathlib import Path
+
+    doc = json.loads((RAIZ / "data" / "projection.json").read_text())
+    faixas = {f["nome"]: f["posicoes"]
+              for f in doc["premier_league"]["liga"]["faixas"]}
+    assert faixas["Champions League"] == [1, 2, 3, 4]
+    assert faixas["Relegation"] == [18, 19, 20]
+
+    at = _roda("premier_league")
+    assert [h.value for h in at.header] == [
+        "📊 Classificação", "🔮 Simulações", "🎯 Melhor cenário",
+        "📅 Próximos jogos", "🧠 Modelo",
+    ]
+
+
 def test_mls_separa_as_conferencias():
     """Duas tabelas de classificação e duas de projeção, uma por conferência."""
     at = _roda("mls")
@@ -80,4 +100,5 @@ if __name__ == "__main__":
     test_serie_b_tem_suas_secoes()
     test_serie_c_mostra_tabela_e_explica_a_ausencia_de_simulacao()
     test_mls_separa_as_conferencias()
+    test_liga_europeia_tem_faixas_na_base_da_tabela()
     print("ok — páginas renderizam e as seções aparecem na ordem esperada")

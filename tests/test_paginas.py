@@ -8,7 +8,7 @@ from streamlit.testing.v1 import AppTest
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-PAGINAS = ["brasileirao", "serie_b", "serie_c", "serie_d",
+PAGINAS = ["brasileirao", "serie_b", "serie_c", "serie_d", "mls",
            "copa", "libertadores"]
 
 # a página do Brasileirão empilha todas as seções da Série A, nesta ordem
@@ -52,6 +52,19 @@ def test_serie_c_mostra_tabela_e_explica_a_ausencia_de_simulacao():
     assert any("não foi sorteada" in i.value for i in at.info)
 
 
+def test_mls_separa_as_conferencias():
+    """Duas tabelas de classificação e duas de projeção, uma por conferência."""
+    at = _roda("mls")
+    assert [h.value for h in at.header] == [
+        "📊 Classificação", "🔮 Simulações", "🎯 Melhor cenário",
+        "📅 Próximos jogos", "🧠 Modelo",
+    ]
+    conferencias = [m.value for m in at.markdown
+                    if m.value.strip("*") in ("Eastern Conference",
+                                              "Western Conference")]
+    assert len(conferencias) == 4, conferencias
+
+
 def test_brasileirao_empilha_todas_as_secoes():
     at = _roda("brasileirao")
     assert [h.value for h in at.header] == SECOES
@@ -66,4 +79,5 @@ if __name__ == "__main__":
     test_brasileirao_empilha_todas_as_secoes()
     test_serie_b_tem_suas_secoes()
     test_serie_c_mostra_tabela_e_explica_a_ausencia_de_simulacao()
+    test_mls_separa_as_conferencias()
     print("ok — páginas renderizam e as seções aparecem na ordem esperada")

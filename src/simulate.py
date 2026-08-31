@@ -32,6 +32,7 @@ class SimulationResult:
     p_z4: np.ndarray
     n_sims: int
     details: ScenarioDetails | None = None   # só quando ``keep_details``
+    pos_dist_grupo: np.ndarray | None = None  # posição dentro do grupo
 
 
 def simulate_season(
@@ -44,13 +45,18 @@ def simulate_season(
     seed: int = 7,
     fixed_scores: dict[int, tuple[int, int]] | None = None,
     keep_details: bool = False,
+    grupos: list[int] | None = None,
 ) -> SimulationResult:
     """``fixed_scores`` trava placares escolhidos pelo usuário: mapeia o índice
     posicional do jogo em ``fixtures`` para (gols_casa, gols_fora) — esses jogos
     deixam de ser sorteados e a simulação fica condicionada a eles.
 
     ``keep_details`` devolve também o desfecho de cada jogo em cada cenário,
-    consumido pela análise de melhor cenário (``src/scenarios.py``)."""
+    consumido pela análise de melhor cenário (``src/scenarios.py``).
+
+    ``grupos`` dá o índice de conferência de cada time (MLS): todos os jogos
+    contam para a tabela, mas a posição é apurada dentro do próprio grupo —
+    e é ela que vale para o melhor cenário."""
     rng = np.random.default_rng(seed)
     n_t = len(team_ids)
     idx = {t: i for i, t in enumerate(team_ids)}
@@ -122,11 +128,29 @@ def simulate_season(
     for t in range(n_t):
         pos_dist[t] = np.bincount(positions[:, t], minlength=n_t + 1)[1:] / n_sims
 
+    pos_dist_grupo = None
+    posicoes_relevantes = positions
+    if grupos is not None:
+        g = np.asarray(grupos)
+        posicoes_relevantes = np.zeros_like(positions)
+        tamanho = 0
+        for gid in np.unique(g):
+            cols = np.flatnonzero(g == gid)
+            tamanho = max(tamanho, len(cols))
+            sub = score[:, cols]
+            posicoes_relevantes[:, cols] = (
+                np.argsort(np.argsort(-sub, axis=1), axis=1) + 1
+            )
+        pos_dist_grupo = np.zeros((n_t, tamanho))
+        for t in range(n_t):
+            contagem = np.bincount(posicoes_relevantes[:, t], minlength=tamanho + 1)
+            pos_dist_grupo[t] = contagem[1:tamanho + 1] / n_sims
+
     details = None
     if keep_details:
         details = ScenarioDetails(
             outcomes=np.where(casa_vence, 0, np.where(empate, 1, 2)).astype(np.int8),
-            positions=positions.astype(np.int16),
+            positions=posicoes_relevantes.astype(np.int16),
             points=pts.astype(np.int16),
         )
 
@@ -140,4 +164,5 @@ def simulate_season(
         p_z4=(positions >= n_t - 3).mean(axis=0),
         n_sims=n_sims,
         details=details,
+        pos_dist_grupo=pos_dist_grupo,
     )

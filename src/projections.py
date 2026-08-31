@@ -47,11 +47,12 @@ def _league_projection(
     future: pd.DataFrame,
     team_ids: list[int],
     predictor,
+    grupos: list[int] | None = None,
 ) -> dict:
     lam_h, lam_a = predictor.predict(future, played)
     result = simulate_season(
         played, future, lam_h, lam_a, team_ids, n_sims=N_SIMS,
-        keep_details=True,
+        keep_details=True, grupos=grupos,
     )
     p_home, p_draw, p_away = outcome_probs(lam_h, lam_a)
     fixtures = future.copy()
@@ -68,6 +69,8 @@ def _league_projection(
         "p_z4": result.p_z4.tolist(),
         "fixtures": _json_records(fixtures),
         "cenarios": best_case(result.details, fixtures, result.team_ids),
+        "pos_dist_grupo": (result.pos_dist_grupo.tolist()
+                           if result.pos_dist_grupo is not None else None),
     }
 
 
@@ -185,6 +188,24 @@ def _liga_projection(chave: str) -> dict | None:
         # fase encerrada ou recém-começada: só a tabela, sem simulação
         return {"liga": doc, "model_name": None, "league": None, "backtest": []}
     team_ids = sorted(set(df["casa_id"]) | set(df["fora_id"]))
+
+    # conferências (MLS): todos os jogos contam, mas a posição é apurada
+    # dentro do próprio grupo
+    mapa_grupos = doc.get("grupos") or {}
+    nomes_grupos = sorted({mapa_grupos[str(t)] for t in team_ids}) if mapa_grupos else []
+    grupos = ([nomes_grupos.index(mapa_grupos[str(t)]) for t in team_ids]
+              if nomes_grupos else None)
+
+    # o histórico do football-data só entra no backtest: nas ligas medidas
+    # até aqui o XGBoost fica atrás dos modelos estatísticos mesmo com ele
+    config = liga.LIGAS.get(chave)
+    historico = None
+    if config and config.historico:
+        try:
+            historico = load_historical(arquivo=config.historico)
+        except Exception:
+            historico = None
+
     predictor = Ensemble(
         [make_predictor(chave_modelo, played) for chave_modelo in LIGA_MODEL_KEYS],
         nome="Ensemble Poisson (2 modelos)",
@@ -192,8 +213,11 @@ def _liga_projection(chave: str) -> dict | None:
     return {
         "liga": doc,
         "model_name": predictor.name,
-        "league": _league_projection(played, future, team_ids, predictor),
-        "backtest": _json_records(backtest(played, n_rounds=BACKTEST_ROUNDS)),
+        "grupos_ordem": nomes_grupos,
+        "league": _league_projection(played, future, team_ids, predictor, grupos),
+        "backtest": _json_records(
+            backtest(played, n_rounds=BACKTEST_ROUNDS, historical=historico)
+        ),
     }
 
 
@@ -287,6 +311,8 @@ def _result_from(league: dict, n_sims: int) -> SimulationResult:
         p_g6=np.asarray(league["p_g6"], dtype=float),
         p_z4=np.asarray(league["p_z4"], dtype=float),
         n_sims=n_sims,
+        pos_dist_grupo=(np.asarray(league["pos_dist_grupo"], dtype=float)
+                        if league.get("pos_dist_grupo") else None),
     )
 
 
@@ -303,6 +329,7 @@ def published_liga(doc: dict, chave: str = "serie_b") -> dict | None:
     league = bloco.get("league")  # ausente quando a fase não tem jogo futuro
     return {
         "res": _result_from(league, int(doc["n_sims"])) if league else None,
+        "grupos_ordem": bloco.get("grupos_ordem") or [],
         "fixtures": pd.DataFrame(league["fixtures"]) if league else None,
         "cenarios": (league or {}).get("cenarios") or {},
         "model": bloco.get("model_name"),

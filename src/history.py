@@ -14,29 +14,37 @@ import requests
 
 from .store import DATA_DIR
 
-HIST_URL = "https://www.football-data.co.uk/new/BRA.csv"
-HIST_FILE = DATA_DIR / "historical" / "BRA.csv"
+HIST_BASE = "https://www.football-data.co.uk/new"
+HIST_DIR = DATA_DIR / "historical"
+ARQUIVO_PADRAO = "BRA.csv"  # Brasileirão Série A
 MAX_AGE_DAYS = 3
 _SYNTH_OFFSET = 100_000  # evita colisão com ids do Cartola
 
 
-def _download() -> None:
-    r = requests.get(HIST_URL, timeout=60)
+def _download(arquivo: str, destino) -> None:
+    r = requests.get(f"{HIST_BASE}/{arquivo}", timeout=60)
     r.raise_for_status()
-    HIST_FILE.parent.mkdir(parents=True, exist_ok=True)
-    HIST_FILE.write_bytes(r.content)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_bytes(r.content)
 
 
-def load_historical(current_season: int = 2026) -> pd.DataFrame:
+def load_historical(current_season: int = 2026,
+                    arquivo: str = ARQUIVO_PADRAO) -> pd.DataFrame:
     """Partidas históricas em formato compatível com ``matches_df``
-    (+ coluna ``season``). Exclui a temporada atual (vem do Cartola)."""
+    (+ coluna ``season``). Exclui a temporada atual (vem da fonte ao vivo).
+
+    ``arquivo`` escolhe a liga no football-data (``BRA.csv``, ``USA.csv``…);
+    todas usam o mesmo layout, e os ids são sintéticos por nome — as
+    features são de forma e Elo, não de identidade.
+    """
+    HIST_FILE = HIST_DIR / arquivo
     stale = (
         not HIST_FILE.exists()
         or (time.time() - HIST_FILE.stat().st_mtime) > MAX_AGE_DAYS * 86400
     )
     if stale:
         try:
-            _download()
+            _download(arquivo, HIST_FILE)
         except Exception:
             if not HIST_FILE.exists():
                 raise  # sem arquivo local e sem rede

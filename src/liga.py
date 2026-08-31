@@ -22,9 +22,11 @@ from .copa import BASE_URL, _get
 
 @dataclass(frozen=True)
 class Liga:
-    chave: str          # identificador interno (coleção/arquivo no store)
+    chave: str              # identificador interno (coleção/arquivo no store)
     nome: str
-    tabela_uuid: str    # muda a cada temporada
+    tabela_uuid: str = ""   # fonte ge — muda a cada temporada
+    espn_slug: str = ""     # fonte ESPN (ex.: "usa.1")
+    historico: str = ""     # arquivo do football-data para treinar o XGBoost
 
 
 # Edição 2026 — o UUID está no atributo ``data-bs-resource-id`` da página
@@ -44,7 +46,16 @@ SERIE_C = Liga(
     tabela_uuid="1339e172-bd81-4490-af97-27ff29b9c3df",
 )
 
-LIGAS = {liga.chave: liga for liga in (SERIE_B, SERIE_C)}
+# A MLS vem da ESPN: o ge não cobre a liga, e o football-data publica o
+# histórico dela desde 2012 no mesmo formato do Brasileirão.
+MLS = Liga(
+    chave="mls",
+    nome="Major League Soccer",
+    espn_slug="usa.1",
+    historico="USA.csv",
+)
+
+LIGAS = {liga.chave: liga for liga in (SERIE_B, SERIE_C, MLS)}
 
 
 def _timestamp(data_realizacao: str | None) -> float | None:
@@ -114,6 +125,10 @@ def _faixas(classificacao: dict) -> list[dict]:
 
 def fetch_liga(liga: Liga = SERIE_B) -> dict:
     """Baixa classificação e todas as rodadas da edição corrente."""
+    if liga.espn_slug:
+        from . import espn
+
+        return espn.fetch_liga(liga)
     classificacao = _get(f"{BASE_URL}/{liga.tabela_uuid}/classificacao/")
     fase = classificacao["fase"]["slug"]
     rodada = classificacao.get("rodada") or {}

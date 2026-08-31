@@ -613,7 +613,7 @@ n_sims = int(projection.get("n_sims", 0)) if projection else 0
 # A página do Brasileirão empilha todas as seções da Série A numa rolagem só;
 # as de competição renderizam apenas a sua. Daqui para baixo nada de
 # ``st.stop()``: numa página empilhada ele derrubaria as seções seguintes.
-PAGINAS_EMPILHADAS = {"brasileirao", "serie_b", "serie_c"}
+PAGINAS_EMPILHADAS = {"brasileirao", "serie_b", "serie_c", "mls"}
 SECOES_BRASILEIRAO = (
     "remo", "classificacao", "proximos_jogos", "simulacoes",
     "cenarios", "elenco", "partidas", "modelo",
@@ -1432,8 +1432,27 @@ if ativa("libertadores"):
                 _render_grupos(fase_grupos)
 
 # ---- páginas de ligas de pontos corridos do ge (Séries B e C)
+def _tabelas_por_grupo(doc: dict, tabela, team_ids: list[int]) -> list[tuple]:
+    """(nome do grupo, tabela reordenada, ids) — um item só quando a liga não
+    tem conferências. A ordem de desempate da tabela geral é preservada."""
+    mapa = doc.get("grupos") or {}
+    if not mapa:
+        return [(None, tabela, team_ids)]
+    blocos = []
+    for nome in sorted({mapa[str(t)] for t in team_ids}):
+        ids = [t for t in team_ids if mapa[str(t)] == nome]
+        parcial = tabela[tabela["clube_id"].isin(ids)].copy()
+        parcial["Pos"] = range(1, len(parcial) + 1)
+        blocos.append((nome, parcial, ids))
+    return blocos
+
+
 def render_liga(bloco: dict) -> None:
-    """Tabela sempre; simulações só quando a fase corrente tem jogo futuro."""
+    """Tabela sempre; simulações só quando a fase corrente tem jogo futuro.
+
+    Em ligas com conferências (MLS) todos os jogos contam para a tabela, mas
+    a classificação e as faixas valem dentro de cada uma.
+    """
     res = bloco["res"]
     fixtures = bloco["fixtures"]
     doc = bloco["liga"]
@@ -1444,8 +1463,9 @@ def render_liga(bloco: dict) -> None:
     team_ids = ([int(t) for t in res.team_ids] if res
                 else sorted({int(t) for t in clubes}))
     tabela = compute_standings(played, clubes, team_ids)
+    blocos = _tabelas_por_grupo(doc, tabela, team_ids)
+    indice = {t: i for i, t in enumerate(team_ids)}
 
-    # o time em destaque do cabeçalho só serve se estiver nesta divisão
     padrao = (selected_team_id if selected_team_id in team_ids
               else int(tabela.iloc[0]["clube_id"]))
     ordenados = sorted(team_ids, key=lambda t: store.clube_nome(clubes, t))
@@ -1464,29 +1484,34 @@ def render_liga(bloco: dict) -> None:
         contexto += f" · {fase_nome}"
     st.caption(contexto + (f" · projeções com **{bloco['model']}**" if res else ""))
 
-    zona_de_pos = {p: f["nome"] for f in faixas for p in f["posicoes"]}
+    def faixas_do_grupo(grupo):
+        return [f for f in faixas if f.get("grupo") in (None, grupo)]
 
     secao("📊 Classificação")
-    disp = tabela.copy()
-    disp["Escudo"] = disp["clube_id"].map(lambda t: store.clube_escudo(clubes, t))
-    disp["Últimos 5"] = disp["clube_id"].map(
-        lambda t: "".join(FORM_ICON[r] for r in team_last_results(played, t)))
-    disp["Zona"] = disp["Pos"].map(lambda p: zona_de_pos.get(p, "—"))
-    disp["Aproveitamento"] = disp["Aproveitamento"].map(lambda v: pct(v / 100))
-    disp = disp.set_index("clube_id")[
-        ["Pos", "Escudo", "Time", "PTS", "J", "V", "E", "D", "GP", "GC", "SG",
-         "Aproveitamento", "Últimos 5", "Zona"]
-    ]
-    st.dataframe(
-        disp.style.apply(
-            lambda row: [f"background-color: {BLUE_LIGHT}"
-                         if row.name == time_id else ""] * len(row),
-            axis=1,
-        ),
-        hide_index=True,
-        height=740,
-        column_config={"Escudo": st.column_config.ImageColumn("", width=36)},
-    )
+    for grupo, parcial, _ids in blocos:
+        if grupo:
+            st.markdown(f"**{grupo}**")
+        zona = {p: f["nome"] for f in faixas_do_grupo(grupo) for p in f["posicoes"]}
+        disp = parcial.copy()
+        disp["Escudo"] = disp["clube_id"].map(lambda t: store.clube_escudo(clubes, t))
+        disp["Últimos 5"] = disp["clube_id"].map(
+            lambda t: "".join(FORM_ICON[r] for r in team_last_results(played, t)))
+        disp["Zona"] = disp["Pos"].map(lambda p: zona.get(p, "—"))
+        disp["Aproveitamento"] = disp["Aproveitamento"].map(lambda v: pct(v / 100))
+        disp = disp.set_index("clube_id")[
+            ["Pos", "Escudo", "Time", "PTS", "J", "V", "E", "D", "GP", "GC", "SG",
+             "Aproveitamento", "Últimos 5", "Zona"]
+        ]
+        st.dataframe(
+            disp.style.apply(
+                lambda row: [f"background-color: {BLUE_LIGHT}"
+                             if row.name == time_id else ""] * len(row),
+                axis=1,
+            ),
+            hide_index=True,
+            height=38 * (len(disp) + 1) + 3,
+            column_config={"Escudo": st.column_config.ImageColumn("", width=36)},
+        )
 
     if not res:
         st.info(f"**{fase_nome or 'Fase atual'} encerrada.** A fase seguinte "
@@ -1500,30 +1525,48 @@ def render_liga(bloco: dict) -> None:
                f"{len(fixtures)}".replace(",", "."))
     st.plotly_chart(fig_heatmap(res, clubes), width="stretch")
 
-    projecao = pd.DataFrame({
-        "Time": [store.clube_nome(clubes, t) for t in team_ids],
-        "Pontos projetados": np.round(res.exp_pts, 1),
-        "Posição média": res.pos_dist @ np.arange(1, len(team_ids) + 1),
-        "Título": res.pos_dist[:, 0],
-        **{f["nome"]: res.pos_dist[:, [p - 1 for p in f["posicoes"]]].sum(axis=1)
-           for f in faixas},
-    }).sort_values("Posição média").reset_index(drop=True)
-    projecao.insert(0, "Pos.", np.arange(1, len(projecao) + 1))
-    st.dataframe(
-        projecao,
-        hide_index=True,
-        height=740,
-        column_config={
-            "Pos.": st.column_config.NumberColumn(format="%d", width="small"),
-            "Pontos projetados": st.column_config.NumberColumn(format="%.1f"),
-            "Posição média": st.column_config.NumberColumn(format="%.1f"),
-            **{c: st.column_config.ProgressColumn(
-                c, format="percent", min_value=0, max_value=1)
-               for c in ["Título"] + [f["nome"] for f in faixas]},
-        },
-    )
-    st.caption("As zonas vêm do regulamento que o próprio ge publica para "
-               "esta edição, não de valores fixos no código.")
+    por_grupo = res.pos_dist_grupo is not None
+    dist = res.pos_dist_grupo if por_grupo else res.pos_dist
+    for grupo, _parcial, ids in blocos:
+        if grupo:
+            st.markdown(f"**{grupo}**")
+        linhas_grupo = [indice[t] for t in ids]
+        sub = dist[linhas_grupo][:, :len(ids)]
+        colunas = {
+            "Time": [store.clube_nome(clubes, t) for t in ids],
+            "Pontos projetados": np.round(res.exp_pts[linhas_grupo], 1),
+            "Posição média": sub @ np.arange(1, len(ids) + 1),
+        }
+        if por_grupo:
+            colunas["🏆 Supporters' Shield"] = res.p_titulo[linhas_grupo]
+        else:
+            colunas["Título"] = sub[:, 0]
+        for f in faixas_do_grupo(grupo):
+            colunas[f["nome"]] = sub[:, [p - 1 for p in f["posicoes"]]].sum(axis=1)
+        projecao = pd.DataFrame(colunas).sort_values(
+            "Posição média").reset_index(drop=True)
+        projecao.insert(0, "Pos.", np.arange(1, len(projecao) + 1))
+        percentuais = [c for c in projecao.columns
+                       if c not in ("Pos.", "Time", "Pontos projetados",
+                                    "Posição média")]
+        st.dataframe(
+            projecao,
+            hide_index=True,
+            height=38 * (len(projecao) + 1) + 3,
+            column_config={
+                "Pos.": st.column_config.NumberColumn(format="%d", width="small"),
+                "Pontos projetados": st.column_config.NumberColumn(format="%.1f"),
+                "Posição média": st.column_config.NumberColumn(format="%.1f"),
+                **{c: st.column_config.ProgressColumn(
+                    c, format="percent", min_value=0, max_value=1)
+                   for c in percentuais},
+            },
+        )
+    st.caption("As zonas vêm do regulamento que a própria fonte publica para "
+               "esta edição, não de valores fixos no código." +
+               (" Na MLS todos os jogos contam para a tabela, mas a posição "
+                "vale dentro da conferência; o Supporters' Shield é a melhor "
+                "campanha geral." if por_grupo else ""))
 
     secao("🎯 Melhor cenário")
     analise = (bloco["cenarios"] or {}).get(str(time_id))
@@ -1549,10 +1592,10 @@ def render_liga(bloco: dict) -> None:
     if bt.empty:
         st.info("O backtest desta divisão ainda está sendo preparado.")
     else:
-        st.caption("Replay das últimas rodadas da própria divisão. Sem o "
-                   "histórico 2012+ (que só cobre a Série A), o XGBoost treina "
-                   "com poucos jogos e fica atrás — por isso a simulação usa "
-                   "apenas os modelos estatísticos.")
+        st.caption("Replay das últimas rodadas da própria competição. O "
+                   "XGBoost fica atrás dos modelos estatísticos mesmo onde há "
+                   "histórico para treiná-lo, por isso a simulação usa só "
+                   "estes últimos.")
         st.dataframe(
             bt.drop(columns=["chave"]),
             hide_index=True,
@@ -1565,7 +1608,7 @@ def render_liga(bloco: dict) -> None:
         )
 
 
-for _chave in ("serie_b", "serie_c"):
+for _chave in ("serie_b", "serie_c", "mls"):
     if ativa(_chave):
         _bloco = published_liga(projection, _chave) if projection else None
         if _bloco:

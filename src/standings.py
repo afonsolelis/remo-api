@@ -59,6 +59,51 @@ def team_last_results(played: pd.DataFrame, team_id: int, n: int = 5) -> list[st
     return out[-n:]
 
 
+def team_match_history(
+    played: pd.DataFrame,
+    clubes: dict,
+    team_id: int,
+) -> pd.DataFrame:
+    """Campanha do time, jogo a jogo, com os totais após cada partida."""
+    rows = []
+    pontos = 0
+    gols_pro = 0
+    gols_contra = 0
+    mine = played[(played["casa_id"] == team_id) | (played["fora_id"] == team_id)]
+
+    for m in mine.sort_values(["timestamp", "partida_id"]).itertuples():
+        em_casa = m.casa_id == team_id
+        adversario_id = m.fora_id if em_casa else m.casa_id
+        meus, deles = (
+            (int(m.gols_casa), int(m.gols_fora))
+            if em_casa
+            else (int(m.gols_fora), int(m.gols_casa))
+        )
+        resultado = "V" if meus > deles else "E" if meus == deles else "D"
+        pontos_jogo = 3 if resultado == "V" else 1 if resultado == "E" else 0
+        pontos += pontos_jogo
+        gols_pro += meus
+        gols_contra += deles
+        jogos = len(rows) + 1
+        rows.append(
+            {
+                "rodada": int(m.rodada),
+                "data": m.data,
+                "adversario": clube_nome(clubes, adversario_id),
+                "mando": "Casa" if em_casa else "Fora",
+                "gols_pro": meus,
+                "gols_contra": deles,
+                "resultado": resultado,
+                "pontos": pontos_jogo,
+                "pontos_acumulados": pontos,
+                "saldo_acumulado": gols_pro - gols_contra,
+                "aproveitamento": pontos / (jogos * 3),
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
 def cumulative_points(played: pd.DataFrame, team_id: int) -> pd.DataFrame:
     """Pontos acumulados do time por rodada jogada."""
     rows = []

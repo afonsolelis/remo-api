@@ -26,7 +26,12 @@ from src import store
 from src.copa import jogos_do_time
 from src.liga import LIGAS
 from src.projections import published_liga, published_simulation
-from src.standings import compute_standings, cumulative_points, team_last_results
+from src.standings import (
+    compute_standings,
+    cumulative_points,
+    team_last_results,
+    team_match_history,
+)
 from src.viz import (
     BLUE,
     BLUE_LIGHT,
@@ -643,6 +648,72 @@ def secao(titulo: str) -> None:
         st.header(titulo)
 
 
+def render_historico_time(
+    played: pd.DataFrame,
+    clubes: dict,
+    team_id: int,
+    nome_time: str,
+) -> None:
+    """Exibe a campanha encerrada do time, da partida mais recente à primeira."""
+    historico = team_match_history(played, clubes, team_id)
+    st.subheader(f"📋 Histórico de jogos do {nome_time}")
+    if historico.empty:
+        st.info("O time ainda não disputou jogos nesta competição.")
+        return
+
+    datas = pd.to_datetime(historico["data"], errors="coerce")
+    placares = (
+        historico["gols_pro"].astype(str)
+        + " × "
+        + historico["gols_contra"].astype(str)
+    )
+    tabela = pd.DataFrame(
+        {
+            "Rodada": historico["rodada"],
+            "Data": datas.dt.strftime("%d/%m/%Y").fillna("—"),
+            "Adversário": historico["adversario"],
+            "Mando": historico["mando"].map(
+                {"Casa": "🏠 Casa", "Fora": "✈️ Fora"}
+            ),
+            "Placar": placares,
+            "Resultado": historico["resultado"].map(
+                {"V": "🟢 Vitória", "E": "⚪ Empate", "D": "🔴 Derrota"}
+            ),
+            "GP": historico["gols_pro"],
+            "GC": historico["gols_contra"],
+            "Pontos": historico["pontos"],
+            "Pts. acum.": historico["pontos_acumulados"],
+            "Saldo acum.": historico["saldo_acumulado"],
+            "Aproveitamento": historico["aproveitamento"],
+        }
+    ).iloc[::-1]
+    st.dataframe(
+        tabela,
+        hide_index=True,
+        height=min(520, 38 * (len(tabela) + 1) + 3),
+        column_config={
+            "Rodada": st.column_config.NumberColumn(format="%d", width="small"),
+            "GP": st.column_config.NumberColumn(
+                "GP", help="Gols pró na partida", format="%d", width="small"
+            ),
+            "GC": st.column_config.NumberColumn(
+                "GC", help="Gols contra na partida", format="%d", width="small"
+            ),
+            "Aproveitamento": st.column_config.ProgressColumn(
+                "Aproveitamento acumulado",
+                help="Percentual dos pontos disputados conquistados até a partida",
+                format="percent",
+                min_value=0,
+                max_value=1,
+            ),
+        },
+    )
+    st.caption(
+        "GP e GC são os gols da partida; pontos, saldo e aproveitamento "
+        "acumulados consideram todos os jogos até aquela rodada."
+    )
+
+
 standings = compute_standings(played, clubes, team_ids)
 sim = None
 if ativa(*_SIMULATION_PAGES):
@@ -791,6 +862,9 @@ if ativa("remo") and sim_ok:
                 for c in [f"Vitória do {selected_team_name}", "Empate", "Derrota"]
             },
         )
+
+    render_historico_time(played, clubes, selected_team_id, selected_team_name)
+
     if selected_team_id == store.REMO_ID:
         st.divider()
         st.subheader("🏅 Outras competições do Remo em 2026")
@@ -818,6 +892,10 @@ Paysandu, que virou sobre o Anápolis na final
                    "Brasileirão e Copa do Brasil — estão nas abas ao lado, com "
                    "simulações ao vivo. A Libertadores (sem o Remo em 2026) "
                    "também tem página própria.")
+
+if ativa("remo") and not sim_ok:
+    secao(f"⚽ {selected_team_name}")
+    render_historico_time(played, clubes, selected_team_id, selected_team_name)
 
 # ---- página Classificação
 if ativa("classificacao"):
@@ -1520,6 +1598,8 @@ def render_liga(bloco: dict) -> None:
             height=38 * (len(disp) + 1) + 3,
             column_config={"Escudo": st.column_config.ImageColumn("", width=36)},
         )
+
+    render_historico_time(played, clubes, time_id, nome_time)
 
     if not res:
         st.info(f"**{fase_nome or 'Fase atual'} encerrada.** A fase seguinte "

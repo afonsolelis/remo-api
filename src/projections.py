@@ -5,6 +5,7 @@ leem o documento persistido e nunca treinam modelos nem executam Monte Carlo.
 """
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 
@@ -18,6 +19,8 @@ from .history import load_historical
 from .model import Ensemble, PoissonBaseline, make_predictor, outcome_probs
 from .scenarios import best_case
 from .simulate import SimulationResult, simulate_season
+
+logger = logging.getLogger(__name__)
 
 MODEL_KEY = os.environ.get("SIMULATION_MODEL", "ensemble")
 N_SIMS = int(os.environ.get("SIMULATION_COUNT", "20000"))
@@ -304,7 +307,13 @@ def generate(data: dict | None = None) -> dict:
     for chave in liga.LIGAS:
         try:
             ligas[chave] = _liga_projection(chave)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "Falha ao gerar projeção de %s: %s: %s",
+                liga.LIGAS[chave].nome,
+                type(exc).__name__,
+                exc,
+            )
             ligas[chave] = None  # a Série A publica mesmo se o ge falhar
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -358,6 +367,7 @@ def published_liga(doc: dict, chave: str = "serie_b") -> dict | None:
     return {
         "res": _result_from(league, int(doc["n_sims"])) if league else None,
         "grupos_ordem": bloco.get("grupos_ordem") or [],
+        "jogos_treino": bloco.get("jogos_treino"),
         "fixtures": pd.DataFrame(league["fixtures"]) if league else None,
         "cenarios": (league or {}).get("cenarios") or {},
         "model": bloco.get("model_name"),

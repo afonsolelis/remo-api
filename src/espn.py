@@ -16,7 +16,10 @@ from datetime import datetime, timezone
 
 import requests
 
-BASE = "https://site.api.espn.com/apis"
+# O host ``site.api`` bloqueia os IPs de saída da Railway com 403 (Akamai),
+# embora entregue o mesmo conteúdo em outras redes. ``site.web.api`` é o
+# endpoint público equivalente e funciona tanto na Railway quanto localmente.
+BASE = "https://site.web.api.espn.com/apis"
 TIMEOUT = 40
 
 _session = requests.Session()

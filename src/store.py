@@ -11,6 +11,7 @@ Dois backends, escolhidos pela variável de ambiente ``MONGO_URL``:
 """
 
 import json
+import logging
 import os
 import time
 from datetime import datetime, timezone
@@ -19,6 +20,8 @@ from pathlib import Path
 import pandas as pd
 
 from . import cartola
+
+logger = logging.getLogger(__name__)
 
 MONGO_URL = os.environ.get("MONGO_URL", "").strip()
 _mongo_client = None
@@ -378,8 +381,16 @@ def refresh_ligas() -> None:
     for chave in liga.LIGAS:
         try:
             refresh_liga(chave)
-        except Exception:
-            pass  # a liga mantém o último documento válido
+        except Exception as exc:
+            # A liga mantém o último documento válido, mas o worker precisa
+            # deixar a causa visível. Antes, um 403 da ESPN era descartado e
+            # a execução terminava com uma mensagem enganosa de sucesso.
+            logger.warning(
+                "Falha ao atualizar %s: %s: %s",
+                liga.LIGAS[chave].nome,
+                type(exc).__name__,
+                exc,
+            )
 
 
 def ensure_liga(chave: str = "serie_b", max_age_hours: float = 24.0) -> dict:

@@ -14,6 +14,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -577,6 +578,8 @@ def render_melhor_cenario(analise: dict, fixtures, clubes: dict,
                "relação à média — são os tropeços e vitórias alheias que mais "
                "separam o melhor caminho do caminho comum.")
     rivais = []
+    jogos_hoje = []
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat()
     for item in analise["rivais"]:
         m = fixtures.iloc[item["jogo"]]
         casa = store.clube_nome(clubes, m["casa_id"])
@@ -592,9 +595,18 @@ def render_melhor_cenario(analise: dict, fixtures, clubes: dict,
             "No melhor cenário": item["p_cond"],
             "Na média geral": item["p_base"],
         })
+        jogos_hoje.append(
+            pd.notna(m.get("data")) and str(m["data"])[:10] == hoje
+        )
     df_rivais = pd.DataFrame(rivais)
+    styler_rivais = df_rivais.style.apply(
+        lambda row: [
+            f"background-color: {BLUE_LIGHT}" if jogos_hoje[row.name] else ""
+        ] * len(row),
+        axis=1,
+    )
     st.dataframe(
-        df_rivais, hide_index=True,
+        styler_rivais, hide_index=True,
         height=38 * (len(df_rivais) + 1) + 3,
         column_config={
             c: st.column_config.ProgressColumn(

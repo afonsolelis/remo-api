@@ -585,6 +585,8 @@ def render_melhor_cenario(analise: dict, fixtures, clubes: dict,
                   "fora": f"{fora} vence"}[item["resultado"]]
         rivais.append({
             "Rodada": int(m["rodada"]),
+            "Data": (_fmt_data_hora(m["data"])
+                     if pd.notna(m.get("data")) else "a definir"),
             "Jogo": f"{casa} × {fora}",
             "Resultado necessário": rotulo,
             "No melhor cenário": item["p_cond"],

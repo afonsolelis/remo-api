@@ -23,7 +23,8 @@ UPDATE_TIMES = [
     tuple(int(x) for x in t.strip().split(":"))
     for t in os.environ.get("UPDATE_TIMES", "08:00,22:00").split(",")
 ]
-STALE_HOURS = 14  # na subida, atualiza se o snapshot for mais velho que isso
+# na subida, atualiza se o snapshot for mais velho que isso
+STALE_HOURS = float(os.environ.get("STALE_HOURS", "14"))
 
 
 def log(msg: str):

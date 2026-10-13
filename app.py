@@ -102,6 +102,6 @@ with st.container(border=True):
 fetched = datetime.fromisoformat(data["fetched_at"])
 age_h = (datetime.now(timezone.utc) - fetched).total_seconds() / 3600
 origin = "MongoDB" if store.MONGO_URL else "JSON local"
-st.caption(f"Dados atualizados há {age_h:.1f} h · {origin} · atualização automática 2× ao dia")
+st.caption(f"Dados atualizados há {age_h:.1f} h · {origin} · atualização automática diária")
 
 current_page.run()

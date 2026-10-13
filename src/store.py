@@ -41,6 +41,15 @@ SEASON_FILE = DATA_DIR / "season.json"
 PROJECTION_FILE = DATA_DIR / "projection.json"
 VISITS_FILE = DATA_DIR / "visits.json"
 
+
+def _write_json(path: Path, doc) -> None:
+    """Grava de forma atômica: o site nunca lê um arquivo pela metade enquanto
+    o atualizador escreve."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
 REMO_ID = 364
 
 # A API só traz sigla ("VAS"), apelido ("Gigante da Colina") e slug sem acento
@@ -91,13 +100,7 @@ def register_visit() -> int | None:
         if VISITS_FILE.exists():
             count = int(json.loads(VISITS_FILE.read_text()).get("count", 0))
         count += 1
-        DATA_DIR.mkdir(exist_ok=True)
-        VISITS_FILE.write_text(
-            json.dumps(
-                {"count": count, "updated_at": updated_at},
-                ensure_ascii=False,
-            )
-        )
+        _write_json(VISITS_FILE, {"count": count, "updated_at": updated_at})
         return count
     except Exception:
         # A métrica é opcional e nunca deve impedir a abertura do dashboard.
@@ -131,12 +134,8 @@ def refresh() -> dict:
         db.season.replace_one({"_id": "current"}, {"_id": "current", **data}, upsert=True)
         db.season_daily.replace_one({"_id": hoje}, {"_id": hoje, **data}, upsert=True)
     else:
-        DATA_DIR.mkdir(exist_ok=True)
-        payload = json.dumps(data, ensure_ascii=False)
-        SEASON_FILE.write_text(payload)
-        daily_dir = DATA_DIR / "daily"
-        daily_dir.mkdir(exist_ok=True)
-        (daily_dir / f"season-{hoje}.json").write_text(payload)
+        _write_json(SEASON_FILE, data)
+        _write_json(DATA_DIR / "daily" / f"season-{hoje}.json", data)
 
     try:
         refresh_atletas(status)  # plantel + pontuações por rodada
@@ -172,8 +171,7 @@ def _store_atletas(doc: dict):
         db.atletas.replace_one({"_id": "current"}, {"_id": "current", **doc}, upsert=True)
         db.atletas_daily.replace_one({"_id": hoje}, {"_id": hoje, **doc}, upsert=True)
     else:
-        DATA_DIR.mkdir(exist_ok=True)
-        ATLETAS_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+        _write_json(ATLETAS_FILE, doc)
 
 
 def load_atletas() -> dict | None:
@@ -201,9 +199,7 @@ def _store_pontuados(rodada: int, payload: dict):
         _mongo().pontuados.replace_one({"_id": rodada}, {"_id": rodada, **payload},
                                        upsert=True)
     else:
-        PONTUADOS_DIR.mkdir(parents=True, exist_ok=True)
-        (PONTUADOS_DIR / f"rodada-{rodada:02d}.json").write_text(
-            json.dumps(payload, ensure_ascii=False))
+        _write_json(PONTUADOS_DIR / f"rodada-{rodada:02d}.json", payload)
 
 
 def load_pontuados_all() -> dict[int, dict]:
@@ -227,8 +223,7 @@ def _store_copa(doc: dict):
         _mongo().copa.replace_one({"_id": "bracket"}, {"_id": "bracket", **doc},
                                   upsert=True)
     else:
-        DATA_DIR.mkdir(exist_ok=True)
-        COPA_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+        _write_json(COPA_FILE, doc)
 
 
 def load_copa() -> dict | None:
@@ -270,8 +265,7 @@ def _store_libertadores(doc: dict):
         _mongo().libertadores.replace_one(
             {"_id": "bracket"}, {"_id": "bracket", **doc}, upsert=True)
     else:
-        DATA_DIR.mkdir(exist_ok=True)
-        LIBERTADORES_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+        _write_json(LIBERTADORES_FILE, doc)
 
 
 def load_libertadores() -> dict | None:
@@ -313,8 +307,7 @@ def _store_serie_d(doc: dict):
         _mongo().serie_d.replace_one({"_id": "bracket"},
                                      {"_id": "bracket", **doc}, upsert=True)
     else:
-        DATA_DIR.mkdir(exist_ok=True)
-        SERIE_D_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+        _write_json(SERIE_D_FILE, doc)
 
 
 def load_serie_d() -> dict | None:
@@ -347,10 +340,7 @@ def _store_liga(doc: dict):
         _mongo().ligas.replace_one({"_id": chave}, {"_id": chave, **doc},
                                    upsert=True)
     else:
-        LIGA_FILE.mkdir(parents=True, exist_ok=True)
-        (LIGA_FILE / f"{chave}.json").write_text(
-            json.dumps(doc, ensure_ascii=False)
-        )
+        _write_json(LIGA_FILE / f"{chave}.json", doc)
 
 
 def load_liga(chave: str = "serie_b") -> dict | None:
@@ -461,8 +451,7 @@ def save_projection(doc: dict) -> None:
             {"_id": "current"}, {"_id": "current", **doc}, upsert=True
         )
     else:
-        DATA_DIR.mkdir(exist_ok=True)
-        PROJECTION_FILE.write_text(json.dumps(doc, ensure_ascii=False))
+        _write_json(PROJECTION_FILE, doc)
 
 
 def load_projection() -> dict | None:

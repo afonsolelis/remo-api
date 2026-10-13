@@ -52,6 +52,7 @@ docker compose down
 - `TZ` — timezone for scheduler (default: America/Belem)
 - `UPDATE_TIMES` — cron-style times for auto-refresh (default: `8,22`)
 - `ENABLE_UPDATER` — set to `1` to run the scheduler alongside the dashboard
+- `STALE_HOURS` — on startup, the scheduler refreshes if the snapshot is older than this (default: 14)
 - `SIMULATION_MODEL` — `ensemble` (default), `xgboost`, `poisson`, or `poisson_temporal`
 - `SIMULATION_COUNT` — number of Monte Carlo runs (default: 20000)
 - `BACKTEST_ROUNDS` — historical rounds for model evaluation (default: 6)
@@ -160,16 +161,21 @@ If adding tests, place them in `tests/`, mirror the source module structure (e.g
 
 The Dockerfile builds a single image for both app and updater. Set `ENABLE_UPDATER=1` to enable the scheduler; `ENABLE_UPDATER=0` (or omit) disables it.
 
-**Railway environment variables** (example):
+On Railway the site runs as a single service without MongoDB: JSON storage on a volume mounted at `/app/data`, with the scheduler in the same container (`ENABLE_UPDATER=1`). The service sleeps when idle; on each wake the scheduler refreshes in the background if the snapshot is older than `STALE_HOURS`.
+
+**Railway environment variables**:
 
 ```
-MONGO_URL=${{MongoDB.MONGO_URL}}
 TZ=America/Belem
 ENABLE_UPDATER=1
+STALE_HOURS=20
+UPDATE_TIMES=06:00
 SIMULATION_MODEL=ensemble
 SIMULATION_COUNT=20000
 BACKTEST_ROUNDS=6
 ```
+
+`scripts/migrate_mongo.py` copies an existing MongoDB (`MONGO_MIGRATION_URL`) into the JSON layout once, on container start.
 
 Pushes to `main` trigger automatic deploys. Use `railway up` to test without committing.
 

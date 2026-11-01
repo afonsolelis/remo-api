@@ -5,6 +5,10 @@ on:
     - cron: "0 3 * * *"  # 00:00 em Belém (UTC-3)
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: write  # para o passo que mantém o agendamento ligado
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -17,3 +21,10 @@ jobs:
       - run: python scripts/sync_supabase.py
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # O GitHub desliga agendamentos após 60 dias sem atividade no repositório;
+      # reativar o workflow a cada execução zera essa contagem.
+      - name: Manter agendamento ativo
+        if: always()
+        run: gh workflow enable dados.yml --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -26,10 +26,12 @@ API de tabelas do ge ──(GitHub Actions, 00:00 Belém)──► Postgres (Sup
 - `scripts/sync_supabase.py` — baixa todas as fases de cada campeonato do ge
   (pontos corridos, grupos e mata-mata) e grava no Postgres. Para incluir um
   campeonato, adicione-o em `LIGAS` no script e no topo do `app.js`. Cria as tabelas de `supabase/schema.sql` se faltarem.
-  Os UUIDs das tabelas do ge mudam a cada temporada (ver comentário em
-  `LIGAS`).
+  O identificador de cada tabela no ge muda a cada temporada; o script o lê
+  da página do campeonato a cada execução, então a virada de ano é automática.
 - `.github/workflows/dados.yml` — roda o sync todo dia à meia-noite de Belém
-  (e manualmente em *Actions → Atualizar dados → Run workflow*).
+  (e manualmente em *Actions → Atualizar dados → Run workflow*). Ele se
+  reativa a cada execução, porque o GitHub desliga agendamentos após 60 dias
+  sem atividade no repositório.
 
 ## Configuração
 

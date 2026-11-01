@@ -14,9 +14,10 @@ tabelas `remo_ligas`, `remo_clubes`, `remo_partidas`).
   Monte Carlo (Poisson) no navegador, com zonas vindas de `remo_ligas.zonas` (faixas do ge); ligas `copa` mostram
   campanha, grupos e chaves a partir de `remo_ligas.fases`. Troque o `?v=` no `index.html` a cada mudança de JS/CSS.
 - `scripts/sync_supabase.py` — baixa todas as fases de cada campeonato de `LIGAS` (pontos corridos, grupos, mata-mata)
-  e regrava cada liga no Postgres, uma transação por liga: se uma falhar, as outras seguem e o dado anterior fica. Os
-  UUIDs do ge mudam a cada temporada. Executa `supabase/schema.sql` (idempotente) antes de gravar.
-- `.github/workflows/dados.yml` — sync diário às 03:00 UTC (00:00 em Belém), usa o secret `DATABASE_URL`.
+  e regrava cada liga no Postgres, uma transação por liga: se uma falhar, as outras seguem e o dado anterior fica. O
+  UUID de cada tabela do ge muda a cada temporada e é lido da página do campeonato a cada execução. Executa `supabase/schema.sql` (idempotente) antes de gravar.
+- `.github/workflows/dados.yml` — sync diário às 03:00 UTC (00:00 em Belém), usa o secret `DATABASE_URL`
+  e se reativa a cada execução (o GitHub desliga agendamentos após 60 dias sem atividade).
 
 ## Comandos
 

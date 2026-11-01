@@ -5,6 +5,7 @@ Uso: DATABASE_URL=postgresql://... python scripts/sync_supabase.py
 
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -18,14 +19,15 @@ SCHEMA = Path(__file__).resolve().parent.parent / "supabase" / "schema.sql"
 BRASILIA = timezone(timedelta(hours=-3))
 MATCH_DURATION = timedelta(hours=2)
 
-# O UUID muda a cada temporada: atributo data-bs-resource-id da página do
-# campeonato no ge (ex.: ge.globo.com/futebol/brasileirao-serie-a/).
 # "pontos": o site simula a tabela da primeira fase; "copa": mostra fases e chaves.
+# O UUID da tabela muda a cada temporada, então é lido a cada execução da página do
+# campeonato no ge (atributo data-bs-resource-id). O UUID fixo é só o reserva, caso
+# a página mude de formato.
 LIGAS = {
-    "serie_a": ("Série A", "pontos", "d1a37fa4-e948-43a6-ba53-ab24ab3a45b1"),       # /futebol/brasileirao-serie-a/
-    "serie_b": ("Série B", "pontos", "009b5a68-dd09-46b8-95b3-293a2d494366"),       # /futebol/brasileirao-serie-b/
-    "parazao": ("Parazão", "copa", "28da6ccd-6407-4602-9ceb-8cc33e05165d"),         # /pa/futebol/campeonato-paraense/
-    "copa_verde": ("Copa Verde", "copa", "0b037b4f-c04d-4cdc-8461-4ecdec0ba1e0"),  # /futebol/copa-verde/
+    "serie_a": ("Série A", "pontos", "futebol/brasileirao-serie-a", "d1a37fa4-e948-43a6-ba53-ab24ab3a45b1"),
+    "serie_b": ("Série B", "pontos", "futebol/brasileirao-serie-b", "009b5a68-dd09-46b8-95b3-293a2d494366"),
+    "parazao": ("Parazão", "copa", "pa/futebol/campeonato-paraense", "28da6ccd-6407-4602-9ceb-8cc33e05165d"),
+    "copa_verde": ("Copa Verde", "copa", "futebol/copa-verde", "0b037b4f-c04d-4cdc-8461-4ecdec0ba1e0"),
 }
 
 session = requests.Session()
@@ -37,6 +39,20 @@ def get(path: str) -> dict | list:
     r.raise_for_status()
     time.sleep(0.1)
     return r.json()
+
+
+def uuid_atual(pagina: str, reserva: str) -> str:
+    """UUID da edição corrente, lido da página do campeonato no ge."""
+    try:
+        r = session.get(f"https://ge.globo.com/{pagina}/", timeout=20)
+        r.raise_for_status()
+        achados = re.findall(r'data-bs-resource-id="([0-9a-f-]{36})"', r.text)
+        if achados:
+            return achados[0]
+    except requests.RequestException:
+        pass
+    print(f"{pagina}: UUID não encontrado na página, usando o reserva")
+    return reserva
 
 
 def zonas(faixas: list, linhas: list) -> list[dict]:
@@ -140,9 +156,9 @@ def main() -> None:
         conn.execute(SCHEMA.read_text(encoding="utf-8"))
         conn.commit()
 
-        for liga, (nome, tipo, uuid) in LIGAS.items():
+        for liga, (nome, tipo, pagina, reserva) in LIGAS.items():
             try:
-                d = fetch_liga(uuid)
+                d = fetch_liga(uuid_atual(pagina, reserva))
                 if tipo == "pontos":  # só a primeira fase entra na tabela simulada
                     primeira = d["fases"][0]["nome"]
                     d["partidas"] = [p for p in d["partidas"] if p[8] == primeira]

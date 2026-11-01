@@ -391,7 +391,9 @@ async function iniciar() {
     await Promise.all(LIGAS.map(([l]) => carregar(l)));
     $("abas").innerHTML = LIGAS.filter(([l]) => dados[l])
       .map(([l, nome]) => `<button data-liga="${l}">${nome}</button>`).join("");
-    trocarLiga(dados[liga] ? liga : Object.keys(dados)[0]);
+    // Abre na série (pontos corridos) em que o Remo está neste ano.
+    const doRemo = LIGAS.map(([l]) => l).find(l => dados[l]?.info.tipo === "pontos" && dados[l].clubes[REMO]);
+    trocarLiga(doRemo ?? Object.keys(dados)[0]);
   } catch (e) {
     $("atualizado").textContent = "Não foi possível carregar os dados.";
     console.error(e);

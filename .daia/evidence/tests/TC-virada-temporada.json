@@ -1,7 +1,7 @@
 {
   "id": "TC-virada-temporada",
   "phase": "green",
-  "fingerprint": "7b3d8dbd1916c477c004b19c1fd63758b69783533ba1648318afcc695499ab7e",
+  "fingerprint": "2b85af9a0f3075516697ec8a72b30079776fdce9f0712ce60a8735b349347177",
   "exitCode": 0,
   "command": [
     "python",
@@ -9,7 +9,7 @@
     "unittest",
     "tests.test_sync.TestViradaTemporada"
   ],
-  "executedAt": "2026-11-01T02:50:35.560Z",
+  "executedAt": "2026-11-01T02:54:06.481Z",
   "stdout": "x/camp: UUID n�o encontrado na p�gina, usando o reserva\r\nx/camp: UUID n�o encontrado na p�gina, usando o reserva\r\n",
   "stderr": "...\r\n----------------------------------------------------------------------\r\nRan 3 tests in 0.002s\r\n\r\nOK\r\n",
   "stable": true

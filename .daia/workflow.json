@@ -47,23 +47,36 @@
       "passed": true,
       "stateHash": "sha256:70e0a2e25661897652d7333bcc8f9c79658d2a46dc271c47b7243174bedc693c",
       "at": "2026-11-01T02:50:35.669Z"
+    },
+    {
+      "sprint": "SP5",
+      "passed": false,
+      "stateHash": "sha256:ae632af330af0265d7de140c9fef73d3812c8f98062118ed03d4faf8d7dba681",
+      "at": "2026-11-01T02:54:06.690Z"
     }
   ],
   "next": {
-    "sprint": "SP5",
-    "title": "Demonstracao e validacao",
+    "sprint": "SP1",
+    "title": "Contexto, personas e processos",
     "skills": [
-      "validate-system-evidence"
+      "model-business-context",
+      "model-business-processes",
+      "validate-business-layer"
     ],
     "inputs": [
-      "baseline SP4"
+      "objetivo, stakeholders, restricoes"
     ],
     "outputs": [
-      "validation.md: hipotese, resultados, limitacoes"
+      "BusinessDriver",
+      "Stakeholder",
+      "Concern",
+      "Persona",
+      "BusinessProcess (BPMN)",
+      "Idef0Activity"
     ],
-    "state": "aguarda-aprovacao",
+    "state": "revisar-baseline",
     "blocking": [],
-    "command": "daia baseline sign SP5 --by \"Nome\" --rationale \"Justificativa humana\"",
+    "command": "daia baseline sign SP1 --by \"Nome\" --rationale \"Justificativa humana\"",
     "guide": ".daia/guide.md",
     "schemas": ".daia/schemas/"
   }

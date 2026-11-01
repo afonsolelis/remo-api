@@ -33,7 +33,7 @@ flowchart LR
 | Agendador | dispara a coleta uma vez por dia e avisa falha ao mantenedor | `RF-coletar`, `RF-avisar-falha`, `QS-atualidade` |
 | Coletor | descobre a edição atual, baixa todas as fases, isola falhas por liga | `RF-coletar`, `RF-edicao-atual`, `RF-preservar` |
 | Armazenamento | guarda o último dado válido; leitura pública, escrita só do coletor | `QS-tolerancia-fonte`, `QS-somente-leitura` |
-| Apresentação | abas por campeonato, filtro de time, gráficos, data da atualização | `RF-escolher-time`, `RF-data-atualizacao`, `QS-facilidade` |
+| Apresentação | abas por campeonato, filtro de time, gráficos, data da atualização; no celular, fontes maiores, menos colunas e siglas (`docs/especificacao/interface-celular.md`) | `RF-escolher-time`, `RF-data-atualizacao`, `QS-facilidade`, `QS-legibilidade`, `QS-tabela-celular` |
 | Cálculos | funções puras, sem DOM nem rede; testáveis em Node | `RF-classificacao`, `RF-simular`, `RF-chances-zona`, `RF-campanha-copa`, `QS-desempenho` |
 
 `calculos.js` é novo (decisão `AD-modulo-calculos`). Hoje essas funções estão

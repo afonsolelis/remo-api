@@ -1,0 +1,32 @@
+{
+  "id": "RNF-tabela-celular",
+  "kind": "Requirement",
+  "type": "non-functional",
+  "level": "system",
+  "statement": "No celular, a classificação mostra só #, time (pela sigla), pontos e as chances por zona, e cabe na largura da tela; jogos, vitórias, saldo, pontos esperados e título ficam para telas maiores (o título já aparece nos cards).",
+  "traces_to": [
+    "CON-facilidade",
+    "CON-chances",
+    "BD-probabilidades"
+  ],
+  "elicitation": {
+    "technique": "interview",
+    "sources": [
+      "STK-mantenedor",
+      "PER-torcedor",
+      "BP-avaliar-chances"
+    ],
+    "notes": "Relato do mantenedor após usar o site no celular (Galaxy S25 Ultra, 2026-11-01): 'achei pequenas as letras'. Limiar e tratamento da tabela decididos por ele."
+  },
+  "scenarios": [
+    "QS-tabela-celular"
+  ],
+  "priority": "should",
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

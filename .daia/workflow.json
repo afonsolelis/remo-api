@@ -53,30 +53,39 @@
       "passed": false,
       "stateHash": "sha256:ae632af330af0265d7de140c9fef73d3812c8f98062118ed03d4faf8d7dba681",
       "at": "2026-11-01T02:54:06.690Z"
+    },
+    {
+      "sprint": "SP3",
+      "passed": false,
+      "stateHash": "sha256:2fd4f69bed03c72917ba3f5ea867a09bf6b0c48decee5de244d2bd78da354114",
+      "at": "2026-11-01T03:01:37.544Z"
+    },
+    {
+      "sprint": "SP4",
+      "passed": false,
+      "stateHash": "sha256:2fd4f69bed03c72917ba3f5ea867a09bf6b0c48decee5de244d2bd78da354114",
+      "at": "2026-11-01T03:03:25.496Z"
     }
   ],
   "next": {
-    "sprint": "SP1",
-    "title": "Contexto, personas e processos",
+    "sprint": "SP2",
+    "title": "Requisitos e qualidade",
     "skills": [
-      "model-business-context",
-      "model-business-processes",
-      "validate-business-layer"
+      "elicit-requirements-from-business",
+      "specify-quality-scenarios",
+      "prioritize-architecture-drivers",
+      "validate-requirements-layer"
     ],
     "inputs": [
-      "objetivo, stakeholders, restricoes"
+      "baseline SP1"
     ],
     "outputs": [
-      "BusinessDriver",
-      "Stakeholder",
-      "Concern",
-      "Persona",
-      "BusinessProcess (BPMN)",
-      "Idef0Activity"
+      "Requirement",
+      "QualityScenario"
     ],
     "state": "revisar-baseline",
     "blocking": [],
-    "command": "daia baseline sign SP1 --by \"Nome\" --rationale \"Justificativa humana\"",
+    "command": "daia baseline sign SP2 --by \"Nome\" --rationale \"Justificativa humana\"",
     "guide": ".daia/guide.md",
     "schemas": ".daia/schemas/"
   }

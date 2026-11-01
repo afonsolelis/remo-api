@@ -1,0 +1,15 @@
+{
+  "id": "TC-tabela-celular",
+  "phase": "green",
+  "fingerprint": "f0035cd371f5ce3e67e907ccaa1a4a9d0094d92e8b98bcab154d4909dffc5711",
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "tests/tabela-celular.test.js"
+  ],
+  "executedAt": "2026-11-01T03:03:24.414Z",
+  "stdout": "✔ no celular as colunas secundárias e o nome longo somem, e a sigla aparece (1.9297ms)\n✔ J, V, SG, Pts esp. e Título são colunas secundárias (0.1636ms)\n✔ o time aparece pelo nome e pela sigla (0.2095ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 74.4498\n",
+  "stderr": "",
+  "stable": true
+}

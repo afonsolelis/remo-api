@@ -1,15 +1,15 @@
 {
   "id": "TC-facilidade",
   "phase": "green",
-  "fingerprint": "c8680efca17f79ec7d4f365e5f15cafec182762020d9c6cc86b266f15e0e0524",
+  "fingerprint": "1f3d932589734f69b2969996cf4f495b7f260bc1c60e20a7ebe4e322daee9ba2",
   "exitCode": 0,
   "command": [
     "node",
     "--test",
     "tests/facilidade.test.js"
   ],
-  "executedAt": "2026-11-01T02:54:04.865Z",
-  "stdout": "✔ o time padrão é o Remo quando ele participa (2.1505ms)\n✔ sem o Remo, o time padrão é o líder; sem tabela, o primeiro clube (0.1654ms)\n✔ abas e seletor de time ficam visíveis no topo da página (0.3483ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 80.9329\n",
+  "executedAt": "2026-11-01T03:03:23.495Z",
+  "stdout": "✔ o time padrão é o Remo quando ele participa (1.5627ms)\n✔ sem o Remo, o time padrão é o líder; sem tabela, o primeiro clube (0.1706ms)\n✔ abas e seletor de time ficam visíveis no topo da página (0.3416ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 75.1487\n",
   "stderr": "",
   "stable": true
 }

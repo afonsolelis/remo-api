@@ -31,6 +31,10 @@ async function ler(tabela, query) {
 
 // ---------- tela ----------
 
+// Mesmo ponto de quebra do style.css (docs/especificacao/interface-celular.md).
+const CELULAR = matchMedia("(max-width: 600px)");
+const fonte = () => ({ fontSize: CELULAR.matches ? "14px" : "12px" });
+
 const pct = x => x > 0 && x < 0.005 ? "<1%" : x < 1 && x > 0.995 ? ">99%" : Math.round(x * 100) + "%";
 const $ = id => document.getElementById(id);
 
@@ -134,6 +138,9 @@ function desenharPontos() {
   const id = escolhido[liga];
   const nome = x => d.clubes[x]?.nome ?? x;
   const escudo = x => d.clubes[x]?.escudo ? `<img src="${d.clubes[x].escudo}" alt="">` : "";
+  const sigla = x => d.clubes[x]?.abreviacao || String(nome(x)).slice(0, 3).toUpperCase();
+  // Nome no computador, sigla no celular.
+  const rotulo = x => `<span class="nome-longo">${nome(x)}</span><span class="nome-curto">${sigla(x)}</span>`;
   const time = res[id];
   const n = tabela.length;
 
@@ -155,11 +162,12 @@ function desenharPontos() {
   const opcoesPos = {
     chart: { type: "bar", height: 280, toolbar: { show: false }, animations: { enabled: false } },
     series: [{ name: "Chance", data: time.posicoes.map(x => +(x * 100).toFixed(1)) }],
-    xaxis: { categories: time.posicoes.map((_, i) => `${i + 1}º`), title: { text: `Posição final — ${nome(id)}` } },
-    yaxis: { labels: { formatter: v => v.toFixed(0) + "%" } },
+    xaxis: { categories: time.posicoes.map((_, i) => `${i + 1}º`), labels: { style: fonte() },
+      title: { text: `Posição final — ${nome(id)}`, style: fonte() } },
+    yaxis: { labels: { formatter: v => v.toFixed(0) + "%", style: fonte() } },
     dataLabels: { enabled: false },
     colors: [({ dataPointIndex: i }) => cor(zonaDaPosicao(zonas, i + 1)?.cor) || "#94a3b8"],
-    tooltip: { y: { formatter: v => v + "%" } },
+    tooltip: { style: fonte(), y: { formatter: v => v + "%" } },
   };
   if (graficoPosicoes) graficoPosicoes.updateOptions(opcoesPos);
   else (graficoPosicoes = new ApexCharts($("grafico-posicoes"), opcoesPos)).render();
@@ -178,6 +186,9 @@ function desenharPontos() {
     series: [{ name: "Pontos", data: pontos }],
     stroke: { width: 3 },
     markers: { size: 3 },
+    xaxis: { labels: { style: fonte() } },
+    yaxis: { labels: { style: fonte() } },
+    tooltip: { style: fonte() },
     colors: ["#0b2a5b"],
   };
   if (graficoPontos) graficoPontos.updateOptions(opcoesPontos);
@@ -190,21 +201,23 @@ function desenharPontos() {
       const [v, e, dr] = prob1x2(...lambdas(modelo, p.casa_id, p.fora_id));
       const [vt, dt] = p.casa_id === id ? [v, dr] : [dr, v];
       const dia = p.data ? new Date(p.data).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
-      return `<tr><td>${p.rodada}<br><small>${dia}</small></td><td>${nome(p.casa_id)} × ${nome(p.fora_id)}</td>
+      return `<tr><td>${p.rodada}<br><small>${dia}</small></td><td>${rotulo(p.casa_id)} × ${rotulo(p.fora_id)}</td>
         <td>${pct(vt)}</td><td>${pct(e)}</td><td>${pct(dt)}</td></tr>`;
     }).join("");
 
   $("tabela").innerHTML =
-    `<tr><th>#</th><th>Time</th><th>P</th><th>J</th><th>V</th><th>SG</th><th>Pts esp.</th><th>Título</th>` +
-    zonas.map(z => `<th>${z.nome}</th>`).join("") + "</tr>" +
+    `<tr><th>#</th><th>Time</th><th>P</th><th class="sec">J</th><th class="sec">V</th><th class="sec">SG</th>` +
+    `<th class="sec">Pts esp.</th><th class="sec">Título</th>` +
+    zonas.map(z => `<th title="${z.nome}" style="border-top:3px solid ${cor(z.cor)}">` +
+      `<span class="nome-longo">${z.nome}</span><span class="nome-curto">${z.nome.slice(0, 3)}.</span></th>`).join("") + "</tr>" +
     tabela.map((t, i) => {
       const r = res[t.id];
       const z = zonaDaPosicao(zonas, i + 1);
       return `<tr class="${t.id === id ? "escolhido" : ""}" data-id="${t.id}">
         <td style="border-left:4px solid ${z ? cor(z.cor) : "transparent"}">${i + 1}</td>
-        <td>${escudo(t.id)}${nome(t.id)}</td>
-        <td>${t.PTS}</td><td>${t.J}</td><td>${t.V}</td><td>${t.GP - t.GC}</td>
-        <td>${r.pontos.toFixed(1)}</td><td>${pct(r.posicoes[0])}</td>` +
+        <td>${escudo(t.id)}${rotulo(t.id)}</td>
+        <td>${t.PTS}</td><td class="sec">${t.J}</td><td class="sec">${t.V}</td><td class="sec">${t.GP - t.GC}</td>
+        <td class="sec">${r.pontos.toFixed(1)}</td><td class="sec">${pct(r.posicoes[0])}</td>` +
         r.zonas.map(p => `<td>${pct(p)}</td>`).join("") + "</tr>";
     }).join("");
 
@@ -256,6 +269,9 @@ $("abas").addEventListener("click", e => {
   const b = e.target.closest("button[data-liga]");
   if (b) trocarLiga(b.dataset.liga);
 });
+
+// Ao girar o celular ou redimensionar a janela, redesenha os gráficos com a fonte certa.
+CELULAR.addEventListener("change", () => { if (dados[liga]) desenhar(); });
 
 $("time").addEventListener("change", e => { escolhido[liga] = +e.target.value; desenhar(); });
 

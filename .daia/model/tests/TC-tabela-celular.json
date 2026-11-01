@@ -1,0 +1,18 @@
+{
+  "id": "TC-tabela-celular",
+  "kind": "TestContract",
+  "title": "Colunas secundárias e nomes longos escondidos no celular",
+  "verifies": [
+    "QS-tabela-celular",
+    "RNF-tabela-celular"
+  ],
+  "test_path": "tests/tabela-celular.test.js",
+  "phase": "green",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

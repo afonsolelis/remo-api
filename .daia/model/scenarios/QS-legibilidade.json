@@ -1,0 +1,31 @@
+{
+  "id": "QS-legibilidade",
+  "kind": "QualityScenario",
+  "characteristic": "interaction_capability",
+  "sub_characteristic": "inclusivity",
+  "source": "Torcedor fanático",
+  "stimulus": "Abre o site no celular para ver a situação e as chances do time",
+  "artifact": "Página do site (textos, tabelas e gráficos)",
+  "environment": "Tela de 390 px de largura, sem zoom",
+  "response": "Todo texto visível é lido sem ampliar a tela",
+  "response_measure": {
+    "metric": "menor tamanho de fonte entre os textos visíveis",
+    "operator": ">=",
+    "threshold": 14,
+    "unit": "px"
+  },
+  "traces_to": [
+    "RNF-legibilidade"
+  ],
+  "utility_tree": {
+    "importance": "H",
+    "difficulty": "L"
+  },
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

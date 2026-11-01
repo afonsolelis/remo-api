@@ -17,6 +17,8 @@ servidor local `python -m http.server`, dados reais do Supabase.
 | flexibility | `QS-virada-temporada` | 0 alterações manuais | 0; as 4 ligas acham o UUID na página do ge (consulta real em 2026-10-31) | atende |
 | security | `QS-somente-leitura` | 0 escritas aceitas | RLS ligado nas 3 tabelas, só políticas `select`, nenhum `grant` de escrita | atende (verificação estática) |
 | interaction_capability | `QS-facilidade` | ≤ 2 ações | 0 ações para o torcedor do Remo; 2 (aba + time) para os outros | atende |
+| interaction_capability | `QS-legibilidade` | menor fonte visível ≥ 14 px a 390 px | 14 px (Série A, Série B e Copa Verde, incluindo os gráficos) | atende |
+| interaction_capability | `QS-tabela-celular` | 0 px além da tela a 390 px | 0 px na classificação e nos próximos jogos (Série A, 4 zonas; Série B) | atende |
 | performance_efficiency | `QS-desempenho` | ≤ 3 s no celular | proxy no Node: 215 ms no pior caso (limite do proxy: 1.000 ms); Chrome no computador: 46 ms (Série A, 51 jogos restantes); página carregada em 204 ms | atende o proxy; celular não medido |
 
 Contratos: 10 de 10 verdes (`daia verify SP4`). São 28 casos de teste: 14 em
@@ -51,6 +53,15 @@ houve tentativa real de escrita com a chave publishable contra o Supabase.
 e as abas e o seletor ficam no topo, fora de menus. No Chrome, a página abriu
 na Série A com o Remo escolhido, a posição e as chances visíveis.
 
+**`QS-legibilidade` (H,L) e `QS-tabela-celular` (M,M)** — ciclo de mudança de
+2026-11-01, a partir do relato do mantenedor ("achei pequenas as letras").
+`TC-legibilidade` e `TC-tabela-celular` estavam vermelhos antes da mudança (7
+casos falhando por falta do `@media`) e passaram depois. Medida real num iframe
+de 390 px no Chrome, com dados reais: a menor fonte visível é 14 px (rótulos dos
+cards e cabeçalho), o texto corrido tem 16 px e nenhuma tabela sai da tela. No
+celular a classificação mostra #, sigla, pontos e as chances por zona (rótulo
+curto, nome completo na legenda e no `title`).
+
 ## performance_efficiency
 
 **`QS-desempenho` (M,M).** O pior caso (20 clubes, 380 jogos por disputar,
@@ -72,6 +83,8 @@ compatibility, maintainability e safety. Funcionalidade (functional suitability)
 
 ## Limitações
 
+- **Celular emulado na legibilidade.** As medidas de 390 px foram feitas num iframe no
+  computador; densidade de pixels e zoom do sistema do celular não entram.
 - **Celular não medido.** O limiar de 3 s é verificado por um proxy (Node no
   computador, supondo um celular até 3 vezes mais lento). A medida real fica para a SP5.
 - **Sync real não executado.** Sem a `DATABASE_URL` local, o coletor só rodou com

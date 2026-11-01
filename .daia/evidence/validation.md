@@ -13,7 +13,8 @@ afirmações sobre outros sites ou outros torcedores.
 3. Ler os cards de chance por zona e o gráfico de posição final (`RF-chances-zona`, `RF-simular`).
 4. Trocar para a Série B e escolher outro time: 2 ações (`QS-facilidade`).
 5. Abrir a Copa Verde: campanha, campeão, grupos e chaves (`RF-campanha-copa`).
-6. Repetir os passos 1 a 3 com 390 px de largura (celular).
+6. Repetir os passos 1 a 3 com 390 px de largura (celular): textos de no mínimo 14 px,
+   classificação com siglas e chances por zona sem rolar para o lado (`QS-legibilidade`, `QS-tabela-celular`).
 
 ## Evidências coletadas
 
@@ -22,6 +23,8 @@ afirmações sobre outros sites ou outros torcedores.
 | Roteiro no Chrome, com dados reais (2026-10-31) | passos 1 a 5 ok, sem erros no console. Série A, rodada 33: Remo em 19º, 29 pontos, 99% de rebaixamento |
 | Largura de 390 px (iframe no Chrome do computador) | sem rolagem lateral; abas, seletor, posição e chances visíveis sem rolar |
 | Tempo até as chances aparecerem a 390 px | 713 ms, com rede e banco reais, na CPU do computador |
+| Legibilidade a 390 px (ciclo de 2026-11-01) | menor fonte visível 14 px; tabelas sem rolagem lateral; capturas no Chrome |
+| Celular real (Samsung Galaxy S25 Ultra), site publicado | menos de 1 s até as chances, segundo o mantenedor (2026-11-01) |
 | Simulação só da liga aberta | ao carregar, só a Série A estava simulada; a Série B foi simulada ao abrir a aba |
 | UUID das edições no ge real | as 4 ligas acharam o UUID na página; nenhum aviso falso |
 | Contratos | 10 de 10 verdes (`daia verify SP4`) |
@@ -55,7 +58,8 @@ final ainda não foi medida, porque a temporada não terminou.
 > página, a posição e a campanha do seu time em cada campeonato.
 
 A evidência técnica sustenta as condições: a posição e a campanha aparecem no
-topo, com no máximo 2 ações, também no celular. Mas nenhum torcedor além do
+topo, com no máximo 2 ações, também no celular. Depois do relato do mantenedor
+de que as letras eram pequenas, o texto no celular passou a ter no mínimo 14 px. Mas nenhum torcedor além do
 mantenedor usou o site sob observação. A hipótese fala do torcedor, não da página.
 
 ### `BD-probabilidades`: **inconclusiva**
@@ -84,10 +88,12 @@ de falha. Será confirmado de verdade só depois de semanas de execução real.
 
 - **Sem usuários reais.** Nenhum torcedor foi observado; as duas hipóteses
   continuam inconclusivas.
-- **Celular emulado.** A largura de 390 px foi testada num iframe no computador,
-  com a CPU do computador. O limiar de 3 s em celular comum não foi medido.
-- **Sync real não executado.** O coletor alterado ainda não rodou contra o banco
-  real. Isso acontece na primeira execução do GitHub Actions depois do push.
+- **Celular topo de linha.** No celular real, a medida foi num Galaxy S25 Ultra
+  (menos de 1 s, relatado pelo mantenedor, sem instrumentação). É um aparelho
+  topo de linha: o limiar de 3 s num celular comum ou de entrada continua sem medida.
+- **Sync real executado uma vez.** Execução manual 41267065082 (2026-11-01): verde,
+  4 ligas gravadas, sem aviso de UUID reserva. A estabilidade ao longo de semanas
+  ainda não foi observada.
 - **Precisão limitada.** O teste retroativo cobre só os jogos de 2026 das Séries A e
   B, com cortes que se sobrepõem. O Parazão e a Copa Verde não têm simulação.
 - **Dívida da SP4.** Os 3 itens aceitos na assinatura da SP4 continuam abertos.

@@ -2,18 +2,18 @@
   "kind": "Baseline",
   "sprint": "SP2",
   "title": "Requisitos elicitados do negocio: RF, RNF como cenarios de seis partes e matriz de rastreabilidade",
-  "state_hash": "sha256:a68c7b35aaae05da11a19739c822137b2590f94e24d58b5682e9212e4fa8be70",
-  "artifact_count": 49,
+  "state_hash": "sha256:7e42bf6d03df83d168775ad53b491f6bb4258851b9f89db89b71cc5cc7222c0f",
+  "artifact_count": 53,
   "signature": {
     "signed_by": "Afonso Lelis",
-    "signed_at": "2026-11-01T02:54:32.536Z",
+    "signed_at": "2026-11-01T03:04:10.968Z",
     "decision": "accepted",
-    "rationale": "Renormalização de fim de linha (CRLF→LF) para o hash valer em qualquer cópia; conteúdo sem mudança"
+    "rationale": "Ciclo de mudança: versão para celular (fonte mínima de 14 px, tabela sem rolagem lateral) decidida e validada pelo mantenedor"
   },
   "gate_report": {
     "passed": true,
     "blocking": 0,
     "warnings": 0,
-    "evaluated_at": "2026-11-01T02:54:32.533Z"
+    "evaluated_at": "2026-11-01T03:04:10.965Z"
   }
 }

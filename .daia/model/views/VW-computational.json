@@ -33,6 +33,11 @@
       "kind": "other",
       "notation": "especificação",
       "path": "docs/especificacao/sync.md"
+    },
+    {
+      "kind": "other",
+      "notation": "especificação",
+      "path": "docs/especificacao/interface-celular.md"
     }
   ],
   "status": "recovered",

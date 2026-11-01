@@ -1,0 +1,54 @@
+{
+  "id": "AD-responsivo",
+  "kind": "ArchitectureDecision",
+  "title": "Mesma página adaptada ao celular por CSS",
+  "context": "No celular, os textos ficam entre 11 e 14 px e a classificação rola para o lado (relato do mantenedor num Galaxy S25 Ultra, 2026-11-01).",
+  "decision": "Manter uma única página e adaptá-la com @media (max-width: 600px): texto de 16 px, nada abaixo de 14 px, gráficos com rótulos de 14 px, colunas secundárias escondidas (classe sec) e sigla do time no lugar do nome. O app.js usa o mesmo ponto de quebra via matchMedia só para o tamanho da fonte dos gráficos.",
+  "consequences": "Um só HTML e um só JS para manter; o celular vê menos colunas, que continuam no computador.",
+  "alternatives": [
+    {
+      "option": "Página mobile separada (mobile.html)",
+      "rejected_because": "Duas páginas para manter em sincronia, contra RNF-simplicidade; descartada pelo mantenedor."
+    },
+    {
+      "option": "Aumentar a fonte em todas as telas, sem @media",
+      "rejected_because": "No computador a tabela já cabe; aumentar tudo piora a densidade lá sem ganho, e no celular a tabela continuaria rolando para o lado."
+    },
+    {
+      "option": "Manter todas as colunas com rolagem lateral e nome fixo",
+      "rejected_because": "As chances por zona, que respondem CON-chances, ficariam fora da tela; descartada pelo mantenedor."
+    }
+  ],
+  "traces_to": [
+    "RNF-legibilidade",
+    "RNF-tabela-celular",
+    "QS-legibilidade",
+    "QS-tabela-celular",
+    "RNF-simplicidade"
+  ],
+  "affects_views": [
+    "VW-computational",
+    "VW-technology"
+  ],
+  "tactics": [
+    "usability/maintain-system-model",
+    "modifiability/defer-binding"
+  ],
+  "sensitivity_points": [
+    "interaction_capability: o ponto de quebra de 600 px e o tamanho mínimo de 14 px"
+  ],
+  "tradeoff_points": [
+    "Legibilidade × quantidade de informação: no celular somem J, V, SG, Pts esp. e Título da tabela"
+  ],
+  "risks": [
+    "Ligas com muitas zonas (5 ou mais) podem não caber em 390 px mesmo com siglas.",
+    "O ponto de quebra está em dois lugares (style.css e app.js) e pode divergir."
+  ],
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "QS-tabela-celular",
+  "kind": "QualityScenario",
+  "characteristic": "interaction_capability",
+  "sub_characteristic": "operability",
+  "source": "Torcedor fanático",
+  "stimulus": "Consulta a classificação com as chances por zona no celular",
+  "artifact": "Tabela de classificação",
+  "environment": "Tela de 390 px de largura, liga com 4 zonas (Série A)",
+  "response": "A tabela aparece inteira, sem rolagem lateral",
+  "response_measure": {
+    "metric": "largura da tabela além da área visível",
+    "operator": "<=",
+    "threshold": 0,
+    "unit": "px"
+  },
+  "traces_to": [
+    "RNF-tabela-celular"
+  ],
+  "utility_tree": {
+    "importance": "M",
+    "difficulty": "M"
+  },
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

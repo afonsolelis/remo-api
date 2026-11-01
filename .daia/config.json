@@ -134,6 +134,30 @@
         "app.js",
         "index.html"
       ]
+    },
+    "TC-legibilidade": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/legibilidade.test.js"
+      ],
+      "inputs": [
+        "tests/celular.js",
+        "style.css",
+        "app.js"
+      ]
+    },
+    "TC-tabela-celular": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/tabela-celular.test.js"
+      ],
+      "inputs": [
+        "tests/celular.js",
+        "style.css",
+        "app.js"
+      ]
     }
   },
   "method": "DAIA-E",

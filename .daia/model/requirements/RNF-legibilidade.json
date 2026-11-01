@@ -1,0 +1,32 @@
+{
+  "id": "RNF-legibilidade",
+  "kind": "Requirement",
+  "type": "non-functional",
+  "level": "system",
+  "statement": "No celular, todo texto da página é legível sem zoom: o texto corrido tem 16 px e nada fica abaixo de 14 px, inclusive nos gráficos.",
+  "traces_to": [
+    "CON-facilidade",
+    "BD-situacao-facil",
+    "BD-probabilidades"
+  ],
+  "elicitation": {
+    "technique": "interview",
+    "sources": [
+      "STK-mantenedor",
+      "PER-torcedor",
+      "BP-acompanhar-time"
+    ],
+    "notes": "Relato do mantenedor após usar o site no celular (Galaxy S25 Ultra, 2026-11-01): 'achei pequenas as letras'. Limiar e tratamento da tabela decididos por ele."
+  },
+  "scenarios": [
+    "QS-legibilidade"
+  ],
+  "priority": "must",
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

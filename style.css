@@ -109,3 +109,33 @@ h3 { margin: 16px 0 8px; font-size: .95rem; color: var(--suave); }
 .chave div { padding: 2px 4px; border-radius: 4px; }
 .chave div.escolhido { background: #e8eefb; }
 .vence { font-weight: 700; }
+
+/* Sigla do time e rótulo curto da zona: só no celular. */
+.nome-curto { display: none; }
+
+/* Celular (docs/especificacao/interface-celular.md): texto de 16 px, nada abaixo de 14 px,
+   menos colunas na classificação. O mesmo ponto de quebra está no app.js (gráficos). */
+@media (max-width: 600px) {
+  body { font-size: 1rem; }
+  header { padding: 16px 12px; }
+  header h1 { font-size: 1.5rem; }
+  header p { font-size: .875rem; }
+  .abas { justify-content: flex-start; overflow-x: auto; padding: 0 8px; }
+  .abas button { flex: none; padding: 10px 12px; }
+  button { font-size: 1rem; }
+  .filtro select { max-width: none; }
+  main { padding: 8px; }
+  section { padding: 12px; }
+  .cards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .card span { font-size: .875rem; }
+  .nota { font-size: .875rem; }
+  table { font-size: .9375rem; }
+  th, td { padding: 6px 4px; }
+  small { font-size: .875rem; }
+  td img { margin-right: 4px; }
+  h3 { font-size: 1rem; }
+  .chave { font-size: .9375rem; }
+  footer { font-size: .875rem; }
+  .sec, .nome-longo { display: none; }
+  .nome-curto { display: inline; }
+}

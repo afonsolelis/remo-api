@@ -1,0 +1,18 @@
+{
+  "id": "TC-legibilidade",
+  "kind": "TestContract",
+  "title": "Fontes de 16 px no texto e nada abaixo de 14 px no celular",
+  "verifies": [
+    "QS-legibilidade",
+    "RNF-legibilidade"
+  ],
+  "test_path": "tests/legibilidade.test.js",
+  "phase": "green",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

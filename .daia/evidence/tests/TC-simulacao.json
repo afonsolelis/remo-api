@@ -1,15 +1,15 @@
 {
   "id": "TC-simulacao",
   "phase": "green",
-  "fingerprint": "bc1c1f89f7809937ce0721249fb7c598f2de43e16f3d309b135ce198bdf92626",
+  "fingerprint": "87c16368a08ec9a2e8d04a307cf6ec4edb459d5aba4f7fe243ebfcf3d26cd4eb",
   "exitCode": 0,
   "command": [
     "node",
     "--test",
     "tests/simulacao.test.js"
   ],
-  "executedAt": "2026-11-01T06:55:12.666Z",
-  "stdout": "✔ probabilidades de cada clube e de cada posição somam 1 (8.8943ms)\n✔ sem jogos restantes, a posição atual tem probabilidade 1 (2.0124ms)\n✔ chance por zona é a soma das posições da zona (6.2592ms)\n✔ mesma semente, mesmo resultado (4.6296ms)\n✔ tabela final prevista: todos os clubes, pontos em ordem decrescente (2.247ms)\n✔ tabela final prevista sem jogos restantes é a classificação atual (0.3392ms)\nℹ tests 6\nℹ suites 0\nℹ pass 6\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 113.2511\n",
+  "executedAt": "2026-11-01T19:09:54.198Z",
+  "stdout": "✔ probabilidades de cada clube e de cada posição somam 1 (10.7112ms)\n✔ sem jogos restantes, a posição atual tem probabilidade 1 (2.0226ms)\n✔ chance por zona é a soma das posições da zona (6.6632ms)\n✔ mesma semente, mesmo resultado (5.4393ms)\n✔ tabela final prevista: todos os clubes, pontos em ordem decrescente (2.7702ms)\n✔ tabela final prevista sem jogos restantes é a classificação atual (0.4115ms)\nℹ tests 6\nℹ suites 0\nℹ pass 6\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 122.2772\n",
   "stderr": "",
   "stable": true
 }

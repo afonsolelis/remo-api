@@ -8,9 +8,10 @@
   "test_path": "tests/jogos-hoje.test.js",
   "phase": "green",
   "sprint": "SP3",
-  "status": "proposed",
+  "status": "accepted",
   "provenance": {
     "drafted_by": "ai-assisted",
-    "model": "claude-opus-5-5"
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
   }
 }

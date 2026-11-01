@@ -1,0 +1,15 @@
+{
+  "id": "TC-jogos-hoje",
+  "phase": "green",
+  "fingerprint": "380225273b59e4d72b5b440a6bb6cb49b0638e59f63af718e6cc7f6ba5945b18",
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "tests/jogos-hoje.test.js"
+  ],
+  "executedAt": "2026-11-01T19:09:53.128Z",
+  "stdout": "✔ o dia é o de Belém, não o do UTC (18.4929ms)\n✔ junta os jogos do dia de todas as ligas, em ordem de horário (2.1373ms)\n✔ próximo dia com jogos, ignorando jogos sem data (1.4282ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 104.6352\n",
+  "stderr": "",
+  "stable": true
+}

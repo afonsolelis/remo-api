@@ -2,18 +2,18 @@
   "kind": "Baseline",
   "sprint": "SP3",
   "title": "Arquitetural: views computational, engineering e technology nessa ordem, especificacao tecnica, esqueleto e testes em fase vermelha",
-  "state_hash": "sha256:df02c5207ffc74aea509f7ec66325fcd45ab51cc831d879fe27657309c302821",
-  "artifact_count": 88,
+  "state_hash": "sha256:78f1e9355e2da62d3f7ce04c33f82f7f7e3114457ec349b6bce3d0e4efe03445",
+  "artifact_count": 90,
   "signature": {
     "signed_by": "Afonso Lelis",
-    "signed_at": "2026-11-01T06:54:51.630Z",
+    "signed_at": "2026-11-01T19:09:58.269Z",
     "decision": "accepted",
-    "rationale": "Especificação da tabela final prevista e da coleta de notícias (sync.md, calculos.md), com testes verdes."
+    "rationale": "Aprova o contrato TC-jogos-hoje e as especificações de calculos.js e do sync para a aba Jogos de hoje"
   },
   "gate_report": {
     "passed": true,
     "blocking": 0,
     "warnings": 0,
-    "evaluated_at": "2026-11-01T06:54:51.605Z"
+    "evaluated_at": "2026-11-01T19:09:58.240Z"
   }
 }

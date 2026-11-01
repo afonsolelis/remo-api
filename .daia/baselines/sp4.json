@@ -2,18 +2,18 @@
   "kind": "Baseline",
   "sprint": "SP4",
   "title": "Executavel: codigo, testes em fase verde, relatorio de qualidade por caracteristica",
-  "state_hash": "sha256:b382ea35e102f812178892f74a53ef32c7ab870392810cc8c1c2fb93d4898f8c",
-  "artifact_count": 88,
+  "state_hash": "sha256:9a3690fc665f19c9059f1b860b41c7cbea732d892a3205554eb0bc1bdfc155a1",
+  "artifact_count": 90,
   "signature": {
     "signed_by": "Afonso Lelis",
-    "signed_at": "2026-11-01T06:55:09.344Z",
+    "signed_at": "2026-11-01T19:09:59.216Z",
     "decision": "accepted",
-    "rationale": "Implementação da tabela final prevista e da aba de notícias, testes verdes e coleta conferida em produção."
+    "rationale": "Implementação da aba Jogos de hoje verificada: testes node e unittest verdes"
   },
   "gate_report": {
     "passed": true,
     "blocking": 0,
     "warnings": 0,
-    "evaluated_at": "2026-11-01T06:55:09.314Z"
+    "evaluated_at": "2026-11-01T19:09:59.179Z"
   }
 }

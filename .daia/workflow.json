@@ -113,27 +113,43 @@
       "passed": true,
       "stateHash": "sha256:055cd17e4dfdb6234bd647f4568d438374e862e74052b6064605b57d13f0ac49",
       "at": "2026-11-01T19:08:54.117Z"
+    },
+    {
+      "sprint": "SP3",
+      "passed": true,
+      "stateHash": "sha256:78f1e9355e2da62d3f7ce04c33f82f7f7e3114457ec349b6bce3d0e4efe03445",
+      "at": "2026-11-01T19:09:56.789Z"
     }
   ],
   "next": {
-    "sprint": "SP2",
-    "title": "Requisitos e qualidade",
+    "sprint": "SP3",
+    "title": "Arquitetura, contratos e testes",
     "skills": [
-      "elicit-requirements-from-business",
-      "specify-quality-scenarios",
-      "prioritize-architecture-drivers",
-      "validate-requirements-layer"
+      "describe-software-architecture",
+      "validate-engineering-layer",
+      "validate-technology-layer",
+      "evaluate-architecture-tradeoffs",
+      "evaluate-availability-tactics",
+      "evaluate-interoperability-tactics",
+      "evaluate-modifiability-tactics",
+      "evaluate-performance-tactics",
+      "evaluate-security-tactics",
+      "evaluate-testability-tactics",
+      "evaluate-usability-tactics",
+      "write-executable-specification"
     ],
     "inputs": [
-      "baseline SP1"
+      "baseline SP2"
     ],
     "outputs": [
-      "Requirement",
-      "QualityScenario"
+      "View",
+      "ArchitectureDecision",
+      "Correspondence",
+      "TestContract"
     ],
     "state": "revisar-baseline",
     "blocking": [],
-    "command": "daia baseline sign SP2 --by \"Nome\" --rationale \"Justificativa humana\"",
+    "command": "daia baseline sign SP3 --by \"Nome\" --rationale \"Justificativa humana\"",
     "guide": ".daia/guide.md",
     "schemas": ".daia/schemas/"
   }

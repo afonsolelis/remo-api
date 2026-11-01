@@ -151,6 +151,15 @@ function simular(d, { simulacoes = 10000, aleatorio = Math.random } = {}) {
   return { res, modelo, futuros, base, tabela: ordenar(structuredClone(base), aleatorio) };
 }
 
+// Tabela final prevista: ordem pelos pontos esperados; empate pela posição média.
+function tabelaPrevista(res) {
+  return Object.entries(res).map(([id, r]) => ({
+    id: Number(id),
+    pontos: r.pontos,
+    posicaoMedia: r.posicoes.reduce((a, p, k) => a + p * (k + 1), 0),
+  })).sort((a, b) => b.pontos - a.pontos || a.posicaoMedia - b.posicaoMedia || a.id - b.id);
+}
+
 // ---------- copas e estaduais ----------
 
 // Quem passou no confronto: soma dos gols e, se empatar, pênaltis do último jogo.
@@ -214,6 +223,6 @@ function timePadrao(clubes, tabela) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     REMO, tabelaVazia, somarJogo, ordenar, classificacao, forcas, lambdas, prob1x2, simular,
-    vencedor, chavesDaFase, campanha, campeao, timePadrao,
+    tabelaPrevista, vencedor, chavesDaFase, campanha, campeao, timePadrao,
   };
 }

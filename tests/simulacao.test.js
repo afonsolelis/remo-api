@@ -46,3 +46,21 @@ test("mesma semente, mesmo resultado", () => {
   const b = simular(liga, { simulacoes: 1000, aleatorio: semente(7) });
   assert.deepEqual(a.res, b.res);
 });
+
+test("tabela final prevista: todos os clubes, pontos em ordem decrescente", () => {
+  const { simular, tabelaPrevista } = calculos();
+  const liga = ligaPontos(6, 12);
+  const { res } = simular(liga, { simulacoes: 1000, aleatorio: semente(4) });
+  const prevista = tabelaPrevista(res);
+  assert.deepEqual(prevista.map(t => t.id).sort(), Object.keys(liga.clubes).map(Number).sort());
+  for (let i = 1; i < prevista.length; i++) assert.ok(prevista[i - 1].pontos >= prevista[i].pontos);
+});
+
+test("tabela final prevista sem jogos restantes é a classificação atual", () => {
+  const { simular, tabelaPrevista } = calculos();
+  const jogo = (casa_id, fora_id, gols_casa, gols_fora) => ({ casa_id, fora_id, gols_casa, gols_fora, encerrada: true });
+  const liga = { info: { tipo: "pontos", zonas: [], fases: [] }, clubes: { 1: {}, 2: {}, 3: {} },
+    partidas: [jogo(2, 1, 2, 0), jogo(3, 1, 1, 0), jogo(2, 3, 3, 1)] };
+  const { res, tabela } = simular(liga, { simulacoes: 200, aleatorio: semente(5) });
+  assert.deepEqual(tabelaPrevista(res).map(t => t.id), tabela.map(t => t.id));
+});

@@ -96,6 +96,9 @@ tr.escolhido { background: #e8eefb; font-weight: 600; }
 .legenda { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
 td img { width: 20px; height: 20px; vertical-align: middle; margin-right: 6px; }
 
+.sobe { color: #16a34a; }
+.desce { color: #dc2626; }
+
 #proximos td, #proximos th { text-align: center; }
 #proximos td:nth-child(2) { text-align: center; }
 

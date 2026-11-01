@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Remo nos Campeonatos</title>
   <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -49,6 +49,12 @@
         <div class="rolagem"><table id="tabela"></table></div>
         <p class="nota" id="legenda"></p>
       </section>
+
+      <section>
+        <h2>Tabela final prevista</h2>
+        <p class="nota">Ordem pelos pontos esperados ao fim do campeonato, segundo a simulação.</p>
+        <div class="rolagem"><table id="tabela-prevista"></table></div>
+      </section>
     </div>
 
     <div id="vista-copa" hidden>
@@ -61,7 +67,7 @@
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="calculos.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="calculos.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

@@ -51,6 +51,19 @@ simulações em até 1.000 ms no Node. Isso é um **proxy**: supõe-se que um
 celular comum seja até 3 vezes mais lento que o computador do mantenedor. A
 medida real em celular fica para a SP5.
 
+## Tabela final prevista (**novo**)
+
+`tabelaPrevista(res)` recebe o `res` de `simular` e devolve
+`[{ id, pontos, posicaoMedia }]`, um por clube, em ordem de pontos esperados
+(`res[id].pontos`, decrescente). Empate: menor posição média
+(`Σ (k + 1) · posicoes[k]`) e, por fim, menor `id`.
+
+Invariantes verificáveis:
+
+1. Todo clube de `res` aparece uma vez.
+2. Os pontos não crescem ao longo da lista.
+3. Sem jogos restantes, a ordem é a da `tabela` atual (salvo empate total).
+
 ## Copas (`RF-campanha-copa`)
 
 - `vencedor(jogos)`: `null` se não há jogos ou algum não terminou. Senão, quem

@@ -221,6 +221,21 @@ function desenharPontos() {
         r.zonas.map(p => `<td>${pct(p)}</td>`).join("") + "</tr>";
     }).join("");
 
+  // Variação entre a posição atual e a prevista.
+  const atual = new Map(tabela.map((t, i) => [t.id, i + 1]));
+  const seta = d => d > 0 ? `<span class="sobe">▲${d}</span>` : d < 0 ? `<span class="desce">▼${-d}</span>` : "–";
+  $("tabela-prevista").innerHTML =
+    `<tr><th>#</th><th>Time</th><th>Pts esp.</th><th>Agora</th><th class="sec">Chance no lugar</th></tr>` +
+    tabelaPrevista(res).map((t, i) => {
+      const z = zonaDaPosicao(zonas, i + 1);
+      return `<tr class="${t.id === id ? "escolhido" : ""}" data-id="${t.id}">
+        <td style="border-left:4px solid ${z ? cor(z.cor) : "transparent"}">${i + 1}</td>
+        <td>${escudo(t.id)}${rotulo(t.id)}</td>
+        <td>${t.pontos.toFixed(1)}</td>
+        <td>${atual.get(t.id)}º ${seta(atual.get(t.id) - (i + 1))}</td>
+        <td class="sec">${pct(res[t.id].posicoes[i])}</td></tr>`;
+    }).join("");
+
   $("legenda").innerHTML = zonas.map(z =>
     `<span class="legenda" style="background:${cor(z.cor)}"></span>${z.nome} (${z.posicoes.length > 1 ? `${z.posicoes[0]}º–${z.posicoes.at(-1)}º` : `${z.posicoes[0]}º`})`)
     .join(" &nbsp; ") + " · Clique numa linha para escolher o time.";

@@ -34,6 +34,15 @@ create table if not exists remo_partidas (
   primary key (liga, partida_id)
 );
 
+-- Copas e estaduais: fases (grupos/mata-mata), chaves e pênaltis.
+alter table remo_ligas    add column if not exists tipo text not null default 'pontos';  -- 'pontos' ou 'copa'
+alter table remo_ligas    add column if not exists fases jsonb not null default '[]';     -- [{nome, tipo, grupos: [...]}]
+alter table remo_partidas add column if not exists fase text;
+alter table remo_partidas add column if not exists fase_ordem integer;
+alter table remo_partidas add column if not exists chave text;     -- grupo ou chave do mata-mata
+alter table remo_partidas add column if not exists pen_casa integer;
+alter table remo_partidas add column if not exists pen_fora integer;
+
 -- Leitura pública (chave publishable), escrita só pela conexão do Actions.
 alter table remo_ligas    enable row level security;
 alter table remo_clubes   enable row level security;
@@ -47,3 +56,5 @@ create policy leitura_publica on remo_clubes   for select to anon, authenticated
 create policy leitura_publica on remo_partidas for select to anon, authenticated using (true);
 
 grant select on remo_ligas, remo_clubes, remo_partidas to anon, authenticated;
+
+notify pgrst, 'reload schema';

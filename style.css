@@ -100,3 +100,12 @@ td img { width: 20px; height: 20px; vertical-align: middle; margin-right: 6px; }
 #proximos td:nth-child(2) { text-align: center; }
 
 footer { text-align: center; color: var(--suave); font-size: .8rem; padding: 16px; }
+
+/* copas e estaduais */
+h3 { margin: 16px 0 8px; font-size: .95rem; color: var(--suave); }
+#jogos-copa td, #jogos-copa th { text-align: left; }
+.chaves { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.chave { border: 1px solid var(--borda); border-radius: 6px; padding: 8px; font-size: .9rem; }
+.chave div { padding: 2px 4px; border-radius: 4px; }
+.chave div.escolhido { background: #e8eefb; }
+.vence { font-weight: 700; }

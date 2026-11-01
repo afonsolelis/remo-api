@@ -1,9 +1,12 @@
 # Remo nos Campeonatos
 
-Site estático (GitHub Pages) que acompanha as **Séries A e B** do Brasileirão
-(com o **Clube do Remo** como time padrão): classificação, pontos por rodada,
-próximos jogos e uma simulação Monte Carlo do resto do campeonato, rodada no
-navegador. Dá para escolher qualquer time no filtro ou clicando na tabela.
+Site estático (GitHub Pages) que acompanha os campeonatos do **Clube do Remo**
+(time padrão; dá para escolher qualquer outro no filtro ou clicando na tabela):
+
+- **Série A e Série B** — classificação, pontos por rodada, próximos jogos e
+  uma simulação Monte Carlo do resto do campeonato, rodada no navegador.
+- **Parazão e Copa Verde** — campanha do time, jogos com placar e pênaltis,
+  tabelas dos grupos, chaves do mata-mata e campeão.
 
 Site: https://afonsolelis.github.io/remo-api/
 
@@ -13,14 +16,16 @@ Site: https://afonsolelis.github.io/remo-api/
 API de tabelas do ge ──(GitHub Actions, 00:00 Belém)──► Postgres (Supabase) ──(REST, chave pública)──► site
 ```
 
-- `index.html`, `style.css`, `app.js` — a página, com abas Série A / Série B
-  e filtro de time. Usa ApexCharts para os gráficos. Lê as tabelas `remo_*`
+- `index.html`, `style.css`, `app.js` — a página, com uma aba por campeonato
+  e filtro de time. Ao mudar `app.js` ou `style.css`, troque o `?v=` no
+  `index.html` para furar o cache do navegador. Usa ApexCharts para os gráficos. Lê as tabelas `remo_*`
   pela API REST do Supabase e simula 10 mil campeonatos com um modelo Poisson
   simples (ataque/defesa por time) ao abrir a página ou no botão "Simular de
   novo". As zonas (Libertadores, acesso, rebaixamento…) vêm das faixas que o
   próprio ge publica.
-- `scripts/sync_supabase.py` — baixa todas as rodadas das duas séries do ge e
-  grava no Postgres. Cria as tabelas de `supabase/schema.sql` se faltarem.
+- `scripts/sync_supabase.py` — baixa todas as fases de cada campeonato do ge
+  (pontos corridos, grupos e mata-mata) e grava no Postgres. Para incluir um
+  campeonato, adicione-o em `LIGAS` no script e no topo do `app.js`. Cria as tabelas de `supabase/schema.sql` se faltarem.
   Os UUIDs das tabelas do ge mudam a cada temporada (ver comentário em
   `LIGAS`).
 - `.github/workflows/dados.yml` — roda o sync todo dia à meia-noite de Belém

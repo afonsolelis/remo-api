@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Remo nos Campeonatos</title>
-  <link rel="stylesheet" href="style.css">
+  <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
+  <link rel="stylesheet" href="style.css?v=4">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -13,10 +14,7 @@
     <p id="atualizado">Carregando…</p>
   </header>
 
-  <nav class="abas">
-    <button data-liga="serie_a" class="ativa">Série A</button>
-    <button data-liga="serie_b">Série B</button>
-  </nav>
+  <nav class="abas" id="abas"></nav>
 
   <main>
     <section class="filtro">
@@ -26,33 +24,43 @@
 
     <section class="cards" id="cards"></section>
 
-    <section>
-      <div class="titulo-secao">
-        <h2>Simulação</h2>
-        <button id="simular">Simular de novo</button>
-      </div>
-      <p class="nota" id="nota-sim"></p>
-      <div id="grafico-posicoes"></div>
-    </section>
+    <div id="vista-pontos">
+      <section>
+        <div class="titulo-secao">
+          <h2>Simulação</h2>
+          <button id="simular">Simular de novo</button>
+        </div>
+        <p class="nota" id="nota-sim"></p>
+        <div id="grafico-posicoes"></div>
+      </section>
 
-    <section>
-      <h2 id="titulo-pontos">Pontos por rodada</h2>
-      <div id="grafico-pontos"></div>
-    </section>
+      <section>
+        <h2 id="titulo-pontos">Pontos por rodada</h2>
+        <div id="grafico-pontos"></div>
+      </section>
 
-    <section>
-      <h2>Próximos jogos</h2>
-      <div class="rolagem"><table id="proximos"></table></div>
-    </section>
+      <section>
+        <h2>Próximos jogos</h2>
+        <div class="rolagem"><table id="proximos"></table></div>
+      </section>
 
-    <section>
-      <h2>Classificação</h2>
-      <div class="rolagem"><table id="tabela"></table></div>
-      <p class="nota" id="legenda"></p>
-    </section>
+      <section>
+        <h2>Classificação</h2>
+        <div class="rolagem"><table id="tabela"></table></div>
+        <p class="nota" id="legenda"></p>
+      </section>
+    </div>
+
+    <div id="vista-copa" hidden>
+      <section>
+        <h2 id="titulo-jogos">Jogos</h2>
+        <div class="rolagem"><table id="jogos-copa"></table></div>
+      </section>
+      <div id="fases"></div>
+    </div>
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

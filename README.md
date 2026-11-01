@@ -1,4 +1,4 @@
-# Remo no Brasileirão
+# Remo nos Campeonatos
 
 Site estático (GitHub Pages) que acompanha as **Séries A e B** do Brasileirão
 (com o **Clube do Remo** como time padrão): classificação, pontos por rodada,

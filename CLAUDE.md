@@ -4,7 +4,7 @@ Guia para o Claude Code neste repositório.
 
 ## Visão geral
 
-**Remo no Brasileirão** é um site estático no GitHub Pages (raiz da branch `main`) que acompanha as Séries A e B do
+**Remo nos Campeonatos** é um site estático no GitHub Pages (raiz da branch `main`) que acompanha as Séries A e B do
 Brasileirão (Remo como time padrão). Os dados vêm da API de tabelas do ge (`https://api.globoesporte.globo.com/tabela`)
 e ficam num Postgres do Supabase (o mesmo projeto do `aulas_mackenzie`, tabelas `remo_ligas`, `remo_clubes`,
 `remo_partidas`).

@@ -1,0 +1,25 @@
+{
+  "id": "RF-jogos-hoje",
+  "kind": "Requirement",
+  "type": "functional",
+  "level": "system",
+  "statement": "O sistema mostra, numa aba própria, os jogos do dia (horário de Belém) de todos os campeonatos acompanhados, com horário, estádio, fase ou rodada e link para o jogo no ge; sem jogos no dia, mostra o próximo dia com jogos.",
+  "traces_to": [
+    "IDF-A2",
+    "IDF-A3",
+    "BP-acompanhar-time"
+  ],
+  "elicitation": {
+    "technique": "interview",
+    "sources": [
+      "PER-torcedor"
+    ]
+  },
+  "priority": "should",
+  "sprint": "SP2",
+  "status": "proposed",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5"
+  }
+}

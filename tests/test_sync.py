@@ -51,7 +51,7 @@ class Conexao:
 
 
 def liga_com_jogos():
-    jogo = (1, 1, None, 10, 20, 1, 0, True, "Fase única", 0, None, None, None)
+    jogo = (1, 1, None, 10, 20, 1, 0, True, "Fase única", 0, None, None, None, "Baenão", True, None)
     return {"zonas": [], "fases": [{"nome": "Fase única", "grupos": []}], "rodada_atual": 1,
             "clubes": {10: (10, "A", "A", None), 20: (20, "B", "B", None)}, "partidas": [jogo]}
 
@@ -274,3 +274,17 @@ class TestNoticias(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestJogosHoje(unittest.TestCase):
+    """TC-jogos-hoje: RF-jogos-hoje (docs/especificacao/sync.md#local-e-horário)."""
+
+    def test_estadio_horario_e_link(self):
+        jogo = {"sede": {"nome_popular": "Baenão"}, "hora_realizacao": "16:00",
+                "transmissao": {"url": "https://ge.globo.com/pa/futebol/jogo/x.ghtml"}}
+        self.assertEqual(sync.local_do_jogo(jogo), ("Baenão", True, "https://ge.globo.com/pa/futebol/jogo/x.ghtml"))
+
+    def test_sem_dados_e_link_de_fora_do_ge(self):
+        jogo = {"sede": None, "hora_realizacao": None, "transmissao": {"url": "javascript:alert(1)"}}
+        self.assertEqual(sync.local_do_jogo(jogo), (None, False, None))
+        self.assertEqual(sync.local_do_jogo({}), (None, False, None))

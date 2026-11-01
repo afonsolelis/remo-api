@@ -25,6 +25,15 @@ código; as mudanças estão marcadas como **novo**.
    apaga e regrava `remo_clubes` e `remo_partidas` da liga.
 5. Segue para a próxima liga em qualquer caso.
 
+## Local e horário (`RF-jogos-hoje`) — **novo**
+
+Cada partida grava também, por `local_do_jogo(jogo)`:
+
+- `estadio`: `sede.nome_popular`, ou nulo.
+- `hora_definida`: se o ge já publicou `hora_realizacao` (sem ela, a página mostra
+  "Horário a definir").
+- `link`: `transmissao.url`, só se começar com `https://ge.globo.com/`.
+
 ## Saída (`RF-avisar-falha`) — **novo**
 
 - Termina com código 0 se todas as ligas foram gravadas.

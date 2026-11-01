@@ -42,6 +42,7 @@ header p { margin: 0; opacity: .8; font-size: .9rem; }
 .abas button.ativa { background: var(--fundo); color: var(--azul); opacity: 1; font-weight: 600; }
 
 .filtro { display: flex; align-items: center; gap: 12px; }
+.filtro[hidden] { display: none; }
 .filtro label { font-weight: 600; }
 .filtro select { flex: 1; max-width: 320px; padding: 8px; font-size: 1rem; border: 1px solid var(--borda); border-radius: 6px; }
 
@@ -123,6 +124,18 @@ h3 { margin: 16px 0 8px; font-size: .95rem; color: var(--suave); }
 .noticia small { color: var(--suave); }
 .noticia small img { width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; }
 
+/* jogos de hoje */
+.jogo-dia { display: flex; gap: 12px; align-items: center; padding: 10px 8px; border-bottom: 1px solid var(--borda); }
+.jogo-dia:last-child { border-bottom: 0; }
+.jogo-dia.escolhido { background: #e8eefb; border-radius: 6px; }
+.jogo-dia .hora { flex: none; min-width: 56px; text-align: center; font-weight: 700; font-size: 1.1rem; color: var(--azul); }
+.jogo-dia .hora.indefinida { font-size: .8rem; font-weight: 600; color: var(--suave); }
+.jogo-dia .confronto { flex: 1; min-width: 0; }
+.jogo-dia .times { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; }
+.jogo-dia .times img { width: 20px; height: 20px; vertical-align: middle; margin-right: 4px; }
+.jogo-dia small { display: block; color: var(--suave); margin-top: 4px; }
+.jogo-dia a { color: var(--azul); }
+
 /* Sigla do time e rótulo curto da zona: só no celular. */
 .nome-curto { display: none; }
 
@@ -151,6 +164,9 @@ h3 { margin: 16px 0 8px; font-size: .95rem; color: var(--suave); }
   footer { font-size: .875rem; }
   .noticia .foto { width: 96px; height: 54px; }
   .noticia p { display: none; }
+  .jogo-dia { gap: 8px; padding: 10px 4px; }
+  .jogo-dia .hora { min-width: 48px; }
+  .jogo-dia .hora.indefinida { font-size: .875rem; }
   .sec, .nome-longo { display: none; }
   .nome-curto { display: inline; }
 }

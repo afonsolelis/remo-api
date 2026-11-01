@@ -73,6 +73,18 @@ Invariantes verificáveis:
   "Campeão 🏆" ou "Vice-campeão".
 - `campeao(liga)`: vencedor da chave única da última fase, se ela for de mata-mata; senão `null`.
 
+## Jogos de hoje (`RF-jogos-hoje`) — **novo**
+
+- `diaEmBelem(instante)`: `"AAAA-MM-DD"` do instante no fuso `America/Belem` (`FUSO`),
+  seja qual for o fuso do aparelho.
+- `jogosDoDia(dados, dia)`: recebe `{ [liga]: { partidas } }` e devolve as partidas
+  com `data` no `dia` de Belém, de todas as ligas, cada uma com o campo `liga`, em
+  ordem de horário (empate: `partida_id`). Partidas sem `data` ficam de fora.
+- `proximoDiaComJogos(dados, dia)`: o primeiro dia depois de `dia` com alguma
+  partida; `null` se não há.
+
+A aba mostra os jogos de hoje; sem nenhum, os de `proximoDiaComJogos`.
+
 ## Time padrão (`RF-escolher-time`, `QS-facilidade`)
 
 `timePadrao(clubes, tabela)`: o Remo (364) se ele participa; senão o líder da

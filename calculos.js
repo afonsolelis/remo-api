@@ -220,9 +220,40 @@ function timePadrao(clubes, tabela) {
   return Number(Object.keys(clubes)[0]);
 }
 
+// ---------- jogos de hoje ----------
+
+// O dia é sempre o de Belém, onde o Remo joga, seja qual for o fuso do aparelho.
+const FUSO = "America/Belem";
+
+// "AAAA-MM-DD" do instante no fuso de Belém.
+function diaEmBelem(instante) {
+  return new Date(instante).toLocaleDateString("en-CA", { timeZone: FUSO });
+}
+
+// Jogos do dia em todos os campeonatos, cada um com a sua liga, em ordem de horário.
+function jogosDoDia(dados, dia) {
+  const jogos = [];
+  for (const [liga, d] of Object.entries(dados))
+    for (const p of d.partidas) if (p.data && diaEmBelem(p.data) === dia) jogos.push({ ...p, liga });
+  return jogos.sort((a, b) => new Date(a.data) - new Date(b.data) || a.partida_id - b.partida_id);
+}
+
+// Primeiro dia depois de `dia` com algum jogo marcado; null se não há.
+function proximoDiaComJogos(dados, dia) {
+  let proximo = null;
+  for (const d of Object.values(dados))
+    for (const p of d.partidas) {
+      if (!p.data) continue;
+      const x = diaEmBelem(p.data);
+      if (x > dia && (proximo === null || x < proximo)) proximo = x;
+    }
+  return proximo;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     REMO, tabelaVazia, somarJogo, ordenar, classificacao, forcas, lambdas, prob1x2, simular,
     tabelaPrevista, vencedor, chavesDaFase, campanha, campeao, timePadrao,
+    FUSO, diaEmBelem, jogosDoDia, proximoDiaComJogos,
   };
 }

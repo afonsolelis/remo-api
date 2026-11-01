@@ -18,7 +18,8 @@ const cor = c => CORES[c] || c;
 const dados = {};       // liga -> { info, clubes, partidas, sim }
 const escolhido = {};   // liga -> id do time escolhido
 let liga = "serie_a";
-const NOTICIAS = "noticias";  // aba que não é campeonato
+const NOTICIAS = "noticias";  // abas que não são campeonato
+const HOJE = "hoje";
 let noticias = null;          // linhas de remo_noticias, lidas na primeira vez que a aba abre
 let graficoPosicoes = null;
 let graficoPontos = null;
@@ -55,6 +56,7 @@ function zonaDaPosicao(zonas, pos) {
 }
 
 function preencherTimes() {
+  if (liga === HOJE) return;  // a aba mostra todos os jogos, sem filtro
   if (liga === NOTICIAS) return preencherClubesNoticias();
   const d = dados[liga];
   const ids = Object.keys(d.clubes).map(Number);
@@ -66,17 +68,12 @@ function preencherTimes() {
 }
 
 function desenhar() {
-  const eNoticias = liga === NOTICIAS;
-  $("vista-noticias").hidden = !eNoticias;
-  $("cards").hidden = eNoticias;
-  if (eNoticias) {
-    $("vista-pontos").hidden = $("vista-copa").hidden = true;
-    return desenharNoticias();
-  }
-  const copa = dados[liga].info.tipo === "copa";
-  $("vista-pontos").hidden = copa;
-  $("vista-copa").hidden = !copa;
-  if (copa) desenharCopa(); else desenharPontos();
+  const vista = liga === NOTICIAS ? "noticias" : liga === HOJE ? "hoje" :
+    dados[liga].info.tipo === "copa" ? "copa" : "pontos";
+  for (const v of ["pontos", "copa", "noticias", "hoje"]) $(`vista-${v}`).hidden = v !== vista;
+  $("cards").hidden = vista === "noticias" || vista === "hoje";
+  $("filtro").hidden = vista === "hoje";
+  ({ pontos: desenharPontos, copa: desenharCopa, noticias: desenharNoticias, hoje: desenharHoje })[vista]();
 }
 
 // ---------- copas e estaduais ----------
@@ -146,6 +143,44 @@ function desenharCopa() {
         }).join("")}</div>`;
     }
     return `<section><h2>${f.nome}</h2>${corpo}</section>`;
+  }).join("");
+}
+
+// ---------- jogos de hoje ----------
+
+function desenharHoje() {
+  const hoje = diaEmBelem(Date.now());
+  let dia = hoje;
+  let jogos = jogosDoDia(dados, hoje);
+  if (jogos.length === 0) {  // sem jogo hoje: mostra o próximo dia que tem
+    dia = proximoDiaComJogos(dados, hoje);
+    jogos = dia ? jogosDoDia(dados, dia) : [];
+  }
+  const nomeDia = x => new Date(`${x}T12:00:00-03:00`).toLocaleDateString("pt-BR",
+    { timeZone: FUSO, weekday: "long", day: "2-digit", month: "2-digit" });
+  const recente = Object.values(dados).map(d => d.info.atualizado_em).sort().at(-1);
+  $("atualizado").textContent = recente ? `Jogos de todos os campeonatos · dados de ${new Date(recente).toLocaleString("pt-BR")}` : "";
+  $("titulo-hoje").textContent = !dia ? "Nenhum jogo marcado" :
+    dia === hoje ? `Jogos de hoje — ${nomeDia(dia)}` : `Nenhum jogo hoje. Próximos — ${nomeDia(dia)}`;
+
+  $("jogos-hoje").innerHTML = LIGAS.filter(([l]) => jogos.some(p => p.liga === l)).map(([l, nomeLiga]) => {
+    const clubes = dados[l].clubes;
+    const lado = (x, escudoAntes) => {
+      const c = clubes[x] || {};
+      const img = c.escudo ? `<img src="${esc(c.escudo)}" alt="">` : "";
+      return `<span>${escudoAntes ? img : ""}${esc(c.nome ?? x)}${escudoAntes ? "" : " " + img}</span>`;
+    };
+    return `<section><h2>${nomeLiga}</h2>${jogos.filter(p => p.liga === l).map(p => {
+      const hora = p.hora_definida === false ? `<div class="hora indefinida">Horário a definir</div>` :
+        `<div class="hora">${new Date(p.data).toLocaleTimeString("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" })}</div>`;
+      const etapa = dados[l].info.tipo === "pontos" ? `${p.rodada}ª rodada` :
+        `${esc(p.fase)}${p.chave && !p.chave.startsWith(p.fase) ? ` · ${esc(p.chave)}` : ""}`;
+      const detalhes = [p.estadio ? `📍 ${esc(p.estadio)}` : "Local a definir", etapa,
+        p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener">ver no ge</a>` : ""].filter(Boolean).join(" · ");
+      return `<div class="jogo-dia ${[p.casa_id, p.fora_id].includes(REMO) ? "escolhido" : ""}">${hora}
+        <div class="confronto"><div class="times">${lado(p.casa_id, true)} ${placar(p)} ${lado(p.fora_id, false)}</div>
+        <small>${detalhes}</small></div></div>`;
+    }).join("")}</section>`;
   }).join("");
 }
 
@@ -339,7 +374,7 @@ async function iniciar() {
     await Promise.all(LIGAS.map(([l]) => carregar(l)));
     $("abas").innerHTML = LIGAS.filter(([l]) => dados[l])
       .map(([l, nome]) => `<button data-liga="${l}">${nome}</button>`).join("") +
-      `<button data-liga="${NOTICIAS}">Notícias</button>`;
+      `<button data-liga="${HOJE}">Jogos de hoje</button><button data-liga="${NOTICIAS}">Notícias</button>`;
     // Abre na série (pontos corridos) em que o Remo está neste ano.
     const doRemo = LIGAS.map(([l]) => l).find(l => dados[l]?.info.tipo === "pontos" && dados[l].clubes[REMO]);
     trocarLiga(doRemo ?? Object.keys(dados)[0]);
@@ -355,7 +390,7 @@ $("abas").addEventListener("click", e => {
 });
 
 // Ao girar o celular ou redimensionar a janela, redesenha os gráficos com a fonte certa.
-CELULAR.addEventListener("change", () => { if (dados[liga]) desenhar(); });
+CELULAR.addEventListener("change", () => { if (dados[liga] || liga === HOJE) desenhar(); });
 
 $("time").addEventListener("change", e => { escolhido[liga] = +e.target.value; desenhar(); });
 

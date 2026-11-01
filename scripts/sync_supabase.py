@@ -95,6 +95,13 @@ def grupo(nome: str, faixas: list, linhas: list) -> dict:
     }
 
 
+def local_do_jogo(jogo: dict) -> tuple:
+    """(estádio, horário definido, link da página do jogo no ge) para a aba Jogos de hoje."""
+    estadio = (jogo.get("sede") or {}).get("nome_popular") or None
+    link = (jogo.get("transmissao") or {}).get("url") or ""
+    return estadio, bool(jogo.get("hora_realizacao")), link if link.startswith("https://ge.globo.com/") else None
+
+
 def fetch_liga(uuid: str) -> dict:
     raiz = get(f"{uuid}/classificacao/")
     fases_nav = raiz.get("fases_navegacao") or [{"slug": raiz["fase"]["slug"], "nome": "Fase única"}]
@@ -116,6 +123,7 @@ def fetch_liga(uuid: str) -> dict:
         partidas[jogo["id"]] = (
             jogo["id"], rodada, data, casa["id"], fora["id"], gc, gf, encerrada,
             fase, ordem, chave, jogo.get("placar_penaltis_mandante"), jogo.get("placar_penaltis_visitante"),
+            *local_do_jogo(jogo),
         )
 
     for ordem, f in enumerate(fases_nav, 1):
@@ -292,8 +300,9 @@ def main() -> None:
                 )
                 cur.executemany(
                     """insert into remo_partidas (liga, partida_id, rodada, data, casa_id, fora_id,
-                         gols_casa, gols_fora, encerrada, fase, fase_ordem, chave, pen_casa, pen_fora)
-                       values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                         gols_casa, gols_fora, encerrada, fase, fase_ordem, chave, pen_casa, pen_fora,
+                       estadio, hora_definida, link)
+                       values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     [(liga, *p) for p in d["partidas"]],
                 )
             print(f"{nome}: {tipo}, {len(d['clubes'])} clubes, {len(d['partidas'])} partidas, "

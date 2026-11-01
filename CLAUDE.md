@@ -13,6 +13,7 @@ tabelas `remo_ligas`, `remo_clubes`, `remo_partidas`, `remo_noticias`).
   ApexCharts (CDN, versão fixa). Lê o banco pela API REST com a chave *publishable*. Ligas `pontos` rodam a simulação
   Monte Carlo (Poisson) no navegador, só quando a liga é aberta, com zonas vindas de `remo_ligas.zonas` (faixas do ge);
   ligas `copa` mostram campanha, grupos e chaves a partir de `remo_ligas.fases`. A aba Notícias lê `remo_noticias`.
+  A aba Jogos de hoje junta os jogos do dia (fuso de Belém) de todas as ligas, com horário, estádio e link do ge.
   Troque o `?v=` no `index.html` a cada mudança de JS/CSS.
 - `calculos.js` — funções puras (classificação, simulação, copas, time padrão), sem DOM nem rede. Script comum
   carregado antes de `app.js`; também exporta para o Node, onde os testes o usam. Contrato em

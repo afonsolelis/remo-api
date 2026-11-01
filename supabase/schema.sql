@@ -43,6 +43,11 @@ alter table remo_partidas add column if not exists chave text;     -- grupo ou c
 alter table remo_partidas add column if not exists pen_casa integer;
 alter table remo_partidas add column if not exists pen_fora integer;
 
+-- Aba Jogos de hoje: onde e quando (horário pode estar a definir) e link do jogo no ge.
+alter table remo_partidas add column if not exists estadio text;
+alter table remo_partidas add column if not exists hora_definida boolean not null default true;
+alter table remo_partidas add column if not exists link text;
+
 -- Notícias do ge por clube (as mais recentes de cada um).
 create table if not exists remo_noticias (
   clube_id      integer not null,

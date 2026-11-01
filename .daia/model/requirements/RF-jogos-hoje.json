@@ -3,7 +3,7 @@
   "kind": "Requirement",
   "type": "functional",
   "level": "system",
-  "statement": "O sistema mostra, numa aba própria, os jogos do dia (horário de Belém) de todos os campeonatos acompanhados, com horário, estádio, fase ou rodada e link para o jogo no ge; sem jogos no dia, mostra o próximo dia com jogos.",
+  "statement": "O sistema mostra, numa aba própria, o calendário dos próximos jogos de todos os campeonatos acompanhados, de hoje até o fim do ano, agrupado por dia (horário de Belém), com horário, estádio, campeonato, fase ou rodada e link para o jogo no ge, e filtro por clube.",
   "traces_to": [
     "IDF-A2",
     "IDF-A3",
@@ -17,10 +17,9 @@
   },
   "priority": "should",
   "sprint": "SP2",
-  "status": "accepted",
+  "status": "proposed",
   "provenance": {
     "drafted_by": "ai-assisted",
-    "model": "claude-opus-5-5",
-    "reviewed_by": "Afonso Lelis"
+    "model": "claude-opus-5-5"
   }
 }

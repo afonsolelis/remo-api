@@ -124,7 +124,7 @@ h3 { margin: 16px 0 8px; font-size: .95rem; color: var(--suave); }
 .noticia small { color: var(--suave); }
 .noticia small img { width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; }
 
-/* jogos de hoje */
+/* próximos jogos */
 .jogo-dia { display: flex; gap: 12px; align-items: center; padding: 10px 8px; border-bottom: 1px solid var(--borda); }
 .jogo-dia:last-child { border-bottom: 0; }
 .jogo-dia.escolhido { background: #e8eefb; border-radius: 6px; }

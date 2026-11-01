@@ -220,7 +220,7 @@ function timePadrao(clubes, tabela) {
   return Number(Object.keys(clubes)[0]);
 }
 
-// ---------- jogos de hoje ----------
+// ---------- próximos jogos ----------
 
 // O dia é sempre o de Belém, onde o Remo joga, seja qual for o fuso do aparelho.
 const FUSO = "America/Belem";
@@ -230,30 +230,29 @@ function diaEmBelem(instante) {
   return new Date(instante).toLocaleDateString("en-CA", { timeZone: FUSO });
 }
 
-// Jogos do dia em todos os campeonatos, cada um com a sua liga, em ordem de horário.
-function jogosDoDia(dados, dia) {
+// Jogos de todos os campeonatos de `de` a `ate` (dias de Belém, inclusive), agrupados por dia:
+// [{ dia, jogos }], dias e jogos em ordem de horário. Com `clube`, só os jogos dele.
+function calendario(dados, de, ate, clube = 0) {
   const jogos = [];
   for (const [liga, d] of Object.entries(dados))
-    for (const p of d.partidas) if (p.data && diaEmBelem(p.data) === dia) jogos.push({ ...p, liga });
-  return jogos.sort((a, b) => new Date(a.data) - new Date(b.data) || a.partida_id - b.partida_id);
-}
-
-// Primeiro dia depois de `dia` com algum jogo marcado; null se não há.
-function proximoDiaComJogos(dados, dia) {
-  let proximo = null;
-  for (const d of Object.values(dados))
     for (const p of d.partidas) {
-      if (!p.data) continue;
-      const x = diaEmBelem(p.data);
-      if (x > dia && (proximo === null || x < proximo)) proximo = x;
+      if (!p.data || (clube && p.casa_id !== clube && p.fora_id !== clube)) continue;
+      const dia = diaEmBelem(p.data);
+      if (dia >= de && dia <= ate) jogos.push({ ...p, liga, dia });
     }
-  return proximo;
+  jogos.sort((a, b) => new Date(a.data) - new Date(b.data) || a.partida_id - b.partida_id);
+  const dias = [];
+  for (const p of jogos) {
+    if (dias.at(-1)?.dia !== p.dia) dias.push({ dia: p.dia, jogos: [] });
+    dias.at(-1).jogos.push(p);
+  }
+  return dias;
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     REMO, tabelaVazia, somarJogo, ordenar, classificacao, forcas, lambdas, prob1x2, simular,
     tabelaPrevista, vencedor, chavesDaFase, campanha, campeao, timePadrao,
-    FUSO, diaEmBelem, jogosDoDia, proximoDiaComJogos,
+    FUSO, diaEmBelem, calendario,
   };
 }

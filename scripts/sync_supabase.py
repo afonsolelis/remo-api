@@ -96,7 +96,7 @@ def grupo(nome: str, faixas: list, linhas: list) -> dict:
 
 
 def local_do_jogo(jogo: dict) -> tuple:
-    """(estádio, horário definido, link da página do jogo no ge) para a aba Jogos de hoje."""
+    """(estádio, horário definido, link da página do jogo no ge) para a aba Próximos jogos."""
     estadio = (jogo.get("sede") or {}).get("nome_popular") or None
     link = (jogo.get("transmissao") or {}).get("url") or ""
     return estadio, bool(jogo.get("hora_realizacao")), link if link.startswith("https://ge.globo.com/") else None

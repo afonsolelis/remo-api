@@ -73,17 +73,18 @@ Invariantes verificáveis:
   "Campeão 🏆" ou "Vice-campeão".
 - `campeao(liga)`: vencedor da chave única da última fase, se ela for de mata-mata; senão `null`.
 
-## Jogos de hoje (`RF-jogos-hoje`) — **novo**
+## Próximos jogos (`RF-jogos-hoje`) — **novo**
 
 - `diaEmBelem(instante)`: `"AAAA-MM-DD"` do instante no fuso `America/Belem` (`FUSO`),
   seja qual for o fuso do aparelho.
-- `jogosDoDia(dados, dia)`: recebe `{ [liga]: { partidas } }` e devolve as partidas
-  com `data` no `dia` de Belém, de todas as ligas, cada uma com o campo `liga`, em
-  ordem de horário (empate: `partida_id`). Partidas sem `data` ficam de fora.
-- `proximoDiaComJogos(dados, dia)`: o primeiro dia depois de `dia` com alguma
-  partida; `null` se não há.
+- `calendario(dados, de, ate, clube = 0)`: recebe `{ [liga]: { partidas } }` e devolve
+  `[{ dia, jogos }]` com as partidas de todas as ligas cujo dia de Belém está entre
+  `de` e `ate` (inclusive). Cada partida ganha os campos `liga` e `dia`. Dias e jogos
+  em ordem de horário (empate: `partida_id`). Partidas sem `data` ficam de fora. Com
+  `clube` diferente de 0, só as partidas dele.
 
-A aba mostra os jogos de hoje; sem nenhum, os de `proximoDiaComJogos`.
+A aba Próximos jogos mostra o calendário de hoje até 31/12, com filtro de clube
+(começa em "Todos os clubes").
 
 ## Time padrão (`RF-escolher-time`, `QS-facilidade`)
 

@@ -1,14 +1,14 @@
-// TC-jogos-hoje: RF-jogos-hoje (docs/especificacao/calculos.md#jogos-de-hoje)
+// TC-jogos-hoje: RF-jogos-hoje (docs/especificacao/calculos.md#próximos-jogos)
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { calculos } = require("./apoio.js");
 
-const j = (partida_id, data) => ({ partida_id, data, casa_id: 1, fora_id: 2 });
+const j = (partida_id, data, casa_id = 1, fora_id = 2) => ({ partida_id, data, casa_id, fora_id });
 
 const dados = {
-  serie_b: { partidas: [j(1, "2026-11-01T21:30:00-03:00"), j(2, "2026-11-01T16:00:00-03:00"), j(3, null)] },
-  parazao: { partidas: [j(4, "2026-11-01T18:00:00-03:00"), j(5, "2026-11-04T19:00:00-03:00")] },
-  copa_verde: { partidas: [j(6, "2026-11-03T20:00:00-03:00")] },
+  serie_b: { partidas: [j(1, "2026-11-01T21:30:00-03:00"), j(2, "2026-11-01T16:00:00-03:00", 364, 3), j(3, null)] },
+  parazao: { partidas: [j(4, "2026-11-01T18:00:00-03:00"), j(5, "2026-11-04T19:00:00-03:00", 5, 364)] },
+  copa_verde: { partidas: [j(6, "2026-10-31T20:00:00-03:00"), j(7, "2027-01-10T20:00:00-03:00")] },
 };
 
 test("o dia é o de Belém, não o do UTC", () => {
@@ -18,17 +18,17 @@ test("o dia é o de Belém, não o do UTC", () => {
   assert.equal(diaEmBelem("2026-11-02T03:00:00Z"), "2026-11-02");
 });
 
-test("junta os jogos do dia de todas as ligas, em ordem de horário", () => {
-  const { jogosDoDia } = calculos();
-  const jogos = jogosDoDia(dados, "2026-11-01");
-  assert.deepEqual(jogos.map(p => p.partida_id), [2, 4, 1]);
-  assert.deepEqual(jogos.map(p => p.liga), ["serie_b", "parazao", "serie_b"]);
-  assert.deepEqual(jogosDoDia(dados, "2026-11-02"), []);
+test("calendário de todas as ligas, por dia e em ordem de horário, só dentro do período", () => {
+  const { calendario } = calculos();
+  const dias = calendario(dados, "2026-11-01", "2026-12-31");
+  assert.deepEqual(dias.map(d => d.dia), ["2026-11-01", "2026-11-04"]);
+  assert.deepEqual(dias[0].jogos.map(p => p.partida_id), [2, 4, 1]);
+  assert.deepEqual(dias[0].jogos.map(p => p.liga), ["serie_b", "parazao", "serie_b"]);
+  assert.deepEqual(calendario(dados, "2026-11-05", "2026-12-31"), []);
 });
 
-test("próximo dia com jogos, ignorando jogos sem data", () => {
-  const { proximoDiaComJogos } = calculos();
-  assert.equal(proximoDiaComJogos(dados, "2026-11-01"), "2026-11-03");
-  assert.equal(proximoDiaComJogos(dados, "2026-11-03"), "2026-11-04");
-  assert.equal(proximoDiaComJogos(dados, "2026-11-04"), null);
+test("com clube, só os jogos dele", () => {
+  const { calendario } = calculos();
+  const dias = calendario(dados, "2026-11-01", "2026-12-31", 364);
+  assert.deepEqual(dias.flatMap(d => d.jogos.map(p => p.partida_id)), [2, 5]);
 });

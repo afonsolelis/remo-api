@@ -1,0 +1,15 @@
+{
+  "id": "TC-desempenho",
+  "phase": "green",
+  "fingerprint": "31e5f5ab3fa088ef1dfd1c08c0a10f8e22265558d07de833335d4c5dc63b13b5",
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "tests/desempenho.test.js"
+  ],
+  "executedAt": "2026-11-01T02:50:33.853Z",
+  "stdout": "simulação: 223 ms\n✔ pior caso (20 clubes, 380 jogos por disputar, 10.000 simulações) em até 1 s (234.6072ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 305.5387\n",
+  "stderr": "",
+  "stable": true
+}

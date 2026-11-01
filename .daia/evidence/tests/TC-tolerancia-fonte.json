@@ -1,0 +1,16 @@
+{
+  "id": "TC-tolerancia-fonte",
+  "phase": "green",
+  "fingerprint": "a400b8038c00e77e4c2c09620770615ed55c25da1c2d4d8b4b5464be5a425b2b",
+  "exitCode": 0,
+  "command": [
+    "python",
+    "-m",
+    "unittest",
+    "tests.test_sync.TestToleranciaFonte"
+  ],
+  "executedAt": "2026-11-01T02:50:35.063Z",
+  "stdout": "Quebra: falhou (ge fora do ar)\r\nBoa: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nQuebra: sem jogos, mantendo dados anteriores\r\nBoa: copa, 2 clubes, 1 partidas, 1 encerradas.\r\n",
+  "stderr": "..\r\n----------------------------------------------------------------------\r\nRan 2 tests in 0.004s\r\n\r\nOK\r\n",
+  "stable": true
+}

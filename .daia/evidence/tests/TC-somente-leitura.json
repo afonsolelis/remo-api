@@ -1,0 +1,16 @@
+{
+  "id": "TC-somente-leitura",
+  "phase": "green",
+  "fingerprint": "74537d80631e71484444d04413c51ae9dceac8d83b278ac041ba184072df03f0",
+  "exitCode": 0,
+  "command": [
+    "python",
+    "-m",
+    "unittest",
+    "tests.test_sync.TestSomenteLeitura"
+  ],
+  "executedAt": "2026-11-01T02:50:34.606Z",
+  "stdout": "",
+  "stderr": "...\r\n----------------------------------------------------------------------\r\nRan 3 tests in 0.001s\r\n\r\nOK\r\n",
+  "stable": true
+}

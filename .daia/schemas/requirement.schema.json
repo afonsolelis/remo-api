@@ -1,0 +1,51 @@
+{
+  "$id": "daia-e/requirement",
+  "title": "Requirement (SWEBOK v4 cap. 1 + SEBoK — SP2)",
+  "description": "Requisito funcional ou não funcional elicitado a partir do modelo de negócio. RNF DEVE ter cenário de qualidade associado (Art. V).",
+  "type": "object",
+  "required": ["id", "kind", "type", "statement", "traces_to", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "RF|RNF|CON" },
+    "kind": { "const": "Requirement" },
+    "type": { "type": "string", "enum": ["functional", "non-functional", "constraint"] },
+    "level": {
+      "type": "string",
+      "enum": ["stakeholder-need", "system"],
+      "description": "SEBoK — necessidade da parte interessada ou requisito do sistema que a transforma"
+    },
+    "statement": { "type": "string", "minLength": 10 },
+    "traces_to": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Art. IV — todo requisito deriva de direcionador, preocupação, processo, atividade IDEF0 ou necessidade (BD-*, CON-*, BP-*, IDF-*, RF-*)"
+    },
+    "elicitation": {
+      "type": "object",
+      "description": "SWEBOK v4 §1.2 — técnica e fontes da elicitação",
+      "required": ["technique", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "technique": {
+          "type": "string",
+          "enum": ["interview", "workshop", "observation", "document-analysis", "process-analysis",
+            "prototyping", "usage-scenario", "survey", "user-story-mapping"]
+        },
+        "sources": {
+          "$ref": "daia-e/common#/definitions/idRefList",
+          "minItems": 1,
+          "description": "Personas, partes interessadas, processos ou atividades consultados (PER-*, STK-*, BP-*, IDF-*)"
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "scenarios": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "description": "Cenários de qualidade (QS-*). Obrigatório quando type=non-functional"
+    },
+    "priority": { "type": "string", "enum": ["must", "should", "could", "wont"] },
+    "sprint": { "const": "SP2" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

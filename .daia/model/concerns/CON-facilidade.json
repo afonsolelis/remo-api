@@ -1,0 +1,16 @@
+{
+  "id": "CON-facilidade",
+  "kind": "Concern",
+  "statement": "Consigo entender a situação e as chances do meu time com facilidade, sem conhecimento de estatística?",
+  "stakeholders": [
+    "STK-torcedor"
+  ],
+  "category": "quality",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

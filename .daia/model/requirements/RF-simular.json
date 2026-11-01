@@ -1,0 +1,29 @@
+{
+  "id": "RF-simular",
+  "kind": "Requirement",
+  "type": "functional",
+  "level": "system",
+  "statement": "Nos campeonatos de pontos corridos, o sistema estima a probabilidade de cada posição final do time escolhido a partir dos jogos já disputados e dos que faltam.",
+  "traces_to": [
+    "IDF-A4",
+    "BP-avaliar-chances",
+    "BD-probabilidades",
+    "CON-chances"
+  ],
+  "elicitation": {
+    "technique": "process-analysis",
+    "sources": [
+      "BP-avaliar-chances",
+      "IDF-A4",
+      "PER-torcedor"
+    ]
+  },
+  "priority": "must",
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

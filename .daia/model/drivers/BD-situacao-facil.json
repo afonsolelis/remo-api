@@ -1,0 +1,18 @@
+{
+  "id": "BD-situacao-facil",
+  "kind": "BusinessDriver",
+  "statement": "Dar ao torcedor uma forma fácil de saber como o seu time está nos campeonatos que disputa.",
+  "rationale": "Respostas do mantenedor no onboarding DAIA-E (2026-10-31): o site traz 'informação fácil para saber como meu time está'.",
+  "stakeholders": [
+    "STK-torcedor"
+  ],
+  "idef0_node": "A3",
+  "hypothesis": "Um torcedor sem conhecimento de estatística encontra sozinho, numa única página, a posição e a campanha do seu time em cada campeonato.",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

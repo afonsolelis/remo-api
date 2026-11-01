@@ -1,0 +1,39 @@
+{
+  "$id": "daia-e/idef0",
+  "title": "IDEF0 Activity (FIPS 183 / BABOK v3 §10.35 — SP1)",
+  "description": "Função da decomposição IDEF0 com ICOM: entradas, controles, saídas e mecanismos. A0 é o nó de contexto; filhos numeram a partir do pai (A1, A11...). O campo automation registra a fronteira do sistema (Art. X).",
+  "type": "object",
+  "required": ["id", "kind", "node", "title", "controls", "outputs", "mechanisms", "automation", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "IDF" },
+    "kind": { "const": "Idef0Activity" },
+    "node": { "type": "string", "pattern": "^A(0|[1-9][0-9]{0,5})$" },
+    "title": { "type": "string", "minLength": 3, "description": "Verbo no infinitivo + objeto" },
+    "parent": { "$ref": "daia-e/common#/definitions/idRef", "description": "Atividade decomposta (IDF-*); ausente apenas em A0" },
+    "inputs": { "type": "array", "items": { "type": "string", "minLength": 2 } },
+    "controls": { "type": "array", "items": { "type": "string", "minLength": 2 }, "minItems": 1 },
+    "outputs": { "type": "array", "items": { "type": "string", "minLength": 2 }, "minItems": 1 },
+    "mechanisms": { "type": "array", "items": { "type": "string", "minLength": 2 }, "minItems": 1 },
+    "automation": {
+      "type": "string",
+      "enum": ["system", "manual", "external"],
+      "description": "system = dentro da fronteira do sistema; manual e external ficam fora"
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "path"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["static", "context", "other"] },
+          "notation": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "sprint": { "const": "SP1" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

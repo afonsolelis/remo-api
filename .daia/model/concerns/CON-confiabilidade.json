@@ -1,0 +1,17 @@
+{
+  "id": "CON-confiabilidade",
+  "kind": "Concern",
+  "statement": "A informação mostrada está atualizada e continua disponível mesmo quando a fonte de dados falha?",
+  "stakeholders": [
+    "STK-torcedor",
+    "STK-mantenedor"
+  ],
+  "category": "quality",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

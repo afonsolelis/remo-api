@@ -1,0 +1,22 @@
+{
+  "$id": "daia-e/stakeholder",
+  "title": "Stakeholder (ISO/IEC/IEEE 42010:2022)",
+  "description": "Parte interessada no sistema de interesse. Toda View declara os stakeholders a que responde.",
+  "type": "object",
+  "required": ["id", "kind", "name", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "STK" },
+    "kind": { "const": "Stakeholder" },
+    "name": { "type": "string", "minLength": 2 },
+    "role": { "type": "string" },
+    "description": { "type": "string" },
+    "concerns": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "description": "Preocupações desta parte interessada (CON-*)"
+    },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

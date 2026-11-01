@@ -1,0 +1,54 @@
+{
+  "$id": "daia-e/decision",
+  "title": "Architecture Decision (ISO 42010 §6 + SEBoK)",
+  "description": "Decisão arquitetural registrada. Art. IX: toda decisão relevante registra ao menos uma alternativa considerada e o critério pelo qual foi preterida.",
+  "type": "object",
+  "required": ["id", "kind", "title", "decision", "alternatives", "traces_to", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "AD" },
+    "kind": { "const": "ArchitectureDecision" },
+    "title": { "type": "string", "minLength": 5 },
+    "context": { "type": "string" },
+    "decision": { "type": "string", "minLength": 10 },
+    "consequences": { "type": "string" },
+    "alternatives": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Art. IX — ≥1 alternativa considerada. O LLM tende a convergir para soluções convencionais sem explicitar que outras existiam.",
+      "items": {
+        "type": "object",
+        "required": ["option", "rejected_because"],
+        "properties": {
+          "option": { "type": "string", "minLength": 3 },
+          "rejected_because": { "type": "string", "minLength": 10, "description": "O critério, não a opinião" }
+        }
+      }
+    },
+    "traces_to": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Requisitos, cenários ou preocupações que motivam a decisão (RF-*, RNF-*, QS-*, CON-*, BD-*)"
+    },
+    "affects_views": { "$ref": "daia-e/common#/definitions/idRefList" },
+    "sensitivity_points": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ATAM — atributos de qualidade sensíveis a esta decisão"
+    },
+    "tradeoff_points": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ATAM — atributos que se degradam quando outro melhora"
+    },
+    "tactics": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^(availability|interoperability|modifiability|performance|security|testability|usability)/[a-z-]+$" },
+      "description": "Bass, Clements & Kazman — táticas aplicadas, como <atributo>/<tática> (ex.: availability/active-redundancy)"
+    },
+    "risks": { "type": "array", "items": { "type": "string" } },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

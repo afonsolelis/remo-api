@@ -1,0 +1,44 @@
+{
+  "$id": "daia-e/process",
+  "title": "Business Process (BABOK v3 §10.35 — SP1)",
+  "description": "Processo de negócio modelado em BPMN 2.0. Cada persona que o executa aparece como raia; cada processo realiza uma atividade IDEF0 e sustenta ao menos um direcionador.",
+  "type": "object",
+  "required": ["id", "kind", "name", "trigger", "outcome", "performed_by", "supports", "activity", "models", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "BP" },
+    "kind": { "const": "BusinessProcess" },
+    "name": { "type": "string", "minLength": 3 },
+    "state": { "type": "string", "enum": ["as-is", "to-be"] },
+    "trigger": { "type": "string", "minLength": 5, "description": "Evento de negócio que dispara o processo" },
+    "outcome": { "type": "string", "minLength": 5, "description": "Resultado de negócio entregue" },
+    "performed_by": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Personas que executam o processo (PER-*); cada uma é uma raia no BPMN"
+    },
+    "supports": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Direcionadores de negócio sustentados (BD-*)"
+    },
+    "activity": { "$ref": "daia-e/common#/definitions/idRef", "description": "Atividade IDEF0 que o processo realiza (IDF-*)" },
+    "models": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ao menos um modelo com notation BPMN apontando para um arquivo .bpmn (XML BPMN 2.0)",
+      "items": {
+        "type": "object",
+        "required": ["kind", "notation", "path"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["dynamic", "context", "other"] },
+          "notation": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "sprint": { "const": "SP1" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "QS-atualidade",
+  "characteristic": "reliability",
+  "sub_characteristic": "availability",
+  "source": "Agendamento diário",
+  "stimulus": "Chega a meia-noite em Belém",
+  "artifact": "Rotina de atualização dos dados",
+  "environment": "Operação normal, ge disponível",
+  "response": "Os dados de cada campeonato são regravados com a data da coleta",
+  "response_measure": {
+    "metric": "idade do dado mais antigo entre os campeonatos",
+    "operator": "<=",
+    "threshold": 25,
+    "unit": "h"
+  },
+  "kind": "QualityScenario",
+  "traces_to": [
+    "RNF-atualidade"
+  ],
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  },
+  "utility_tree": {
+    "importance": "H",
+    "difficulty": "M"
+  }
+}

@@ -41,6 +41,10 @@ def get(path: str) -> dict | list:
     return r.json()
 
 
+# Páginas em que o UUID não foi achado nesta execução; o main trata como falha.
+usou_reserva: set[str] = set()
+
+
 def uuid_atual(pagina: str, reserva: str) -> str:
     """UUID da edição corrente, lido da página do campeonato no ge."""
     try:
@@ -52,6 +56,7 @@ def uuid_atual(pagina: str, reserva: str) -> str:
     except requests.RequestException:
         pass
     print(f"{pagina}: UUID não encontrado na página, usando o reserva")
+    usou_reserva.add(pagina)
     return reserva
 
 
@@ -152,18 +157,25 @@ def main() -> None:
     if not url:
         sys.exit("Defina DATABASE_URL.")
 
+    usou_reserva.clear()
+    falhas = []  # avisam o mantenedor: o Actions marca a execução como falha (AD-aviso-por-falha)
+
     with psycopg.connect(url, prepare_threshold=None) as conn:
         conn.execute(SCHEMA.read_text(encoding="utf-8"))
         conn.commit()
 
         for liga, (nome, tipo, pagina, reserva) in LIGAS.items():
+            uuid = uuid_atual(pagina, reserva)
+            if pagina in usou_reserva:
+                falhas.append(f"{nome}: UUID da edição não encontrado na página do ge, usado o reserva")
             try:
-                d = fetch_liga(uuid_atual(pagina, reserva))
+                d = fetch_liga(uuid)
                 if tipo == "pontos":  # só a primeira fase entra na tabela simulada
                     primeira = d["fases"][0]["nome"]
                     d["partidas"] = [p for p in d["partidas"] if p[8] == primeira]
             except Exception as e:  # mantém o último dado gravado dessa liga
                 print(f"{nome}: falhou ({e})")
+                falhas.append(f"{nome}: {e}")
                 continue
             if not d["partidas"]:
                 print(f"{nome}: sem jogos, mantendo dados anteriores")
@@ -193,6 +205,9 @@ def main() -> None:
                 )
             print(f"{nome}: {tipo}, {len(d['clubes'])} clubes, {len(d['partidas'])} partidas, "
                   f"{sum(p[7] for p in d['partidas'])} encerradas.")
+
+    if falhas:
+        sys.exit("Atualização com falhas:\n" + "\n".join(f"- {f}" for f in falhas))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,28 @@
+{
+  "id": "IDF-A4",
+  "node": "A4",
+  "parent": "IDF-A0",
+  "title": "Estimar as chances de classificação final",
+  "inputs": [
+    "Dados gravados de ligas, clubes e partidas",
+    "Campeonato e time escolhidos pelo torcedor"
+  ],
+  "controls": [
+    "Regulamento de cada campeonato (zonas e fases)"
+  ],
+  "outputs": [
+    "Probabilidades de posição e de zona ao fim do campeonato"
+  ],
+  "mechanisms": [
+    "Navegador do torcedor"
+  ],
+  "automation": "system",
+  "kind": "Idef0Activity",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

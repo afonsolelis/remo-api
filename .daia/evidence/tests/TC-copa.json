@@ -1,0 +1,15 @@
+{
+  "id": "TC-copa",
+  "phase": "green",
+  "fingerprint": "613e45c29f14db58e483813ee41b77b877fe57eb40f08078a77ad8ca75bf5414",
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "tests/copa.test.js"
+  ],
+  "executedAt": "2026-11-01T02:50:33.482Z",
+  "stdout": "✔ vencedor pela soma dos gols, pelos pênaltis ou ainda indefinido (1.6396ms)\n✔ campanha e campeão de uma copa encerrada (0.4461ms)\n✔ final em aberto (0.2178ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 73.2585\n",
+  "stderr": "",
+  "stable": true
+}

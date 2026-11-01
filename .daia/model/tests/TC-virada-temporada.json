@@ -1,0 +1,19 @@
+{
+  "id": "TC-virada-temporada",
+  "kind": "TestContract",
+  "title": "Edição atual lida da página, com reserva",
+  "verifies": [
+    "QS-virada-temporada",
+    "RF-edicao-atual"
+  ],
+  "test_path": "tests/test_sync.py",
+  "phase": "green",
+  "test_name": "TestViradaTemporada",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

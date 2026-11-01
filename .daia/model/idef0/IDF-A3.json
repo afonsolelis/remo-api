@@ -1,0 +1,30 @@
+{
+  "id": "IDF-A3",
+  "node": "A3",
+  "parent": "IDF-A0",
+  "title": "Apresentar a situação do time escolhido",
+  "inputs": [
+    "Dados gravados de ligas, clubes e partidas",
+    "Campeonato e time escolhidos pelo torcedor"
+  ],
+  "controls": [
+    "Regulamento de cada campeonato (zonas e fases)"
+  ],
+  "outputs": [
+    "Situação do time (posição, pontos, campanha)",
+    "Grupos e chaves das copas"
+  ],
+  "mechanisms": [
+    "GitHub Pages",
+    "Navegador do torcedor"
+  ],
+  "automation": "system",
+  "kind": "Idef0Activity",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

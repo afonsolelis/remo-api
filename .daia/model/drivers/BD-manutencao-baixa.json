@@ -1,0 +1,18 @@
+{
+  "id": "BD-manutencao-baixa",
+  "kind": "BusinessDriver",
+  "statement": "Manter as informações atualizadas todos os dias, de temporada a temporada, sem trabalho manual nem custo para o mantenedor.",
+  "rationale": "Regras do CLAUDE.md (sem framework nem build, sync diário, último dado gravado sempre disponível) e commit 6681f78 'Deixa a atualização funcionar nas próximas temporadas'.",
+  "stakeholders": [
+    "STK-mantenedor",
+    "STK-torcedor"
+  ],
+  "idef0_node": "A2",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

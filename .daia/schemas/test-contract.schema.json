@@ -1,0 +1,28 @@
+{
+  "$id": "daia-e/test-contract",
+  "title": "Test Contract (SP3 vermelho → SP4 verde)",
+  "description": "Art. VIII: os testes que travam os contratos comportamentais existem em fase vermelha antes de a geração começar.",
+  "type": "object",
+  "required": ["id", "kind", "verifies", "test_path", "phase", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "TC" },
+    "kind": { "const": "TestContract" },
+    "title": { "type": "string" },
+    "verifies": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Cenários ou requisitos verificados (QS-*, RF-*, RNF-*)"
+    },
+    "test_path": { "type": "string", "minLength": 3, "description": "Caminho do arquivo de teste" },
+    "test_name": { "type": "string", "description": "Nome do caso de teste dentro do arquivo" },
+    "phase": {
+      "type": "string",
+      "enum": ["red", "green"],
+      "description": "red = escrito e falhando (SP3); green = passando (SP4)"
+    },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

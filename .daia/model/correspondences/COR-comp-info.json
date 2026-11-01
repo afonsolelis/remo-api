@@ -1,0 +1,15 @@
+{
+  "id": "COR-comp-info",
+  "kind": "Correspondence",
+  "rule": "consistent-with",
+  "from": "VW-computational",
+  "to": "VW-information",
+  "rationale": "Os componentes leem e escrevem exatamente as entidades e os dados derivados da view information.",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

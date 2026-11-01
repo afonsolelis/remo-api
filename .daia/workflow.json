@@ -1,0 +1,70 @@
+{
+  "history": [
+    {
+      "sprint": "SP1",
+      "passed": true,
+      "stateHash": "sha256:2b60c7758702540871200ddf8bbd1cf90e7fa700f3de1aa4ffc9e050a3fe22d7",
+      "at": "2026-11-01T02:20:40.973Z"
+    },
+    {
+      "sprint": "SP2",
+      "passed": true,
+      "stateHash": "sha256:f09275239587f0cd9545143dd0c3449834aaaeb446ad7435a25d44de778abe74",
+      "at": "2026-11-01T02:23:07.241Z"
+    },
+    {
+      "sprint": "SP2",
+      "passed": true,
+      "stateHash": "sha256:ae0c6ec8c3d0cf3ed34bcad718c2b80e36c3653fc06b1e4b793159ada6d10992",
+      "at": "2026-11-01T02:24:14.114Z"
+    },
+    {
+      "sprint": "SP3",
+      "passed": false,
+      "stateHash": "sha256:a18cc57a4ead7ec6c084e990651288f882c7d6d2793799dff2b75bb0f89344d6",
+      "at": "2026-11-01T02:41:45.947Z"
+    },
+    {
+      "sprint": "SP3",
+      "passed": true,
+      "stateHash": "sha256:70e0a2e25661897652d7333bcc8f9c79658d2a46dc271c47b7243174bedc693c",
+      "at": "2026-11-01T02:44:17.287Z"
+    },
+    {
+      "sprint": "SP4",
+      "passed": false,
+      "stateHash": "sha256:70e0a2e25661897652d7333bcc8f9c79658d2a46dc271c47b7243174bedc693c",
+      "at": "2026-11-01T02:47:35.040Z"
+    },
+    {
+      "sprint": "SP4",
+      "passed": true,
+      "stateHash": "sha256:70e0a2e25661897652d7333bcc8f9c79658d2a46dc271c47b7243174bedc693c",
+      "at": "2026-11-01T02:48:34.226Z"
+    },
+    {
+      "sprint": "SP5",
+      "passed": true,
+      "stateHash": "sha256:70e0a2e25661897652d7333bcc8f9c79658d2a46dc271c47b7243174bedc693c",
+      "at": "2026-11-01T02:50:35.669Z"
+    }
+  ],
+  "next": {
+    "sprint": "SP5",
+    "title": "Demonstracao e validacao",
+    "skills": [
+      "validate-system-evidence"
+    ],
+    "inputs": [
+      "baseline SP4"
+    ],
+    "outputs": [
+      "validation.md: hipotese, resultados, limitacoes"
+    ],
+    "state": "aguarda-aprovacao",
+    "blocking": [],
+    "command": "daia baseline sign SP5 --by \"Nome\" --rationale \"Justificativa humana\"",
+    "guide": ".daia/guide.md",
+    "schemas": ".daia/schemas/"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$id": "daia-e/concern",
+  "title": "Concern (ISO/IEC/IEEE 42010:2022)",
+  "description": "Interesse relativo ao sistema. Toda Concern registrada DEVE ser endereçada por ao menos uma View (Art. VII).",
+  "type": "object",
+  "required": ["id", "kind", "statement", "stakeholders", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "CON" },
+    "kind": { "const": "Concern" },
+    "statement": { "type": "string", "minLength": 10, "description": "A preocupação enunciada como pergunta ou afirmação" },
+    "stakeholders": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Partes interessadas que sustentam esta preocupação (STK-*)"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["business", "functional", "quality", "regulatory", "operational", "pedagogical"]
+    },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

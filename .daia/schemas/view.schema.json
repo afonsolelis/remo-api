@@ -1,0 +1,44 @@
+{
+  "$id": "daia-e/view",
+  "title": "View (ISO/IEC/IEEE 42010:2022)",
+  "description": "Expressão da arquitetura sob a perspectiva de um Viewpoint. Governa uma ou mais Concerns.",
+  "type": "object",
+  "required": ["id", "kind", "viewpoint", "addresses_concerns", "stakeholders", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "VW" },
+    "kind": { "const": "View" },
+    "viewpoint": { "type": "string", "description": "Viewpoint do catálogo ativo, ex.: enterprise, computational" },
+    "title": { "type": "string" },
+    "addresses_concerns": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Preocupações que esta view responde (CON-*). ISO 42010 §5.4"
+    },
+    "stakeholders": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Partes interessadas identificadas (STK-*)"
+    },
+    "models": {
+      "type": "array",
+      "description": "Modelos que compõem a view. SP3 exige modelagem estática E dinâmica (Art. VIII).",
+      "items": {
+        "type": "object",
+        "required": ["kind", "path"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["static", "dynamic", "deployment", "context", "other"] },
+          "notation": { "type": "string", "description": "ex.: UML, IDEF0, C4, mermaid, texto" },
+          "path": { "type": "string", "description": "Caminho relativo ao artefato que materializa o modelo" }
+        }
+      }
+    },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "confirmed": {
+      "type": "boolean",
+      "description": "Views com status=recovered exigem confirmação humana antes de entrar em baseline"
+    },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

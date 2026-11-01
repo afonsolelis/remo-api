@@ -1,0 +1,50 @@
+{
+  "id": "AD-coleta-agendada",
+  "title": "Coleta diária em lote, desacoplada da consulta",
+  "context": "A API do ge não é oficial nem confiável (CON-confiabilidade). O torcedor não pode ficar sem dados quando o ge cai.",
+  "decision": "Um job agendado uma vez por dia (00:00 em Belém) baixa os dados do ge e grava no banco. O navegador só lê o banco, nunca o ge.",
+  "consequences": "O dado tem até um dia de atraso; a disponibilidade do site não depende do ge.",
+  "alternatives": [
+    {
+      "option": "Navegador consultar a API do ge diretamente",
+      "rejected_because": "Uma queda ou mudança do ge derruba o site na hora e não há último dado para mostrar; a API pode bloquear CORS."
+    },
+    {
+      "option": "Coleta a cada hora",
+      "rejected_because": "Mais execuções e mais chances de falha sem ganho para a pergunta do torcedor, que muda por rodada, não por hora; QS-atualidade pede 25 h."
+    }
+  ],
+  "traces_to": [
+    "QS-atualidade",
+    "QS-tolerancia-fonte",
+    "RF-coletar",
+    "RNF-atualidade"
+  ],
+  "affects_views": [
+    "VW-computational",
+    "VW-engineering"
+  ],
+  "tactics": [
+    "availability/passive-redundancy",
+    "availability/degradation",
+    "performance/maintain-multiple-copies-data"
+  ],
+  "sensitivity_points": [
+    "reliability: o intervalo do agendamento define a idade máxima do dado"
+  ],
+  "tradeoff_points": [
+    "Disponibilidade × atualidade: o dado sobrevive à queda do ge, mas pode ter até um dia"
+  ],
+  "risks": [
+    "O GitHub atrasar ou pular execuções agendadas em horários de pico.",
+    "O GitHub desligar o agendamento após 60 dias sem atividade (mitigado pelo passo de reativação)."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

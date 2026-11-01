@@ -1,0 +1,18 @@
+{
+  "id": "BD-probabilidades",
+  "kind": "BusinessDriver",
+  "statement": "Mostrar ao torcedor as probabilidades de como o seu time termina o campeonato.",
+  "rationale": "Respostas do mantenedor no onboarding DAIA-E (2026-10-31): o site informa 'quais as probabilidades dele acabar no campeonato'.",
+  "stakeholders": [
+    "STK-torcedor"
+  ],
+  "idef0_node": "A4",
+  "hypothesis": "O torcedor entende as probabilidades apresentadas por zona do regulamento e consegue responder, com elas, como o seu time deve terminar o campeonato.",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

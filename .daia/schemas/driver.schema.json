@@ -1,0 +1,20 @@
+{
+  "$id": "daia-e/driver",
+  "title": "Business Driver (BABOK — SP1)",
+  "description": "Direcionador de negócio. Responde: por que o sistema deve existir e para quem.",
+  "type": "object",
+  "required": ["id", "kind", "statement", "stakeholders", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "BD" },
+    "kind": { "const": "BusinessDriver" },
+    "statement": { "type": "string", "minLength": 10 },
+    "rationale": { "type": "string" },
+    "stakeholders": { "$ref": "daia-e/common#/definitions/idRefList", "minItems": 1 },
+    "idef0_node": { "type": "string", "description": "Nó da decomposição IDEF0, ex.: A-0, A1, A12" },
+    "hypothesis": { "type": "string", "description": "Hipótese que a SP5 deve confirmar ou refutar" },
+    "sprint": { "const": "SP1" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

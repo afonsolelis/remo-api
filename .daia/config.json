@@ -1,0 +1,145 @@
+{
+  "project": "Remo nos Campeonatos",
+  "mode": "existing",
+  "objective": "Acompanhar os campeonatos do Remo (Séries A e B, Parazão, Copa Verde) com tabelas, partidas e simulação de chances num site estático",
+  "stack": "HTML/CSS/JS sem build, ApexCharts, Python (sync), Supabase Postgres, GitHub Pages e Actions",
+  "constraints": "Sem framework nem build; banco compartilhado (só tabelas remo_*); API do ge não confiável; sem segredos no repositório",
+  "verification": {
+    "TC-tolerancia-fonte": {
+      "command": "python",
+      "args": [
+        "-m",
+        "unittest",
+        "tests.test_sync.TestToleranciaFonte"
+      ],
+      "inputs": [
+        "scripts/sync_supabase.py",
+        "supabase/schema.sql",
+        ".github/workflows/dados.yml"
+      ]
+    },
+    "TC-avisar-falha": {
+      "command": "python",
+      "args": [
+        "-m",
+        "unittest",
+        "tests.test_sync.TestAvisarFalha"
+      ],
+      "inputs": [
+        "scripts/sync_supabase.py",
+        "supabase/schema.sql",
+        ".github/workflows/dados.yml"
+      ]
+    },
+    "TC-virada-temporada": {
+      "command": "python",
+      "args": [
+        "-m",
+        "unittest",
+        "tests.test_sync.TestViradaTemporada"
+      ],
+      "inputs": [
+        "scripts/sync_supabase.py",
+        "supabase/schema.sql",
+        ".github/workflows/dados.yml"
+      ]
+    },
+    "TC-somente-leitura": {
+      "command": "python",
+      "args": [
+        "-m",
+        "unittest",
+        "tests.test_sync.TestSomenteLeitura"
+      ],
+      "inputs": [
+        "scripts/sync_supabase.py",
+        "supabase/schema.sql",
+        ".github/workflows/dados.yml"
+      ]
+    },
+    "TC-atualidade": {
+      "command": "python",
+      "args": [
+        "-m",
+        "unittest",
+        "tests.test_sync.TestAtualidade"
+      ],
+      "inputs": [
+        "scripts/sync_supabase.py",
+        "supabase/schema.sql",
+        ".github/workflows/dados.yml"
+      ]
+    },
+    "TC-classificacao": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/classificacao.test.js"
+      ],
+      "inputs": [
+        "tests/apoio.js",
+        "calculos.js",
+        "app.js",
+        "index.html"
+      ]
+    },
+    "TC-simulacao": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/simulacao.test.js"
+      ],
+      "inputs": [
+        "tests/apoio.js",
+        "calculos.js",
+        "app.js",
+        "index.html"
+      ]
+    },
+    "TC-copa": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/copa.test.js"
+      ],
+      "inputs": [
+        "tests/apoio.js",
+        "calculos.js",
+        "app.js",
+        "index.html"
+      ]
+    },
+    "TC-desempenho": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/desempenho.test.js"
+      ],
+      "inputs": [
+        "tests/apoio.js",
+        "calculos.js",
+        "app.js",
+        "index.html"
+      ]
+    },
+    "TC-facilidade": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/facilidade.test.js"
+      ],
+      "inputs": [
+        "tests/apoio.js",
+        "calculos.js",
+        "app.js",
+        "index.html"
+      ]
+    }
+  },
+  "method": "DAIA-E",
+  "viewpointCatalog": "rm-odp",
+  "modelDir": ".daia/model",
+  "baselineDir": ".daia/baselines",
+  "evidenceDir": ".daia/evidence",
+  "createdAt": "2026-11-01T02:15:14.244Z"
+}

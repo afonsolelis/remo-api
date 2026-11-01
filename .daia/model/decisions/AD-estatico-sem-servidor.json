@@ -1,0 +1,50 @@
+{
+  "id": "AD-estatico-sem-servidor",
+  "title": "Site estático lendo o banco direto, sem servidor próprio",
+  "context": "O site precisa ser gratuito, simples e sem build (RNF-sem-custo, RNF-simplicidade). A versão anterior usava Streamlit (commit 4fb5bfa).",
+  "decision": "Servir index.html, style.css e os scripts pelo GitHub Pages e ler o banco pela API REST do Supabase direto do navegador, sem servidor de aplicação.",
+  "consequences": "Não há servidor para manter nem pagar; toda lógica de exibição roda no navegador.",
+  "alternatives": [
+    {
+      "option": "Streamlit hospedado (versão anterior)",
+      "rejected_because": "Exige servidor sempre ligado, hiberna no plano gratuito e demora a acordar; foi substituído no commit 4fb5bfa."
+    },
+    {
+      "option": "Servidor próprio (Flask ou Node) com API",
+      "rejected_because": "Adiciona um nó para hospedar, monitorar e pagar, contra RNF-sem-custo e RNF-simplicidade."
+    }
+  ],
+  "traces_to": [
+    "RNF-sem-custo",
+    "RNF-simplicidade",
+    "RNF-desempenho",
+    "CON-manutencao"
+  ],
+  "affects_views": [
+    "VW-computational",
+    "VW-engineering",
+    "VW-technology"
+  ],
+  "tactics": [
+    "performance/reduce-overhead",
+    "modifiability/restrict-dependencies"
+  ],
+  "sensitivity_points": [
+    "performance_efficiency: o processamento fica no dispositivo do torcedor",
+    "security: a credencial de leitura fica exposta no navegador"
+  ],
+  "tradeoff_points": [
+    "Custo zero e simplicidade × desempenho em celulares fracos (a simulação roda no cliente)"
+  ],
+  "risks": [
+    "Mudança de política do plano gratuito do Supabase ou do GitHub Pages."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

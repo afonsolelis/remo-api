@@ -1,0 +1,44 @@
+{
+  "$id": "daia-e/baseline",
+  "title": "Baseline — encerramento de sprint com decisão humana registrada",
+  "description": "Art. II (NON-NEGOTIABLE): nenhuma baseline é encerrada sem decisão humana registrada. A IA pode redigir e propor qualquer artefato — não pode assinar.",
+  "type": "object",
+  "required": ["kind", "sprint", "state_hash", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "Baseline" },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "title": { "type": "string" },
+    "state_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Hash do estado do modelo no momento do encerramento. Alterar o modelo depois invalida a baseline."
+    },
+    "artifact_count": { "type": "integer", "minimum": 0 },
+    "signature": {
+      "type": "object",
+      "description": "A assinatura é humana. Não há campo para agente aqui — por construção.",
+      "required": ["signed_by", "signed_at", "decision"],
+      "properties": {
+        "signed_by": { "type": "string", "minLength": 2, "description": "Nome ou identificador da pessoa que decidiu" },
+        "signed_at": { "$ref": "daia-e/common#/definitions/isoDate" },
+        "decision": { "type": "string", "enum": ["accepted", "accepted-with-debt", "rejected"] },
+        "rationale": { "type": "string", "minLength": 10, "description": "Por que a baseline foi aceita. Não pode ser vazio." },
+        "declared_debt": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Quando decision=accepted-with-debt: o que ficou pendente, registrado como dívida rastreável"
+        }
+      }
+    },
+    "gate_report": {
+      "type": "object",
+      "properties": {
+        "passed": { "type": "boolean" },
+        "blocking": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "evaluated_at": { "$ref": "daia-e/common#/definitions/isoDate" }
+      }
+    }
+  }
+}

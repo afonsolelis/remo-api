@@ -1,0 +1,29 @@
+{
+  "id": "VW-engineering",
+  "kind": "View",
+  "viewpoint": "engineering",
+  "title": "Engineering: nós, canais e políticas",
+  "addresses_concerns": [
+    "CON-confiabilidade",
+    "CON-manutencao"
+  ],
+  "stakeholders": [
+    "STK-torcedor",
+    "STK-mantenedor"
+  ],
+  "models": [
+    {
+      "kind": "deployment",
+      "notation": "mermaid flowchart",
+      "path": "docs/arquitetura/engineering.md"
+    }
+  ],
+  "status": "recovered",
+  "confirmed": true,
+  "sprint": "SP3",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

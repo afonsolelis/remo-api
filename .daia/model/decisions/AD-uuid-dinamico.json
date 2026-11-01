@@ -1,0 +1,45 @@
+{
+  "id": "AD-uuid-dinamico",
+  "title": "Edição atual lida da página do campeonato, com UUID reserva",
+  "context": "O UUID de cada tabela do ge muda a cada temporada (QS-virada-temporada).",
+  "decision": "A cada execução, o coletor lê o UUID da edição atual no atributo data-bs-resource-id da página do campeonato no ge. Se não achar, usa o UUID reserva do código.",
+  "consequences": "A virada de temporada não exige mudança de código enquanto o ge mantiver esse atributo.",
+  "alternatives": [
+    {
+      "option": "UUID fixo no código, trocado a cada temporada",
+      "rejected_because": "Exige alteração manual por campeonato e por ano, violando QS-virada-temporada (0 alterações)."
+    },
+    {
+      "option": "Descobrir o UUID por uma API de busca do ge",
+      "rejected_because": "Não há API documentada para isso; seria outra dependência não oficial."
+    }
+  ],
+  "traces_to": [
+    "QS-virada-temporada",
+    "RF-edicao-atual"
+  ],
+  "affects_views": [
+    "VW-computational"
+  ],
+  "tactics": [
+    "modifiability/defer-binding",
+    "availability/degradation"
+  ],
+  "sensitivity_points": [
+    "flexibility: depende do atributo data-bs-resource-id no HTML do ge"
+  ],
+  "tradeoff_points": [
+    "Zero manutenção × acoplamento ao HTML do ge, que pode mudar sem aviso"
+  ],
+  "risks": [
+    "Se o ge mudar o HTML, o coletor usa em silêncio o UUID reserva da temporada passada."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

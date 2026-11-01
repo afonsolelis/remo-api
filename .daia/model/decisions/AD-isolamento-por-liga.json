@@ -1,0 +1,49 @@
+{
+  "id": "AD-isolamento-por-liga",
+  "title": "Uma transação por liga e preservação do último dado",
+  "context": "QS-tolerancia-fonte é o único cenário (H,H) da árvore de utilidade.",
+  "decision": "Cada liga é coletada e gravada numa transação própria. Exceção ou ausência de jogos mantém o dado anterior daquela liga e o coletor segue com as demais.",
+  "consequences": "Uma liga quebrada não afeta as outras; o banco nunca fica com uma liga pela metade.",
+  "alternatives": [
+    {
+      "option": "Uma transação única para todas as ligas",
+      "rejected_because": "Uma falha em qualquer liga descartaria a atualização de todas, violando QS-tolerancia-fonte."
+    },
+    {
+      "option": "Gravar direto, sem transação",
+      "rejected_because": "Uma falha no meio deixaria clubes sem partidas ou partidas de duas edições misturadas."
+    }
+  ],
+  "traces_to": [
+    "QS-tolerancia-fonte",
+    "RF-preservar"
+  ],
+  "affects_views": [
+    "VW-computational",
+    "VW-engineering",
+    "VW-information"
+  ],
+  "tactics": [
+    "availability/transactions",
+    "availability/exception-detection",
+    "availability/exception-handling",
+    "availability/sanity-checking"
+  ],
+  "sensitivity_points": [
+    "reliability: o critério de 'dado válido' (hoje: ter jogos) decide quando o anterior é preservado"
+  ],
+  "tradeoff_points": [
+    "Preservar o dado antigo × mostrar dado desatualizado sem que o torcedor perceba (mitigado por RF-data-atualizacao)"
+  ],
+  "risks": [
+    "O ge devolver dados com jogos mas incorretos (por exemplo, edição errada) passa pela verificação de sanidade e substitui o dado bom."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

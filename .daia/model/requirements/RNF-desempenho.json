@@ -1,0 +1,30 @@
+{
+  "id": "RNF-desempenho",
+  "kind": "Requirement",
+  "type": "non-functional",
+  "level": "system",
+  "statement": "As chances do time aparecem rapidamente mesmo num celular comum.",
+  "traces_to": [
+    "CON-facilidade",
+    "BD-probabilidades"
+  ],
+  "elicitation": {
+    "technique": "interview",
+    "sources": [
+      "PER-torcedor",
+      "BP-avaliar-chances"
+    ],
+    "notes": "Pedido pelo mantenedor na revisão da SP2 (2026-10-31): até 3 s num celular comum."
+  },
+  "scenarios": [
+    "QS-desempenho"
+  ],
+  "priority": "must",
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

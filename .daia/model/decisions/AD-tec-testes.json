@@ -1,0 +1,38 @@
+{
+  "id": "AD-tec-testes",
+  "title": "Testes com node:test e unittest, sem dependências",
+  "context": "O projeto não tinha testes; a SP3 exige contratos executáveis (Art. VIII) sem violar RNF-simplicidade.",
+  "decision": "Testes de JavaScript com o executor nativo node:test e de Python com unittest e unittest.mock, sem instalar nada além do que o projeto já usa.",
+  "alternatives": [
+    {
+      "option": "Jest e pytest",
+      "rejected_because": "Acrescentam package.json, node_modules e dependências de teste a um projeto sem build."
+    }
+  ],
+  "traces_to": [
+    "RNF-simplicidade",
+    "QS-desempenho",
+    "QS-tolerancia-fonte"
+  ],
+  "affects_views": [
+    "VW-technology"
+  ],
+  "tactics": [
+    "testability/sandbox",
+    "testability/abstract-data-sources"
+  ],
+  "sensitivity_points": [
+    "maintainability: os testes do coletor imitam o psycopg e o ge"
+  ],
+  "risks": [
+    "Os dublês do psycopg divergirem da biblioteca real e o teste passar com o coletor quebrado."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

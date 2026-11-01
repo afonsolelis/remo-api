@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Def-avaliar-chances" targetNamespace="https://github.com/afonsolelis/remo-api">
+  <bpmn:collaboration id="Colab-avaliar-chances">
+    <bpmn:participant id="P-torcedor" name="Torcedor fanático" processRef="Proc-avaliar-chances" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc-avaliar-chances" name="Avaliar as chances do time no campeonato" isExecutable="false">
+    <bpmn:laneSet id="LS-avaliar-chances">
+      <bpmn:lane id="L-torcedor" name="Torcedor fanático">
+        <bpmn:flowNodeRef>Inicio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-campeonato</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-time</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-zonas</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-posicoes</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-concluir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fim</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="L-site" name="Site">
+        <bpmn:flowNodeRef>T-simular</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Inicio" name="Quer saber como o time deve terminar" />
+    <bpmn:userTask id="T-campeonato" name="Escolher o campeonato de pontos corridos" />
+    <bpmn:userTask id="T-time" name="Escolher o seu time" />
+    <bpmn:serviceTask id="T-simular" name="Simular os jogos restantes do campeonato" />
+    <bpmn:userTask id="T-zonas" name="Ler as chances por zona (título, acesso, rebaixamento)" />
+    <bpmn:userTask id="T-posicoes" name="Ler as chances de cada posição final" />
+    <bpmn:manualTask id="T-concluir" name="Concluir como o time deve terminar" />
+    <bpmn:endEvent id="Fim" name="Chances do time conhecidas" />
+    <bpmn:sequenceFlow id="F1" sourceRef="Inicio" targetRef="T-campeonato" />
+    <bpmn:sequenceFlow id="F2" sourceRef="T-campeonato" targetRef="T-time" />
+    <bpmn:sequenceFlow id="F3" sourceRef="T-time" targetRef="T-simular" />
+    <bpmn:sequenceFlow id="F4" sourceRef="T-simular" targetRef="T-zonas" />
+    <bpmn:sequenceFlow id="F5" sourceRef="T-zonas" targetRef="T-posicoes" />
+    <bpmn:sequenceFlow id="F6" sourceRef="T-posicoes" targetRef="T-concluir" />
+    <bpmn:sequenceFlow id="F7" sourceRef="T-concluir" targetRef="Fim" />
+  </bpmn:process>
+</bpmn:definitions>

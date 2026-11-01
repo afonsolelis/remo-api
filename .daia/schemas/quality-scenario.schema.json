@@ -1,0 +1,60 @@
+{
+  "$id": "daia-e/quality-scenario",
+  "title": "Quality Scenario — cenário de seis partes (SEI) com vocabulário ISO/IEC 25010:2023",
+  "description": "Art. V: qualidade não é adjetivo, é cenário mensurável. Todo RNF é expresso como cenário de seis partes e verificado por ao menos um teste executável.",
+  "type": "object",
+  "required": ["id", "kind", "characteristic", "source", "stimulus", "artifact", "environment", "response", "response_measure", "traces_to", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "QS" },
+    "kind": { "const": "QualityScenario" },
+    "characteristic": {
+      "type": "string",
+      "description": "Característica da ISO/IEC 25010:2023. Oito das nove são não funcionais; functional_suitability é a exceção.",
+      "enum": [
+        "functional_suitability",
+        "performance_efficiency",
+        "compatibility",
+        "interaction_capability",
+        "reliability",
+        "security",
+        "maintainability",
+        "flexibility",
+        "safety"
+      ]
+    },
+    "sub_characteristic": { "type": "string" },
+    "source": { "type": "string", "minLength": 3, "description": "1/6 — quem ou o que origina o estímulo" },
+    "stimulus": { "type": "string", "minLength": 3, "description": "2/6 — a condição que chega ao sistema" },
+    "artifact": { "type": "string", "minLength": 3, "description": "3/6 — a parte do sistema estimulada" },
+    "environment": { "type": "string", "minLength": 3, "description": "4/6 — o estado do sistema no momento" },
+    "response": { "type": "string", "minLength": 3, "description": "5/6 — a atividade resultante" },
+    "response_measure": {
+      "type": "object",
+      "description": "6/6 — a medida. Sem medida não há cenário: 'rápido' não é resposta mensurável.",
+      "required": ["metric", "operator", "threshold"],
+      "properties": {
+        "metric": { "type": "string", "minLength": 2, "description": "ex.: latência p95, tempo de recuperação, complexidade ciclomática" },
+        "operator": { "type": "string", "enum": ["<", "<=", ">", ">=", "==", "!="] },
+        "threshold": { "type": ["number", "string"] },
+        "unit": { "type": "string", "description": "ex.: ms, %, ocorrências, pontos" }
+      }
+    },
+    "traces_to": { "$ref": "daia-e/common#/definitions/idRefList", "minItems": 1, "description": "RNF-* ou CON-* de origem" },
+    "verified_by": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "description": "Contratos de teste que verificam este cenário (TC-*). Exigido no gate SP4."
+    },
+    "utility_tree": {
+      "type": "object",
+      "description": "QAW/ATAM — priorização no utility tree",
+      "properties": {
+        "importance": { "type": "string", "enum": ["H", "M", "L"] },
+        "difficulty": { "type": "string", "enum": ["H", "M", "L"] }
+      }
+    },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

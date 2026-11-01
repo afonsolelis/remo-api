@@ -1,0 +1,19 @@
+{
+  "kind": "Baseline",
+  "sprint": "SP2",
+  "title": "Requisitos elicitados do negocio: RF, RNF como cenarios de seis partes e matriz de rastreabilidade",
+  "state_hash": "sha256:ae0c6ec8c3d0cf3ed34bcad718c2b80e36c3653fc06b1e4b793159ada6d10992",
+  "artifact_count": 49,
+  "signature": {
+    "signed_by": "Afonso Lelis",
+    "signed_at": "2026-11-01T02:35:53.313Z",
+    "decision": "accepted",
+    "rationale": "Requisitos elicitados dos processos da SP1; limiares, prioridades e importância decididos pelo mantenedor"
+  },
+  "gate_report": {
+    "passed": true,
+    "blocking": 0,
+    "warnings": 0,
+    "evaluated_at": "2026-11-01T02:35:53.310Z"
+  }
+}

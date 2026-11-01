@@ -1,0 +1,19 @@
+{
+  "id": "TC-tolerancia-fonte",
+  "kind": "TestContract",
+  "title": "Falha ou ausência de jogos preserva a liga e segue",
+  "verifies": [
+    "QS-tolerancia-fonte",
+    "RF-preservar"
+  ],
+  "test_path": "tests/test_sync.py",
+  "phase": "green",
+  "test_name": "TestToleranciaFonte",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

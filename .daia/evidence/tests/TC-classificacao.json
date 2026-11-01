@@ -1,0 +1,15 @@
+{
+  "id": "TC-classificacao",
+  "phase": "green",
+  "fingerprint": "663b19a9542cfa48eee636b6bcaa0828ce21993b9444c5213a7faaaabb82cea4",
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "tests/classificacao.test.js"
+  ],
+  "executedAt": "2026-11-01T02:50:33.341Z",
+  "stdout": "✔ vitória vale 3, empate 1 e só jogos encerrados contam (2.2274ms)\n✔ todo clube aparece, mesmo sem jogos (0.2081ms)\n✔ desempate: pontos, vitórias, saldo e gols pró (0.3015ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 75.2652\n",
+  "stderr": "",
+  "stable": true
+}

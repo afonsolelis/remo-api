@@ -1,0 +1,31 @@
+{
+  "id": "QS-somente-leitura",
+  "characteristic": "security",
+  "sub_characteristic": "integrity",
+  "source": "Visitante com a credencial pública do site",
+  "stimulus": "Tenta inserir, alterar ou apagar dados",
+  "artifact": "Banco de dados dos campeonatos",
+  "environment": "Operação normal",
+  "response": "A operação é recusada e os dados ficam intactos",
+  "response_measure": {
+    "metric": "tentativas de escrita aceitas",
+    "operator": "==",
+    "threshold": 0,
+    "unit": "tentativas"
+  },
+  "kind": "QualityScenario",
+  "traces_to": [
+    "RNF-somente-leitura"
+  ],
+  "sprint": "SP2",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  },
+  "utility_tree": {
+    "importance": "M",
+    "difficulty": "L"
+  }
+}

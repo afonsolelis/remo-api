@@ -1,0 +1,38 @@
+{
+  "id": "AD-tec-pagina",
+  "title": "HTML, CSS e JavaScript puros com ApexCharts por CDN",
+  "context": "RNF-simplicidade proíbe framework e build.",
+  "decision": "Página em HTML, CSS e JavaScript sem framework; gráficos com ApexCharts 3.54.1 carregado do jsDelivr com versão fixa.",
+  "alternatives": [
+    {
+      "option": "Chart.js",
+      "rejected_because": "Equivalente para o caso; o ApexCharts já está em uso e a troca não atende nenhum requisito."
+    },
+    {
+      "option": "Gráficos em SVG feitos à mão",
+      "rejected_because": "Mais código para manter os gráficos de posições e de pontos por rodada."
+    }
+  ],
+  "traces_to": [
+    "RNF-simplicidade",
+    "RF-chances-zona",
+    "QS-facilidade"
+  ],
+  "affects_views": [
+    "VW-technology"
+  ],
+  "sensitivity_points": [
+    "performance_efficiency: o tamanho do ApexCharts (~500 KB) entra no tempo de carga no celular"
+  ],
+  "risks": [
+    "Queda do jsDelivr deixa a página sem gráficos."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "AD-rls-somente-leitura",
+  "title": "Credencial pública com RLS só de leitura",
+  "context": "O navegador precisa ler o banco sem servidor intermediário (AD-estatico-sem-servidor), e nada pode ser gravado por visitantes (QS-somente-leitura).",
+  "decision": "Usar a chave publishable do Supabase no app.js, com RLS ligado em todas as tabelas remo_* e só políticas for select. A escrita usa a DATABASE_URL, guardada só no secret do GitHub Actions.",
+  "consequences": "Qualquer pessoa pode ler os dados (que já são públicos no ge), mas ninguém escreve sem o secret.",
+  "alternatives": [
+    {
+      "option": "Servidor intermediário que esconde a credencial",
+      "rejected_because": "Contradiz AD-estatico-sem-servidor e RNF-sem-custo; os dados não são sigilosos."
+    },
+    {
+      "option": "Chave anon sem RLS",
+      "rejected_because": "Permitiria escrita e remoção por qualquer visitante, violando QS-somente-leitura."
+    }
+  ],
+  "traces_to": [
+    "QS-somente-leitura",
+    "RNF-sem-segredos",
+    "RNF-banco-compartilhado"
+  ],
+  "affects_views": [
+    "VW-engineering",
+    "VW-information"
+  ],
+  "tactics": [
+    "security/authorize-actors",
+    "security/limit-access",
+    "security/limit-exposure",
+    "security/separate-entities"
+  ],
+  "sensitivity_points": [
+    "security: as políticas do schema.sql"
+  ],
+  "tradeoff_points": [
+    "Simplicidade (sem servidor) × exposição da credencial de leitura e da estrutura das tabelas"
+  ],
+  "risks": [
+    "Abuso de leitura esgotar a cota gratuita do Supabase compartilhado, afetando também o outro projeto."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

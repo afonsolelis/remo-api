@@ -1,0 +1,25 @@
+{
+  "$id": "daia-e/persona",
+  "title": "Persona (BABOK v3 §10.43 — SP1)",
+  "description": "Arquétipo de quem executa ou sofre os processos de negócio. Deriva de partes interessadas identificadas e de evidência de elicitação; não é personagem inventado.",
+  "type": "object",
+  "required": ["id", "kind", "name", "stakeholders", "goals", "evidence", "sprint", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "PER" },
+    "kind": { "const": "Persona" },
+    "name": { "type": "string", "minLength": 2, "description": "Nome usado como raia (lane) nos modelos BPMN" },
+    "stakeholders": {
+      "$ref": "daia-e/common#/definitions/idRefList",
+      "minItems": 1,
+      "description": "Partes interessadas que esta persona representa (STK-*)"
+    },
+    "context": { "type": "string" },
+    "goals": { "type": "array", "items": { "type": "string", "minLength": 5 }, "minItems": 1 },
+    "pains": { "type": "array", "items": { "type": "string", "minLength": 5 } },
+    "evidence": { "type": "string", "minLength": 10, "description": "Origem verificável: entrevista, observação, documento" },
+    "sprint": { "const": "SP1" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

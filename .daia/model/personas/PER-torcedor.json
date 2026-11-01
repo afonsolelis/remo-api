@@ -1,0 +1,22 @@
+{
+  "id": "PER-torcedor",
+  "kind": "Persona",
+  "name": "Torcedor fanático",
+  "stakeholders": [
+    "STK-torcedor"
+  ],
+  "context": "Fanático por futebol, acompanha o seu time em todos os campeonatos da temporada. Quer a informação pronta, sem montar contas nem cruzar várias fontes.",
+  "goals": [
+    "Saber a posição, os pontos e a campanha do seu time",
+    "Saber as chances de o seu time terminar em cada zona do campeonato",
+    "Acompanhar o próprio time, seja o Remo ou outro dos campeonatos"
+  ],
+  "evidence": "Respostas do mantenedor no onboarding DAIA-E (2026-10-31): público são 'torcedores em geral, fanáticos por futebol' e 'torcedores fanáticos pelo seu time'. O filtro de time existente (commit d3d9baa) atende torcedores de qualquer time.",
+  "sprint": "SP1",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

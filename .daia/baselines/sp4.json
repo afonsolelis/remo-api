@@ -1,0 +1,24 @@
+{
+  "kind": "Baseline",
+  "sprint": "SP4",
+  "title": "Executavel: codigo, testes em fase verde, relatorio de qualidade por caracteristica",
+  "state_hash": "sha256:1ace3e4482a92251a9c1801fc5fe0764091627d84b5d02b3863e61b0a8061a95",
+  "artifact_count": 79,
+  "signature": {
+    "signed_by": "Afonso Lelis",
+    "signed_at": "2026-11-01T02:49:05.172Z",
+    "decision": "accepted-with-debt",
+    "rationale": "Contratos verdes, página validada no navegador com dados reais; sync real e celular ficam para a SP5",
+    "declared_debt": [
+      "RF-data-atualizacao sem teste automatizado",
+      "Desempenho no celular estimado por proxy no Node, não medido",
+      "Aviso do UUID reserva usa estado de módulo (usou_reserva) no sync"
+    ]
+  },
+  "gate_report": {
+    "passed": true,
+    "blocking": 0,
+    "warnings": 0,
+    "evaluated_at": "2026-11-01T02:49:05.164Z"
+  }
+}

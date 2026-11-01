@@ -1,0 +1,4 @@
+# LF sempre: o DAIA-E calcula o hash das baselines sobre o conteúdo dos arquivos.
+* text=auto eol=lf
+*.png binary
+*.jpg binary

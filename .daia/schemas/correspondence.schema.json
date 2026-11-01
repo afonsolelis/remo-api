@@ -1,0 +1,22 @@
+{
+  "$id": "daia-e/correspondence",
+  "title": "Correspondence (ISO/IEC/IEEE 42010:2022)",
+  "description": "Relação declarada entre elementos de views distintas. É o que impede a descrição arquitetural de se fragmentar em documentos mutuamente inconsistentes (Art. VII).",
+  "type": "object",
+  "required": ["id", "kind", "rule", "from", "to", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "daia-e/common#/definitions/id", "idPrefix": "COR" },
+    "kind": { "const": "Correspondence" },
+    "rule": {
+      "type": "string",
+      "enum": ["refines", "realizes", "traces-to", "consistent-with", "constrains", "supersedes"]
+    },
+    "from": { "$ref": "daia-e/common#/definitions/idRef" },
+    "to": { "$ref": "daia-e/common#/definitions/idRef" },
+    "rationale": { "type": "string" },
+    "sprint": { "$ref": "daia-e/common#/definitions/sprint" },
+    "status": { "$ref": "daia-e/common#/definitions/status" },
+    "provenance": { "$ref": "daia-e/common#/definitions/provenance" }
+  }
+}

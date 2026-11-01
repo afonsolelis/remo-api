@@ -1,0 +1,49 @@
+{
+  "id": "AD-aviso-por-falha",
+  "title": "Falha de liga marca a execução como falha",
+  "context": "Hoje o coletor termina com sucesso mesmo quando uma liga falha, e o mantenedor não fica sabendo (recovery.md; RF-avisar-falha).",
+  "decision": "Depois de processar todas as ligas, o coletor termina com código 1 se alguma busca levantou exceção ou se a edição atual de alguma liga não foi achada na página e o UUID reserva foi usado. O GitHub Actions marca a execução como falha e envia o e-mail padrão ao mantenedor. 'Sem jogos' não é falha.",
+  "consequences": "Nenhum serviço ou segredo novo; o aviso usa a notificação que o GitHub já manda.",
+  "alternatives": [
+    {
+      "option": "Abrir uma issue automática no repositório",
+      "rejected_because": "Mais código e permissão de escrita em issues para um aviso que o e-mail de falha já entrega."
+    },
+    {
+      "option": "Mensagem por Telegram ou e-mail via SMTP",
+      "rejected_because": "Exige novo segredo e novo serviço, contra RNF-sem-segredos e RNF-simplicidade."
+    }
+  ],
+  "traces_to": [
+    "CON-confiabilidade",
+    "QS-tolerancia-fonte",
+    "QS-virada-temporada",
+    "RF-avisar-falha"
+  ],
+  "affects_views": [
+    "VW-computational",
+    "VW-engineering"
+  ],
+  "tactics": [
+    "availability/monitor",
+    "availability/exception-detection"
+  ],
+  "sensitivity_points": [
+    "reliability: o que conta como falha define a quantidade de avisos"
+  ],
+  "tradeoff_points": [
+    "Visibilidade da falha × ruído: uma liga instável por vários dias gera um e-mail por dia"
+  ],
+  "risks": [
+    "O mantenedor ter desligado as notificações de falha do Actions.",
+    "Mitiga o risco de AD-uuid-dinamico: mudança no HTML do ge deixa de passar em silêncio."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

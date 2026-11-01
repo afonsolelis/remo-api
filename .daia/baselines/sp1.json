@@ -1,0 +1,19 @@
+{
+  "kind": "Baseline",
+  "sprint": "SP1",
+  "title": "Modelo de negocio: personas, processos em BPMN, decomposicao IDEF0, direcionadores, mapa de stakeholders e hipotese",
+  "state_hash": "sha256:4435e280b75849a020bd6d652e258830e0b5ffde9eea9e33136cfe14fab26161",
+  "artifact_count": 22,
+  "signature": {
+    "signed_by": "Afonso Lelis",
+    "signed_at": "2026-11-01T02:21:48.883Z",
+    "decision": "accepted",
+    "rationale": "Negócio validado pelo mantenedor: público (torcedores fanáticos), propósito, direcionadores e fronteira confirmados; hipóteses sem metas numéricas por decisão do projeto"
+  },
+  "gate_report": {
+    "passed": true,
+    "blocking": 0,
+    "warnings": 0,
+    "evaluated_at": "2026-11-01T02:21:48.879Z"
+  }
+}

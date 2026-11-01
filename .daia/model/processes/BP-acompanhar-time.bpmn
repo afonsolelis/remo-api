@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Def-acompanhar-time" targetNamespace="https://github.com/afonsolelis/remo-api">
+  <bpmn:collaboration id="Colab-acompanhar-time">
+    <bpmn:participant id="P-torcedor" name="Torcedor fanático" processRef="Proc-acompanhar-time" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc-acompanhar-time" name="Acompanhar a situação do time" isExecutable="false">
+    <bpmn:laneSet id="LS-acompanhar-time">
+      <bpmn:lane id="L-torcedor" name="Torcedor fanático">
+        <bpmn:flowNodeRef>Inicio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-campeonato</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-time</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G-tipo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-tabela</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-campanha</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G-junta</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fim</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Inicio" name="Quer saber como o time está" />
+    <bpmn:userTask id="T-campeonato" name="Escolher o campeonato" />
+    <bpmn:userTask id="T-time" name="Escolher o seu time" />
+    <bpmn:exclusiveGateway id="G-tipo" name="Pontos corridos ou copa?" />
+    <bpmn:userTask id="T-tabela" name="Conferir posição, pontos e zona na classificação" />
+    <bpmn:userTask id="T-campanha" name="Conferir a campanha, os grupos e as chaves" />
+    <bpmn:exclusiveGateway id="G-junta" />
+    <bpmn:endEvent id="Fim" name="Situação do time conhecida" />
+    <bpmn:sequenceFlow id="F1" sourceRef="Inicio" targetRef="T-campeonato" />
+    <bpmn:sequenceFlow id="F2" sourceRef="T-campeonato" targetRef="T-time" />
+    <bpmn:sequenceFlow id="F3" sourceRef="T-time" targetRef="G-tipo" />
+    <bpmn:sequenceFlow id="F4" name="pontos corridos" sourceRef="G-tipo" targetRef="T-tabela" />
+    <bpmn:sequenceFlow id="F5" name="copa" sourceRef="G-tipo" targetRef="T-campanha" />
+    <bpmn:sequenceFlow id="F6" sourceRef="T-tabela" targetRef="G-junta" />
+    <bpmn:sequenceFlow id="F7" sourceRef="T-campanha" targetRef="G-junta" />
+    <bpmn:sequenceFlow id="F8" sourceRef="G-junta" targetRef="Fim" />
+  </bpmn:process>
+</bpmn:definitions>

@@ -1,0 +1,19 @@
+{
+  "kind": "Baseline",
+  "sprint": "SP5",
+  "title": "Release demonstravel: roteiro, evidencias, metricas e limitacoes declaradas",
+  "state_hash": "sha256:c0d3f7983fa2448128d208438dc6bd49dfad2536f321c3289ee4b8cdbba8830e",
+  "artifact_count": 79,
+  "signature": {
+    "signed_by": "Afonso Lelis",
+    "signed_at": "2026-11-01T02:52:36.540Z",
+    "decision": "accepted",
+    "rationale": "Sistema demonstrado com dados reais; hipóteses dos torcedores inconclusivas até teste com usuários e fim da temporada"
+  },
+  "gate_report": {
+    "passed": true,
+    "blocking": 0,
+    "warnings": 0,
+    "evaluated_at": "2026-11-01T02:52:36.533Z"
+  }
+}

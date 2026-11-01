@@ -1,0 +1,15 @@
+{
+  "id": "TC-simulacao",
+  "phase": "green",
+  "fingerprint": "927584bfec8c65ce9f17dfae131b35bea682de4d8102ad915e1f2a9066c3019e",
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "tests/simulacao.test.js"
+  ],
+  "executedAt": "2026-11-01T02:50:34.151Z",
+  "stdout": "✔ probabilidades de cada clube e de cada posição somam 1 (8.7398ms)\n✔ sem jogos restantes, a posição atual tem probabilidade 1 (2.0664ms)\n✔ chance por zona é a soma das posições da zona (6.2008ms)\n✔ mesma semente, mesmo resultado (5.0836ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 93.5274\n",
+  "stderr": "",
+  "stable": true
+}

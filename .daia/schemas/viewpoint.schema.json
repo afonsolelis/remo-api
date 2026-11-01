@@ -1,0 +1,23 @@
+{
+  "$id": "daia-e/viewpoint",
+  "title": "Viewpoint (ISO/IEC/IEEE 42010:2022)",
+  "description": "Convenção para construir e interpretar uma View. A 42010 NÃO prescreve quais viewpoints devem existir — o catálogo é plugável (Art. VII).",
+  "type": "object",
+  "required": ["id", "kind", "name", "frames_concerns"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
+    "kind": { "const": "Viewpoint" },
+    "name": { "type": "string" },
+    "catalog": { "type": "string", "description": "Catálogo de origem, ex.: rm-odp, 4plus1, c4, arc42" },
+    "frames_concerns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Tipos de preocupação que este viewpoint enquadra"
+    },
+    "model_kinds": { "type": "array", "items": { "type": "string" } },
+    "opens_at": { "$ref": "daia-e/common#/definitions/sprint" },
+    "completes_at": { "$ref": "daia-e/common#/definitions/sprint" }
+  }
+}

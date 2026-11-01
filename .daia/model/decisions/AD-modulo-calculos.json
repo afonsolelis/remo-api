@@ -1,0 +1,52 @@
+{
+  "id": "AD-modulo-calculos",
+  "title": "Cálculos num módulo puro, separado da tela",
+  "context": "Classificação, simulação e regras de copa estão misturadas com o DOM em app.js, o que impede testá-las (Art. VIII, QS-desempenho).",
+  "decision": "Mover as funções de cálculo para calculos.js, sem DOM nem rede, com o gerador aleatório injetável. No navegador é um script comum carregado antes de app.js; no Node é importado pelos testes.",
+  "consequences": "Os contratos TC-classificacao, TC-simulacao, TC-copa, TC-desempenho e TC-facilidade passam a ser executáveis.",
+  "alternatives": [
+    {
+      "option": "Manter tudo em app.js e testar com jsdom",
+      "rejected_because": "Exige dependência de teste e um DOM falso, contra RNF-simplicidade."
+    },
+    {
+      "option": "ES modules com import/export",
+      "rejected_because": "Exige servidor com MIME correto para testar localmente e muda o carregamento de app.js; um script comum com export condicional basta."
+    }
+  ],
+  "traces_to": [
+    "RF-classificacao",
+    "RF-simular",
+    "RF-chances-zona",
+    "RF-campanha-copa",
+    "QS-desempenho",
+    "QS-facilidade"
+  ],
+  "affects_views": [
+    "VW-computational",
+    "VW-technology"
+  ],
+  "tactics": [
+    "modifiability/split-module",
+    "modifiability/increase-semantic-coherence",
+    "testability/limit-nondeterminism",
+    "testability/specialized-interfaces"
+  ],
+  "sensitivity_points": [
+    "maintainability: o contrato das funções em docs/especificacao/calculos.md"
+  ],
+  "tradeoff_points": [
+    "Testabilidade × mais um arquivo e mais um ?v= para atualizar no index.html"
+  ],
+  "risks": [
+    "Esquecer de trocar o ?v= de calculos.js e o navegador usar uma versão antiga."
+  ],
+  "kind": "ArchitectureDecision",
+  "sprint": "SP3",
+  "status": "accepted",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5",
+    "reviewed_by": "Afonso Lelis"
+  }
+}

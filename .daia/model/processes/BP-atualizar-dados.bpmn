@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Def-atualizar-dados" targetNamespace="https://github.com/afonsolelis/remo-api">
+  <bpmn:collaboration id="Colab-atualizar-dados">
+    <bpmn:participant id="P-manutencao" name="Manutenção do site" processRef="Proc-atualizar-dados" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc-atualizar-dados" name="Atualizar os dados dos campeonatos" isExecutable="false">
+    <bpmn:laneSet id="LS-atualizar-dados">
+      <bpmn:lane id="L-rotina" name="Rotina diária">
+        <bpmn:flowNodeRef>Inicio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-edicao</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-coletar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G-ok</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-gravar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T-manter</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G-mais</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G-falhou</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fim-ok</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="L-mantenedor" name="Mantenedor">
+        <bpmn:flowNodeRef>T-avaliar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fim-revisado</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Inicio" name="Meia-noite em Belém">
+      <bpmn:timerEventDefinition id="Timer-diario" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="T-edicao" name="Identificar a edição atual de cada campeonato" />
+    <bpmn:serviceTask id="T-coletar" name="Coletar tabelas e jogos do campeonato" />
+    <bpmn:exclusiveGateway id="G-ok" name="Coleta trouxe jogos?" />
+    <bpmn:serviceTask id="T-gravar" name="Substituir os dados do campeonato" />
+    <bpmn:serviceTask id="T-manter" name="Manter o último dado gravado" />
+    <bpmn:exclusiveGateway id="G-mais" name="Há outro campeonato?" />
+    <bpmn:exclusiveGateway id="G-falhou" name="Algum campeonato falhou?" />
+    <bpmn:endEvent id="Fim-ok" name="Dados atualizados" />
+    <bpmn:userTask id="T-avaliar" name="Avaliar a falha da atualização" />
+    <bpmn:endEvent id="Fim-revisado" name="Falha avaliada" />
+    <bpmn:sequenceFlow id="F1" sourceRef="Inicio" targetRef="T-edicao" />
+    <bpmn:sequenceFlow id="F2" sourceRef="T-edicao" targetRef="T-coletar" />
+    <bpmn:sequenceFlow id="F3" sourceRef="T-coletar" targetRef="G-ok" />
+    <bpmn:sequenceFlow id="F4" name="sim" sourceRef="G-ok" targetRef="T-gravar" />
+    <bpmn:sequenceFlow id="F5" name="não ou erro" sourceRef="G-ok" targetRef="T-manter" />
+    <bpmn:sequenceFlow id="F6" sourceRef="T-gravar" targetRef="G-mais" />
+    <bpmn:sequenceFlow id="F7" sourceRef="T-manter" targetRef="G-mais" />
+    <bpmn:sequenceFlow id="F8" name="sim" sourceRef="G-mais" targetRef="T-coletar" />
+    <bpmn:sequenceFlow id="F9" name="não" sourceRef="G-mais" targetRef="G-falhou" />
+    <bpmn:sequenceFlow id="F10" name="não" sourceRef="G-falhou" targetRef="Fim-ok" />
+    <bpmn:sequenceFlow id="F11" name="sim" sourceRef="G-falhou" targetRef="T-avaliar" />
+    <bpmn:sequenceFlow id="F12" sourceRef="T-avaliar" targetRef="Fim-revisado" />
+  </bpmn:process>
+</bpmn:definitions>

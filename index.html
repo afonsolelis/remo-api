@@ -13,7 +13,17 @@
     <p id="atualizado">Carregando…</p>
   </header>
 
+  <nav class="abas">
+    <button data-liga="serie_a" class="ativa">Série A</button>
+    <button data-liga="serie_b">Série B</button>
+  </nav>
+
   <main>
+    <section class="filtro">
+      <label for="time">Time</label>
+      <select id="time"></select>
+    </section>
+
     <section class="cards" id="cards"></section>
 
     <section>
@@ -26,22 +36,23 @@
     </section>
 
     <section>
-      <h2>Pontos do Remo por rodada</h2>
+      <h2 id="titulo-pontos">Pontos por rodada</h2>
       <div id="grafico-pontos"></div>
     </section>
 
     <section>
-      <h2>Próximos jogos do Remo</h2>
-      <table id="proximos"></table>
+      <h2>Próximos jogos</h2>
+      <div class="rolagem"><table id="proximos"></table></div>
     </section>
 
     <section>
       <h2>Classificação</h2>
       <div class="rolagem"><table id="tabela"></table></div>
+      <p class="nota" id="legenda"></p>
     </section>
   </main>
 
-  <footer>Dados: API do Cartola FC. Simulação Poisson simples, rodada no seu navegador.</footer>
+  <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
   <script src="app.js"></script>
 </body>
 </html>

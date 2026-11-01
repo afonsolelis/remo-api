@@ -1,51 +1,77 @@
-"""Baixa o Brasileirão da API do Cartola e grava no Postgres (Supabase).
+"""Baixa as Séries A e B da API de tabelas do ge e grava no Postgres (Supabase).
 
 Uso: DATABASE_URL=postgresql://... python scripts/sync_supabase.py
 """
 
+import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import psycopg
 import requests
 
-BASE_URL = "https://api.cartola.globo.com"
+BASE_URL = "https://api.globoesporte.globo.com/tabela"
 SCHEMA = Path(__file__).resolve().parent.parent / "supabase" / "schema.sql"
-MATCH_DURATION_S = 2 * 3600
+BRASILIA = timezone(timedelta(hours=-3))
+MATCH_DURATION = timedelta(hours=2)
 
-NOMES = {
-    262: "Flamengo", 263: "Botafogo", 264: "Corinthians", 265: "Bahia",
-    266: "Fluminense", 267: "Vasco", 275: "Palmeiras", 276: "São Paulo",
-    277: "Santos", 280: "Red Bull Bragantino", 282: "Atlético-MG",
-    283: "Cruzeiro", 284: "Grêmio", 285: "Internacional", 287: "Vitória",
-    293: "Athletico-PR", 294: "Coritiba", 315: "Chapecoense", 364: "Remo",
-    2305: "Mirassol",
+# O UUID muda a cada temporada: atributo data-bs-resource-id da página
+# ge.globo.com/futebol/brasileirao-serie-a/ (e .../brasileirao-serie-b/).
+LIGAS = {
+    "serie_a": ("Série A", "d1a37fa4-e948-43a6-ba53-ab24ab3a45b1"),
+    "serie_b": ("Série B", "009b5a68-dd09-46b8-95b3-293a2d494366"),
 }
 
 session = requests.Session()
-session.headers.update({"User-Agent": "remo-api/0.2 (uso pessoal)"})
+session.headers.update({"User-Agent": "Mozilla/5.0 (remo-api; uso pessoal)"})
 
 
-def get(path: str) -> dict:
-    r = session.get(f"{BASE_URL}{path}", timeout=20)
+def get(path: str) -> dict | list:
+    r = session.get(f"{BASE_URL}/{path}", timeout=20)
     r.raise_for_status()
     return r.json()
 
 
-def fetch() -> tuple[dict, dict, list]:
-    status = get("/mercado/status")
+def zonas(classificacao: dict) -> list[dict]:
+    """Faixas da tabela (acesso, Libertadores, rebaixamento...) como intervalos de posição."""
+    nomes = {f["cor"]: f["nome"] for f in classificacao.get("faixas_classificacao", [])}
+    ordens: dict[str, list[int]] = {}
+    for t in classificacao.get("classificacao", []):
+        cor = t.get("faixa_classificacao_cor")
+        if cor in nomes:
+            ordens.setdefault(cor, []).append(int(t["ordem"]))
+    return [
+        {"nome": nomes[cor], "cor": cor, "posicoes": list(range(min(p), min(p) + len(p)))}
+        for cor, p in ordens.items()
+    ]
+
+
+def fetch_liga(uuid: str) -> tuple[dict, dict, list]:
+    classificacao = get(f"{uuid}/classificacao/")
+    fase = classificacao["fase"]["slug"]
+    ultima = int((classificacao.get("rodada") or {}).get("ultima") or 38)
+    agora = datetime.now(timezone.utc)
+
     clubes, partidas = {}, []
-    for rodada in range(1, status.get("rodada_final", 38) + 1):
-        payload = get(f"/partidas/{rodada}")
-        clubes.update(payload.get("clubes", {}))
-        for p in payload.get("partidas", []):
-            p["rodada"] = rodada
-            partidas.append(p)
+    for rodada in range(1, ultima + 1):
+        for jogo in get(f"{uuid}/fase/{fase}/rodada/{rodada}/jogos/"):
+            casa = (jogo.get("equipes") or {}).get("mandante") or {}
+            fora = (jogo.get("equipes") or {}).get("visitante") or {}
+            if casa.get("id") is None or fora.get("id") is None:
+                continue
+            for e in (casa, fora):
+                clubes[e["id"]] = (e["id"], e.get("nome_popular"), e.get("sigla"), e.get("escudo"))
+            data = None
+            if jogo.get("data_realizacao"):
+                data = datetime.fromisoformat(jogo["data_realizacao"]).replace(tzinfo=BRASILIA)
+            gc, gf = jogo.get("placar_oficial_mandante"), jogo.get("placar_oficial_visitante")
+            encerrada = gc is not None and gf is not None and data is not None and data + MATCH_DURATION < agora
+            partidas.append((jogo["id"], rodada, data, casa["id"], fora["id"], gc, gf, encerrada))
         time.sleep(0.15)
-    return status, clubes, partidas
+    return classificacao, clubes, partidas
 
 
 def main() -> None:
@@ -53,59 +79,42 @@ def main() -> None:
     if not url:
         sys.exit("Defina DATABASE_URL.")
 
-    status, clubes, partidas = fetch()
-    agora = time.time()
+    with psycopg.connect(url, prepare_threshold=None) as conn:
+        conn.execute(SCHEMA.read_text(encoding="utf-8"))
+        conn.commit()
 
-    clube_rows = [
-        (
-            int(c["id"]),
-            NOMES.get(int(c["id"])) or c.get("apelido") or c.get("nome"),
-            c.get("abreviacao"),
-            (c.get("escudos") or {}).get("60x60"),
-        )
-        for c in clubes.values()
-    ]
-    partida_rows = []
-    for p in partidas:
-        gc, gf = p.get("placar_oficial_mandante"), p.get("placar_oficial_visitante")
-        ts = p.get("timestamp") or 0
-        encerrada = gc is not None and gf is not None and ts + MATCH_DURATION_S < agora
-        data = datetime.fromtimestamp(ts, timezone.utc) if ts else None
-        partida_rows.append(
-            (p["partida_id"], p["rodada"], data, p["clube_casa_id"],
-             p["clube_visitante_id"], gc, gf, encerrada)
-        )
+        for liga, (nome, uuid) in LIGAS.items():
+            try:
+                classificacao, clubes, partidas = fetch_liga(uuid)
+            except Exception as e:  # mantém o último dado gravado dessa liga
+                print(f"{nome}: falhou ({e})")
+                continue
+            if not partidas:
+                print(f"{nome}: sem jogos, mantendo dados anteriores")
+                continue
 
-    with psycopg.connect(url, prepare_threshold=None) as conn, conn.cursor() as cur:
-        cur.execute(SCHEMA.read_text(encoding="utf-8"))
-        cur.executemany(
-            """insert into remo_clubes (id, nome, abreviacao, escudo) values (%s, %s, %s, %s)
-               on conflict (id) do update set nome = excluded.nome,
-                 abreviacao = excluded.abreviacao, escudo = excluded.escudo""",
-            clube_rows,
-        )
-        cur.executemany(
-            """insert into remo_partidas (partida_id, rodada, data, casa_id, fora_id,
-                 gols_casa, gols_fora, encerrada)
-               values (%s, %s, %s, %s, %s, %s, %s, %s)
-               on conflict (partida_id) do update set rodada = excluded.rodada,
-                 data = excluded.data, casa_id = excluded.casa_id,
-                 fora_id = excluded.fora_id, gols_casa = excluded.gols_casa,
-                 gols_fora = excluded.gols_fora, encerrada = excluded.encerrada""",
-            partida_rows,
-        )
-        # Jogos que sumiram da API (remarcados para outro id) saem da tabela.
-        cur.execute(
-            "delete from remo_partidas where partida_id <> all(%s)",
-            ([r[0] for r in partida_rows],),
-        )
-        cur.execute(
-            """insert into remo_atualizacao (id, executado_em, rodada_atual) values (1, now(), %s)
-               on conflict (id) do update set executado_em = now(),
-                 rodada_atual = excluded.rodada_atual""",
-            (status.get("rodada_atual"),),
-        )
-    print(f"OK: {len(clube_rows)} clubes, {len(partida_rows)} partidas.")
+            with conn.transaction(), conn.cursor() as cur:
+                cur.execute(
+                    """insert into remo_ligas (liga, nome, zonas, rodada_atual, atualizado_em)
+                       values (%s, %s, %s, %s, now())
+                       on conflict (liga) do update set nome = excluded.nome, zonas = excluded.zonas,
+                         rodada_atual = excluded.rodada_atual, atualizado_em = now()""",
+                    (liga, nome, json.dumps(zonas(classificacao), ensure_ascii=False),
+                     (classificacao.get("rodada") or {}).get("atual")),
+                )
+                cur.execute("delete from remo_partidas where liga = %s", (liga,))
+                cur.execute("delete from remo_clubes where liga = %s", (liga,))
+                cur.executemany(
+                    "insert into remo_clubes (liga, id, nome, abreviacao, escudo) values (%s, %s, %s, %s, %s)",
+                    [(liga, *c) for c in clubes.values()],
+                )
+                cur.executemany(
+                    """insert into remo_partidas (liga, partida_id, rodada, data, casa_id, fora_id,
+                         gols_casa, gols_fora, encerrada) values (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    [(liga, *p) for p in partidas],
+                )
+            print(f"{nome}: {len(clubes)} clubes, {len(partidas)} partidas, "
+                  f"{sum(p[-1] for p in partidas)} encerradas.")
 
 
 if __name__ == "__main__":

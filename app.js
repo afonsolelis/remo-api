@@ -3,12 +3,19 @@ const SUPABASE_URL = "https://lwamaovuxcevsjfvtqhf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_j0O_u0t7-lDCtBbmqaIz3A_8vAIGcyJ";
 const REMO = 364;
 const SIMULACOES = 10000;
+const LIGAS = ["serie_a", "serie_b"];
 
-let clubes = {};
-let partidas = [];
+// Cores das faixas do ge, trocadas por tons mais legíveis.
+const CORES = { "#0000ff": "#2563eb", "#00ffff": "#06b6d4", "#008040": "#16a34a", "#ff0000": "#dc2626" };
+const cor = c => CORES[c] || c;
+
+const dados = {};       // liga -> { info, clubes, partidas, sim }
+const escolhido = {};   // liga -> id do time escolhido
+let liga = "serie_a";
 let graficoPosicoes = null;
+let graficoPontos = null;
 
-async function ler(tabela, query = "select=*") {
+async function ler(tabela, query) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?${query}`, {
     headers: { apikey: SUPABASE_KEY },
   });
@@ -18,7 +25,7 @@ async function ler(tabela, query = "select=*") {
 
 // ---------- classificação ----------
 
-function tabelaVazia() {
+function tabelaVazia(clubes) {
   const t = {};
   for (const id of Object.keys(clubes)) t[id] = { id: +id, PTS: 0, J: 0, V: 0, E: 0, D: 0, GP: 0, GC: 0 };
   return t;
@@ -44,14 +51,14 @@ function ordenar(t) {
 
 const K = 5;
 
-function forcas(jogados) {
+function forcas(clubes, jogados) {
   let golsCasa = 0, golsFora = 0;
   for (const p of jogados) { golsCasa += p.gols_casa; golsFora += p.gols_fora; }
   const n = Math.max(jogados.length, 1);
   const mediaCasa = golsCasa / n || 1.4, mediaFora = golsFora / n || 1.1;
   const media = (mediaCasa + mediaFora) / 2;
 
-  const t = tabelaVazia();
+  const t = tabelaVazia(clubes);
   for (const p of jogados) somarJogo(t, p.casa_id, p.fora_id, p.gols_casa, p.gols_fora);
   const f = {};
   for (const s of Object.values(t)) {
@@ -78,7 +85,8 @@ function poisson(l) {
 }
 
 function prob1x2(lc, lf) {
-  const pmf = (l, k) => Math.exp(-l) * l ** k / [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800][k];
+  const fat = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800];
+  const pmf = (l, k) => Math.exp(-l) * l ** k / fat[k];
   let v = 0, e = 0, d = 0;
   for (let i = 0; i <= 10; i++) for (let j = 0; j <= 10; j++) {
     const p = pmf(lc, i) * pmf(lf, j);
@@ -90,14 +98,14 @@ function prob1x2(lc, lf) {
 
 // ---------- Monte Carlo ----------
 
-function simular() {
-  const jogados = partidas.filter(p => p.encerrada);
-  const futuros = partidas.filter(p => !p.encerrada);
-  const modelo = forcas(jogados);
-  const base = tabelaVazia();
+function simular(d) {
+  const jogados = d.partidas.filter(p => p.encerrada);
+  const futuros = d.partidas.filter(p => !p.encerrada);
+  const modelo = forcas(d.clubes, jogados);
+  const base = tabelaVazia(d.clubes);
   for (const p of jogados) somarJogo(base, p.casa_id, p.fora_id, p.gols_casa, p.gols_fora);
 
-  const ids = Object.keys(clubes).map(Number);
+  const ids = Object.keys(d.clubes).map(Number);
   const n = ids.length;
   const res = {};
   for (const id of ids) res[id] = { pontos: 0, posicoes: new Array(n).fill(0) };
@@ -116,111 +124,165 @@ function simular() {
     const r = res[id];
     r.pontos /= SIMULACOES;
     r.posicoes = r.posicoes.map(x => x / SIMULACOES);
-    r.titulo = r.posicoes[0];
-    r.g6 = r.posicoes.slice(0, 6).reduce((a, b) => a + b, 0);
-    r.z4 = r.posicoes.slice(n - 4).reduce((a, b) => a + b, 0);
+    r.zonas = d.info.zonas.map(z => z.posicoes.reduce((a, p) => a + (r.posicoes[p - 1] || 0), 0));
   }
-  return { res, modelo, futuros, base };
+  return { res, modelo, futuros, base, tabela: ordenar(structuredClone(base)) };
 }
 
 // ---------- tela ----------
 
 const pct = x => x > 0 && x < 0.005 ? "<1%" : x < 1 && x > 0.995 ? ">99%" : Math.round(x * 100) + "%";
-const nome = id => clubes[id]?.nome ?? id;
-const escudo = id => clubes[id]?.escudo ? `<img src="${clubes[id].escudo}" alt="">` : "";
+const $ = id => document.getElementById(id);
+
+function zonaDaPosicao(zonas, pos) {
+  return zonas.find(z => z.posicoes.includes(pos));
+}
+
+function preencherTimes() {
+  const d = dados[liga];
+  const ordem = d.sim.tabela;
+  if (!escolhido[liga]) escolhido[liga] = d.clubes[REMO] ? REMO : ordem[0].id;
+  $("time").innerHTML = [...ordem]
+    .sort((a, b) => d.clubes[a.id].nome.localeCompare(d.clubes[b.id].nome, "pt-BR"))
+    .map(t => `<option value="${t.id}" ${t.id === escolhido[liga] ? "selected" : ""}>${d.clubes[t.id].nome}</option>`)
+    .join("");
+}
 
 function desenhar() {
-  const { res, modelo, futuros, base } = simular();
-  const tabela = ordenar(structuredClone(base));
-  const posRemo = tabela.findIndex(t => t.id === REMO) + 1;
-  const remo = res[REMO];
+  const d = dados[liga];
+  const { res, modelo, futuros, base, tabela } = d.sim;
+  const zonas = d.info.zonas;
+  const id = escolhido[liga];
+  const nome = x => d.clubes[x]?.nome ?? x;
+  const escudo = x => d.clubes[x]?.escudo ? `<img src="${d.clubes[x].escudo}" alt="">` : "";
+  const time = res[id];
   const n = tabela.length;
 
-  document.getElementById("cards").innerHTML = [
-    ["Posição atual", `${posRemo}º`],
-    ["Pontos", base[REMO].PTS],
-    ["Pontos esperados", remo.pontos.toFixed(1)],
-    ["Chance de G6", pct(remo.g6)],
-    ["Chance de Z4", pct(remo.z4)],
-    ["Chance de título", pct(remo.titulo)],
-  ].map(([k, v]) => `<div class="card"><span>${k}</span><strong>${v}</strong></div>`).join("");
+  $("atualizado").textContent =
+    `${d.info.nome} · rodada ${d.info.rodada_atual} · dados de ${new Date(d.info.atualizado_em).toLocaleString("pt-BR")}`;
 
-  document.getElementById("nota-sim").textContent =
+  $("cards").innerHTML = [
+    ["Posição atual", `${tabela.findIndex(t => t.id === id) + 1}º`],
+    ["Pontos", base[id].PTS],
+    ["Pontos esperados", time.pontos.toFixed(1)],
+    ["Título", pct(time.posicoes[0])],
+    ...zonas.map((z, i) => [z.nome, pct(time.zonas[i]), cor(z.cor)]),
+  ].map(([k, v, c]) =>
+    `<div class="card" ${c ? `style="border-top:4px solid ${c}"` : ""}><span>${k}</span><strong>${v}</strong></div>`).join("");
+
+  $("nota-sim").textContent =
     `${SIMULACOES.toLocaleString("pt-BR")} campeonatos simulados com os ${futuros.length} jogos restantes.`;
 
   const opcoesPos = {
     chart: { type: "bar", height: 280, toolbar: { show: false }, animations: { enabled: false } },
-    series: [{ name: "Chance", data: remo.posicoes.map(x => +(x * 100).toFixed(1)) }],
-    xaxis: { categories: remo.posicoes.map((_, i) => `${i + 1}º`), title: { text: "Posição final do Remo" } },
+    series: [{ name: "Chance", data: time.posicoes.map(x => +(x * 100).toFixed(1)) }],
+    xaxis: { categories: time.posicoes.map((_, i) => `${i + 1}º`), title: { text: `Posição final — ${nome(id)}` } },
     yaxis: { labels: { formatter: v => v.toFixed(0) + "%" } },
     dataLabels: { enabled: false },
-    colors: [({ dataPointIndex: i }) => (i < 6 ? "#1a7f37" : i >= n - 4 ? "#c0362c" : "#0b2a5b")],
+    colors: [({ dataPointIndex: i }) => cor(zonaDaPosicao(zonas, i + 1)?.cor) || "#94a3b8"],
     tooltip: { y: { formatter: v => v + "%" } },
   };
   if (graficoPosicoes) graficoPosicoes.updateOptions(opcoesPos);
-  else (graficoPosicoes = new ApexCharts(document.getElementById("grafico-posicoes"), opcoesPos)).render();
+  else (graficoPosicoes = new ApexCharts($("grafico-posicoes"), opcoesPos)).render();
 
-  document.getElementById("proximos").innerHTML =
-    "<tr><th>Rodada</th><th>Jogo</th><th>Vitória Remo</th><th>Empate</th><th>Derrota</th></tr>" +
-    futuros.filter(p => p.casa_id === REMO || p.fora_id === REMO).map(p => {
-      const [v, e, d] = prob1x2(...lambdas(modelo, p.casa_id, p.fora_id));
-      const [vr, dr] = p.casa_id === REMO ? [v, d] : [d, v];
-      return `<tr><td>${p.rodada}</td><td>${nome(p.casa_id)} × ${nome(p.fora_id)}</td>
-        <td>${pct(vr)}</td><td>${pct(e)}</td><td>${pct(dr)}</td></tr>`;
-    }).join("");
-
-  document.getElementById("tabela").innerHTML =
-    "<tr><th>#</th><th>Time</th><th>P</th><th>J</th><th>V</th><th>SG</th><th>Pts esp.</th><th>G6</th><th>Z4</th><th>Título</th></tr>" +
-    tabela.map((t, i) => {
-      const r = res[t.id];
-      const cls = [t.id === REMO ? "remo" : "", i < 6 ? "g6" : i >= n - 4 ? "z4" : ""].join(" ");
-      return `<tr class="${cls}"><td>${i + 1}</td><td>${escudo(t.id)}${nome(t.id)}</td>
-        <td>${t.PTS}</td><td>${t.J}</td><td>${t.V}</td><td>${t.GP - t.GC}</td>
-        <td>${r.pontos.toFixed(1)}</td><td>${pct(r.g6)}</td><td>${pct(r.z4)}</td><td>${pct(r.titulo)}</td></tr>`;
-    }).join("");
-}
-
-function desenharPontos() {
   let total = 0;
-  const pontos = partidas
-    .filter(p => p.encerrada && (p.casa_id === REMO || p.fora_id === REMO))
-    .sort((a, b) => new Date(a.data) - new Date(b.data))
+  const pontos = d.partidas
+    .filter(p => p.encerrada && (p.casa_id === id || p.fora_id === id))
     .map(p => {
-      const [meus, deles] = p.casa_id === REMO ? [p.gols_casa, p.gols_fora] : [p.gols_fora, p.gols_casa];
+      const [meus, deles] = p.casa_id === id ? [p.gols_casa, p.gols_fora] : [p.gols_fora, p.gols_casa];
       total += meus > deles ? 3 : meus === deles ? 1 : 0;
       return { x: `R${p.rodada}`, y: total };
     });
-  new ApexCharts(document.getElementById("grafico-pontos"), {
+  $("titulo-pontos").textContent = `Pontos por rodada — ${nome(id)}`;
+  const opcoesPontos = {
     chart: { type: "line", height: 260, toolbar: { show: false } },
     series: [{ name: "Pontos", data: pontos }],
     stroke: { width: 3 },
     markers: { size: 3 },
     colors: ["#0b2a5b"],
-  }).render();
+  };
+  if (graficoPontos) graficoPontos.updateOptions(opcoesPontos);
+  else (graficoPontos = new ApexCharts($("grafico-pontos"), opcoesPontos)).render();
+
+  const meus = futuros.filter(p => p.casa_id === id || p.fora_id === id);
+  $("proximos").innerHTML = meus.length === 0 ? "<tr><td>Sem jogos restantes.</td></tr>" :
+    `<tr><th>Rodada</th><th>Jogo</th><th>Vitória</th><th>Empate</th><th>Derrota</th></tr>` +
+    meus.map(p => {
+      const [v, e, dr] = prob1x2(...lambdas(modelo, p.casa_id, p.fora_id));
+      const [vt, dt] = p.casa_id === id ? [v, dr] : [dr, v];
+      const dia = p.data ? new Date(p.data).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+      return `<tr><td>${p.rodada}<br><small>${dia}</small></td><td>${nome(p.casa_id)} × ${nome(p.fora_id)}</td>
+        <td>${pct(vt)}</td><td>${pct(e)}</td><td>${pct(dt)}</td></tr>`;
+    }).join("");
+
+  $("tabela").innerHTML =
+    `<tr><th>#</th><th>Time</th><th>P</th><th>J</th><th>V</th><th>SG</th><th>Pts esp.</th><th>Título</th>` +
+    zonas.map(z => `<th>${z.nome}</th>`).join("") + "</tr>" +
+    tabela.map((t, i) => {
+      const r = res[t.id];
+      const z = zonaDaPosicao(zonas, i + 1);
+      return `<tr class="${t.id === id ? "escolhido" : ""}" data-id="${t.id}">
+        <td style="border-left:4px solid ${z ? cor(z.cor) : "transparent"}">${i + 1}</td>
+        <td>${escudo(t.id)}${nome(t.id)}</td>
+        <td>${t.PTS}</td><td>${t.J}</td><td>${t.V}</td><td>${t.GP - t.GC}</td>
+        <td>${r.pontos.toFixed(1)}</td><td>${pct(r.posicoes[0])}</td>` +
+        r.zonas.map(p => `<td>${pct(p)}</td>`).join("") + "</tr>";
+    }).join("");
+
+  $("legenda").innerHTML = zonas.map(z =>
+    `<span class="legenda" style="background:${cor(z.cor)}"></span>${z.nome} (${z.posicoes.length > 1 ? `${z.posicoes[0]}º–${z.posicoes.at(-1)}º` : `${z.posicoes[0]}º`})`)
+    .join(" &nbsp; ") + " · Clique numa linha para escolher o time.";
+}
+
+function trocarLiga(nova) {
+  liga = nova;
+  document.querySelectorAll(".abas button").forEach(b => b.classList.toggle("ativa", b.dataset.liga === liga));
+  preencherTimes();
+  desenhar();
+}
+
+async function carregar(l) {
+  const [info, clubes, partidas] = await Promise.all([
+    ler("remo_ligas", `liga=eq.${l}`),
+    ler("remo_clubes", `liga=eq.${l}`),
+    ler("remo_partidas", `liga=eq.${l}&order=data.asc`),
+  ]);
+  const d = { info: info[0], clubes: Object.fromEntries(clubes.map(c => [c.id, c])), partidas };
+  d.sim = simular(d);
+  dados[l] = d;
 }
 
 async function iniciar() {
   try {
-    const [cs, ps, at] = await Promise.all([
-      ler("remo_clubes"),
-      ler("remo_partidas", "select=*&order=data.asc"),
-      ler("remo_atualizacao"),
-    ]);
-    clubes = Object.fromEntries(cs.map(c => [c.id, c]));
-    partidas = ps;
-    const quando = at[0] ? new Date(at[0].executado_em).toLocaleString("pt-BR") : "—";
-    document.getElementById("atualizado").textContent = `Dados atualizados em ${quando}`;
-    desenharPontos();
-    desenhar();
+    await Promise.all(LIGAS.map(carregar));
+    trocarLiga(liga);
   } catch (e) {
-    document.getElementById("atualizado").textContent = "Não foi possível carregar os dados.";
+    $("atualizado").textContent = "Não foi possível carregar os dados.";
     console.error(e);
   }
 }
 
-document.getElementById("simular").addEventListener("click", e => {
+document.querySelectorAll(".abas button").forEach(b =>
+  b.addEventListener("click", () => dados[b.dataset.liga] && trocarLiga(b.dataset.liga)));
+
+$("time").addEventListener("change", e => { escolhido[liga] = +e.target.value; desenhar(); });
+
+$("tabela").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-id]");
+  if (!tr) return;
+  escolhido[liga] = +tr.dataset.id;
+  preencherTimes();
+  desenhar();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+$("simular").addEventListener("click", e => {
   e.target.disabled = true;
-  setTimeout(() => { desenhar(); e.target.disabled = false; }, 20);
+  setTimeout(() => {
+    dados[liga].sim = simular(dados[liga]);
+    desenhar();
+    e.target.disabled = false;
+  }, 20);
 });
 
 iniciar();

@@ -2,11 +2,8 @@
 .venv/
 __pycache__/
 *.pyc
+.env
 .claude/worktrees/
 
-# dados baixados e artefatos gerados (recriados pelo app/updater)
+# dados locais antigos (não versionados)
 data/
-models/
-
-# segredos do streamlit (se um dia existirem)
-.streamlit/secrets.toml

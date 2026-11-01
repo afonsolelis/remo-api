@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Remo no Brasileirão</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Remo no Brasileirão</h1>
+    <p id="atualizado">Carregando…</p>
+  </header>
+
+  <main>
+    <section class="cards" id="cards"></section>
+
+    <section>
+      <div class="titulo-secao">
+        <h2>Simulação</h2>
+        <button id="simular">Simular de novo</button>
+      </div>
+      <p class="nota" id="nota-sim"></p>
+      <div id="grafico-posicoes"></div>
+    </section>
+
+    <section>
+      <h2>Pontos do Remo por rodada</h2>
+      <div id="grafico-pontos"></div>
+    </section>
+
+    <section>
+      <h2>Próximos jogos do Remo</h2>
+      <table id="proximos"></table>
+    </section>
+
+    <section>
+      <h2>Classificação</h2>
+      <div class="rolagem"><table id="tabela"></table></div>
+    </section>
+  </main>
+
+  <footer>Dados: API do Cartola FC. Simulação Poisson simples, rodada no seu navegador.</footer>
+  <script src="app.js"></script>
+</body>
+</html>

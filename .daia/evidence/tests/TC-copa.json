@@ -1,15 +1,15 @@
 {
   "id": "TC-copa",
   "phase": "green",
-  "fingerprint": "340ddc2d3552fb19a3d42bfd1b4c0759ba233d037bb0e57491589a2b01c4b6c0",
+  "fingerprint": "11ef7f58127d7da4858f25cc8e8a45ad565c9e77140086c9294d9adaa669e0a0",
   "exitCode": 0,
   "command": [
     "node",
     "--test",
     "tests/copa.test.js"
   ],
-  "executedAt": "2026-11-01T03:03:22.977Z",
-  "stdout": "✔ vencedor pela soma dos gols, pelos pênaltis ou ainda indefinido (1.5837ms)\n✔ campanha e campeão de uma copa encerrada (0.3897ms)\n✔ final em aberto (0.1981ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 75.5557\n",
+  "executedAt": "2026-11-01T06:55:11.120Z",
+  "stdout": "✔ vencedor pela soma dos gols, pelos pênaltis ou ainda indefinido (1.7016ms)\n✔ campanha e campeão de uma copa encerrada (0.4218ms)\n✔ final em aberto (0.2051ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 77.8804\n",
   "stderr": "",
   "stable": true
 }

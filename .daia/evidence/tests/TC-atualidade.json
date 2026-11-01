@@ -1,7 +1,7 @@
 {
   "id": "TC-atualidade",
   "phase": "green",
-  "fingerprint": "0d75479b3d8db5813964c4b4575f59eb9634b8a7c7e4a8a2403f4fd6a35592f0",
+  "fingerprint": "622b825cc3f3124813c17cce4ed7b42154546cde9d476780b2db7f8edc41ac1f",
   "exitCode": 0,
   "command": [
     "python",
@@ -9,8 +9,8 @@
     "unittest",
     "tests.test_sync.TestAtualidade"
   ],
-  "executedAt": "2026-11-01T03:03:22.181Z",
+  "executedAt": "2026-11-01T06:55:10.191Z",
   "stdout": "Quebra: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nBoa: copa, 2 clubes, 1 partidas, 1 encerradas.\r\n",
-  "stderr": "..\r\n----------------------------------------------------------------------\r\nRan 2 tests in 0.004s\r\n\r\nOK\r\n",
+  "stderr": "..\r\n----------------------------------------------------------------------\r\nRan 2 tests in 0.003s\r\n\r\nOK\r\n",
   "stable": true
 }

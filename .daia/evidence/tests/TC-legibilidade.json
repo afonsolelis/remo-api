@@ -1,15 +1,15 @@
 {
   "id": "TC-legibilidade",
   "phase": "green",
-  "fingerprint": "132167fe2317923d40efa05ea9bffb0ad4e68bea8f7285bccfe8e06f961341ce",
+  "fingerprint": "1fddbaf07829f8db587278a51c7cde00ce7300723d9b35345989a4cd2118daed",
   "exitCode": 0,
   "command": [
     "node",
     "--test",
     "tests/legibilidade.test.js"
   ],
-  "executedAt": "2026-11-01T03:03:23.640Z",
-  "stdout": "✔ existe o @media do celular (0.801ms)\n✔ no celular o texto corrido tem 16 px (1.4898ms)\n✔ no celular nenhuma fonte fica abaixo de 14 px (0.5801ms)\n✔ no celular os gráficos usam fonte de 14 px (0.2596ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 78.4255\n",
+  "executedAt": "2026-11-01T06:55:11.916Z",
+  "stdout": "✔ existe o @media do celular (0.8187ms)\n✔ no celular o texto corrido tem 16 px (1.4115ms)\n✔ no celular nenhuma fonte fica abaixo de 14 px (0.5098ms)\n✔ no celular os gráficos usam fonte de 14 px (0.2267ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 84.4207\n",
   "stderr": "",
   "stable": true
 }

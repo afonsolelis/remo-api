@@ -2,18 +2,18 @@
   "kind": "Baseline",
   "sprint": "SP2",
   "title": "Requisitos elicitados do negocio: RF, RNF como cenarios de seis partes e matriz de rastreabilidade",
-  "state_hash": "sha256:7e42bf6d03df83d168775ad53b491f6bb4258851b9f89db89b71cc5cc7222c0f",
-  "artifact_count": 53,
+  "state_hash": "sha256:3287be4ecd62790e1453fe51e26331f240e6c9306bc8149d4c7bb1fe7e5518c0",
+  "artifact_count": 54,
   "signature": {
     "signed_by": "Afonso Lelis",
-    "signed_at": "2026-11-01T03:04:10.968Z",
+    "signed_at": "2026-11-01T06:54:26.402Z",
     "decision": "accepted",
-    "rationale": "Ciclo de mudança: versão para celular (fonte mínima de 14 px, tabela sem rolagem lateral) decidida e validada pelo mantenedor"
+    "rationale": "Aprova RF-noticias: aba de notícias do ge com filtro por clube, pedida pelo mantenedor."
   },
   "gate_report": {
     "passed": true,
     "blocking": 0,
     "warnings": 0,
-    "evaluated_at": "2026-11-01T03:04:10.965Z"
+    "evaluated_at": "2026-11-01T06:54:26.395Z"
   }
 }

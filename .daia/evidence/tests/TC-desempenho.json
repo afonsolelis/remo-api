@@ -1,15 +1,15 @@
 {
   "id": "TC-desempenho",
   "phase": "green",
-  "fingerprint": "a50135082af6678d864d1c4e53d14a93d40437bcf1a1d779fe5f4e81f775c0c2",
+  "fingerprint": "eee3f38301b80db2a6a542212c84931145d53731aa25fc6a44c4a56e706d501f",
   "exitCode": 0,
   "command": [
     "node",
     "--test",
     "tests/desempenho.test.js"
   ],
-  "executedAt": "2026-11-01T03:03:23.353Z",
-  "stdout": "simulação: 223 ms\n✔ pior caso (20 clubes, 380 jogos por disputar, 10.000 simulações) em até 1 s (235.3213ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 306.1225\n",
+  "executedAt": "2026-11-01T06:55:11.541Z",
+  "stdout": "simulação: 225 ms\n✔ pior caso (20 clubes, 380 jogos por disputar, 10.000 simulações) em até 1 s (237.5797ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 314.7565\n",
   "stderr": "",
   "stable": true
 }

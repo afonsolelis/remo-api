@@ -2,18 +2,18 @@
   "kind": "Baseline",
   "sprint": "SP5",
   "title": "Release demonstravel: roteiro, evidencias, metricas e limitacoes declaradas",
-  "state_hash": "sha256:32eb8666f041a311406ce952aa6a5c92eb43ca0e4271ccf19199c474226960ed",
-  "artifact_count": 86,
+  "state_hash": "sha256:4f1d1806af659afc432a68cc7058858994b622a378c77bd8f72317982a7be413",
+  "artifact_count": 88,
   "signature": {
     "signed_by": "Afonso Lelis",
-    "signed_at": "2026-11-01T03:04:12.265Z",
+    "signed_at": "2026-11-01T06:55:20.340Z",
     "decision": "accepted",
-    "rationale": "Ciclo de mudança: versão para celular (fonte mínima de 14 px, tabela sem rolagem lateral) decidida e validada pelo mantenedor"
+    "rationale": "Tabela final prevista e aba de notícias no ar e conferidas na página publicada."
   },
   "gate_report": {
     "passed": true,
     "blocking": 0,
     "warnings": 0,
-    "evaluated_at": "2026-11-01T03:04:12.254Z"
+    "evaluated_at": "2026-11-01T06:55:20.311Z"
   }
 }

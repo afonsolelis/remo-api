@@ -1,7 +1,7 @@
 {
   "id": "TC-avisar-falha",
   "phase": "green",
-  "fingerprint": "57d72ce21fff2edbe92ae6a8657435d23e15c0e22c62884dd0e5c9489b89eb50",
+  "fingerprint": "45457089fe5fe52237c786a8203ffee6d053c8db893b56e871d083dd78303c7b",
   "exitCode": 0,
   "command": [
     "python",
@@ -9,8 +9,8 @@
     "unittest",
     "tests.test_sync.TestAvisarFalha"
   ],
-  "executedAt": "2026-11-01T03:03:22.669Z",
+  "executedAt": "2026-11-01T06:55:10.751Z",
   "stdout": "Quebra: falhou (ge fora do ar)\r\nBoa: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nQuebra: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nBoa: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nQuebra: sem jogos, mantendo dados anteriores\r\nBoa: sem jogos, mantendo dados anteriores\r\nx/quebra: UUID n�o encontrado na p�gina, usando o reserva\r\nQuebra: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nx/boa: UUID n�o encontrado na p�gina, usando o reserva\r\nBoa: copa, 2 clubes, 1 partidas, 1 encerradas.\r\n",
-  "stderr": "....\r\n----------------------------------------------------------------------\r\nRan 4 tests in 0.007s\r\n\r\nOK\r\n",
+  "stderr": "....\r\n----------------------------------------------------------------------\r\nRan 4 tests in 0.006s\r\n\r\nOK\r\n",
   "stable": true
 }

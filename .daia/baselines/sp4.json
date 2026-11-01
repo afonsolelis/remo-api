@@ -2,23 +2,18 @@
   "kind": "Baseline",
   "sprint": "SP4",
   "title": "Executavel: codigo, testes em fase verde, relatorio de qualidade por caracteristica",
-  "state_hash": "sha256:3c9019d4986d7b3ea46436a9222e200dcd027a4f526604a20b7b9cde26974f49",
-  "artifact_count": 86,
+  "state_hash": "sha256:b382ea35e102f812178892f74a53ef32c7ab870392810cc8c1c2fb93d4898f8c",
+  "artifact_count": 88,
   "signature": {
     "signed_by": "Afonso Lelis",
-    "signed_at": "2026-11-01T03:04:11.813Z",
-    "decision": "accepted-with-debt",
-    "rationale": "Ciclo de mudança: versão para celular (fonte mínima de 14 px, tabela sem rolagem lateral) decidida e validada pelo mantenedor",
-    "declared_debt": [
-      "RF-data-atualizacao sem teste automatizado",
-      "Desempenho no celular estimado por proxy no Node, não medido",
-      "Aviso do UUID reserva usa estado de módulo (usou_reserva) no sync"
-    ]
+    "signed_at": "2026-11-01T06:55:09.344Z",
+    "decision": "accepted",
+    "rationale": "Implementação da tabela final prevista e da aba de notícias, testes verdes e coleta conferida em produção."
   },
   "gate_report": {
     "passed": true,
     "blocking": 0,
     "warnings": 0,
-    "evaluated_at": "2026-11-01T03:04:11.803Z"
+    "evaluated_at": "2026-11-01T06:55:09.314Z"
   }
 }

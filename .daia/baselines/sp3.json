@@ -2,18 +2,18 @@
   "kind": "Baseline",
   "sprint": "SP3",
   "title": "Arquitetural: views computational, engineering e technology nessa ordem, especificacao tecnica, esqueleto e testes em fase vermelha",
-  "state_hash": "sha256:2fd4f69bed03c72917ba3f5ea867a09bf6b0c48decee5de244d2bd78da354114",
-  "artifact_count": 86,
+  "state_hash": "sha256:df02c5207ffc74aea509f7ec66325fcd45ab51cc831d879fe27657309c302821",
+  "artifact_count": 88,
   "signature": {
     "signed_by": "Afonso Lelis",
-    "signed_at": "2026-11-01T03:04:11.381Z",
+    "signed_at": "2026-11-01T06:54:51.630Z",
     "decision": "accepted",
-    "rationale": "Ciclo de mudança: versão para celular (fonte mínima de 14 px, tabela sem rolagem lateral) decidida e validada pelo mantenedor"
+    "rationale": "Especificação da tabela final prevista e da coleta de notícias (sync.md, calculos.md), com testes verdes."
   },
   "gate_report": {
     "passed": true,
     "blocking": 0,
     "warnings": 0,
-    "evaluated_at": "2026-11-01T03:04:11.374Z"
+    "evaluated_at": "2026-11-01T06:54:51.605Z"
   }
 }

@@ -77,27 +77,47 @@
       "passed": true,
       "stateHash": "sha256:1204763db076a54d0bc1fba789efbadbdc6de46c364553fd761429ea89e89ba5",
       "at": "2026-11-01T06:47:05.696Z"
+    },
+    {
+      "sprint": "SP3",
+      "passed": true,
+      "stateHash": "sha256:df02c5207ffc74aea509f7ec66325fcd45ab51cc831d879fe27657309c302821",
+      "at": "2026-11-01T06:54:46.034Z"
+    },
+    {
+      "sprint": "SP4",
+      "passed": true,
+      "stateHash": "sha256:df02c5207ffc74aea509f7ec66325fcd45ab51cc831d879fe27657309c302821",
+      "at": "2026-11-01T06:54:57.270Z"
+    },
+    {
+      "sprint": "SP5",
+      "passed": false,
+      "stateHash": "sha256:df02c5207ffc74aea509f7ec66325fcd45ab51cc831d879fe27657309c302821",
+      "at": "2026-11-01T06:55:04.198Z"
+    },
+    {
+      "sprint": "SP5",
+      "passed": true,
+      "stateHash": "sha256:df02c5207ffc74aea509f7ec66325fcd45ab51cc831d879fe27657309c302821",
+      "at": "2026-11-01T06:55:14.882Z"
     }
   ],
   "next": {
-    "sprint": "SP2",
-    "title": "Requisitos e qualidade",
+    "sprint": "SP5",
+    "title": "Demonstracao e validacao",
     "skills": [
-      "elicit-requirements-from-business",
-      "specify-quality-scenarios",
-      "prioritize-architecture-drivers",
-      "validate-requirements-layer"
+      "validate-system-evidence"
     ],
     "inputs": [
-      "baseline SP1"
+      "baseline SP4"
     ],
     "outputs": [
-      "Requirement",
-      "QualityScenario"
+      "validation.md: hipotese, resultados, limitacoes"
     ],
     "state": "revisar-baseline",
     "blocking": [],
-    "command": "daia baseline sign SP2 --by \"Nome\" --rationale \"Justificativa humana\"",
+    "command": "daia baseline sign SP5 --by \"Nome\" --rationale \"Justificativa humana\"",
     "guide": ".daia/guide.md",
     "schemas": ".daia/schemas/"
   }

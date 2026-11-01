@@ -158,6 +158,21 @@
         "style.css",
         "app.js"
       ]
+    },
+    "TC-noticias": {
+      "command": "python",
+      "args": [
+        "-m",
+        "unittest",
+        "tests.test_sync.TestNoticias"
+      ],
+      "inputs": [
+        "scripts/sync_supabase.py",
+        "supabase/schema.sql",
+        ".github/workflows/noticias.yml",
+        "app.js",
+        "index.html"
+      ]
     }
   },
   "method": "DAIA-E",

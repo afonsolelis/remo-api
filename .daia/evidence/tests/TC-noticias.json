@@ -1,0 +1,16 @@
+{
+  "id": "TC-noticias",
+  "phase": "green",
+  "fingerprint": "3da02918c56dedda307aa423a0bdd143518a01e0f86b375b00727f9b99b3cfbc",
+  "exitCode": 0,
+  "command": [
+    "python",
+    "-m",
+    "unittest",
+    "tests.test_sync.TestNoticias"
+  ],
+  "executedAt": "2026-11-01T06:55:12.450Z",
+  "stdout": "Not�cias de Paysandu: falhou ()\r\nNot�cias: 1 clubes atualizados.\r\nQuebra: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nBoa: copa, 2 clubes, 1 partidas, 1 encerradas.\r\nNot�cias: 0 clubes atualizados.\r\n",
+  "stderr": "......\r\n----------------------------------------------------------------------\r\nRan 6 tests in 0.005s\r\n\r\nOK\r\n",
+  "stable": true
+}

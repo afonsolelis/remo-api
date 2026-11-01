@@ -7,13 +7,13 @@ Guia para o Claude Code neste repositório.
 **Remo nos Campeonatos** é um site estático no GitHub Pages (raiz da branch `main`) que acompanha os campeonatos do
 Remo (Séries A e B, Parazão, Copa Verde; Remo como time padrão). Os dados vêm da API de tabelas do ge
 (`https://api.globoesporte.globo.com/tabela`) e ficam num Postgres do Supabase (o mesmo projeto do `aulas_mackenzie`,
-tabelas `remo_ligas`, `remo_clubes`, `remo_partidas`).
+tabelas `remo_ligas`, `remo_clubes`, `remo_partidas`, `remo_noticias`).
 
 - `index.html`, `style.css`, `app.js` — página única com abas por campeonato e filtro de time. HTML/CSS simples e
   ApexCharts (CDN, versão fixa). Lê o banco pela API REST com a chave *publishable*. Ligas `pontos` rodam a simulação
   Monte Carlo (Poisson) no navegador, só quando a liga é aberta, com zonas vindas de `remo_ligas.zonas` (faixas do ge);
-  ligas `copa` mostram campanha, grupos e chaves a partir de `remo_ligas.fases`. Troque o `?v=` no `index.html` a cada
-  mudança de JS/CSS.
+  ligas `copa` mostram campanha, grupos e chaves a partir de `remo_ligas.fases`. A aba Notícias lê `remo_noticias`.
+  Troque o `?v=` no `index.html` a cada mudança de JS/CSS.
 - `calculos.js` — funções puras (classificação, simulação, copas, time padrão), sem DOM nem rede. Script comum
   carregado antes de `app.js`; também exporta para o Node, onde os testes o usam. Contrato em
   `docs/especificacao/calculos.md`.
@@ -21,11 +21,13 @@ tabelas `remo_ligas`, `remo_clubes`, `remo_partidas`).
   e regrava cada liga no Postgres, uma transação por liga: se uma falhar, as outras seguem e o dado anterior fica. O
   UUID de cada tabela do ge muda a cada temporada e é lido da página do campeonato a cada execução. Executa
   `supabase/schema.sql` (idempotente) antes de gravar. Termina com erro se alguma liga falhou ou se usou o UUID
-  reserva, para o GitHub avisar o mantenedor por e-mail. Contrato em `docs/especificacao/sync.md`.
+  reserva, para o GitHub avisar o mantenedor por e-mail. Também grava as últimas matérias do ge de cada clube
+  (`noticias` como argumento faz só isso). Contrato em `docs/especificacao/sync.md`.
 - `tests/` — contratos de teste sem dependências: `node:test` para `calculos.js` e `unittest` para o sync.
 - `docs/arquitetura/`, `docs/especificacao/` e `.daia/` — documentação no método DAIA-E (ver abaixo).
 - `.github/workflows/dados.yml` — sync diário às 03:00 UTC (00:00 em Belém), usa o secret `DATABASE_URL`
-  e se reativa a cada execução (o GitHub desliga agendamentos após 60 dias sem atividade).
+  e se reativa a cada execução (o GitHub desliga agendamentos após 60 dias sem atividade). `noticias.yml` atualiza
+  só as notícias a cada 2 horas.
 
 ## Comandos
 
@@ -55,3 +57,5 @@ assina (`daia baseline sign`). Os testes rodam com `daia verify`.
 - Testes sem dependências (`node:test` e `unittest`): rode os dois antes de commitar, e também o sync e a página
   localmente quando mexer neles.
 - Commits com assunto curto, imperativo, em português (ex.: `Adiciona gráfico de pontos`).
+- Projeto pessoal: ao terminar cada pedido que mude arquivos, commite e envie direto para a `main`, sem perguntar.
+  Siga a skill `subir-na-main` (testes antes, workflow depois quando houver dado novo).

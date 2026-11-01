@@ -18,6 +18,8 @@ const cor = c => CORES[c] || c;
 const dados = {};       // liga -> { info, clubes, partidas, sim }
 const escolhido = {};   // liga -> id do time escolhido
 let liga = "serie_a";
+const NOTICIAS = "noticias";  // aba que não é campeonato
+let noticias = null;          // linhas de remo_noticias, lidas na primeira vez que a aba abre
 let graficoPosicoes = null;
 let graficoPontos = null;
 
@@ -38,11 +40,22 @@ const fonte = () => ({ fontSize: CELULAR.matches ? "14px" : "12px" });
 const pct = x => x > 0 && x < 0.005 ? "<1%" : x < 1 && x > 0.995 ? ">99%" : Math.round(x * 100) + "%";
 const $ = id => document.getElementById(id);
 
+// Texto vindo do ge entra na página sempre escapado.
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// Todos os clubes de todos os campeonatos (o mesmo id pode estar em vários).
+function todosOsClubes() {
+  const clubes = {};
+  for (const d of Object.values(dados)) Object.assign(clubes, d.clubes);
+  return clubes;
+}
+
 function zonaDaPosicao(zonas, pos) {
   return zonas.find(z => z.posicoes.includes(pos));
 }
 
 function preencherTimes() {
+  if (liga === NOTICIAS) return preencherClubesNoticias();
   const d = dados[liga];
   const ids = Object.keys(d.clubes).map(Number);
   if (!escolhido[liga]) escolhido[liga] = timePadrao(d.clubes, d.sim?.tabela);
@@ -53,6 +66,13 @@ function preencherTimes() {
 }
 
 function desenhar() {
+  const eNoticias = liga === NOTICIAS;
+  $("vista-noticias").hidden = !eNoticias;
+  $("cards").hidden = eNoticias;
+  if (eNoticias) {
+    $("vista-pontos").hidden = $("vista-copa").hidden = true;
+    return desenharNoticias();
+  }
   const copa = dados[liga].info.tipo === "copa";
   $("vista-pontos").hidden = copa;
   $("vista-copa").hidden = !copa;
@@ -127,6 +147,44 @@ function desenharCopa() {
     }
     return `<section><h2>${f.nome}</h2>${corpo}</section>`;
   }).join("");
+}
+
+// ---------- notícias ----------
+
+function preencherClubesNoticias() {
+  const clubes = todosOsClubes();
+  const comNoticia = [...new Set(noticias.map(n => n.clube_id))].filter(id => clubes[id]);
+  if (escolhido[NOTICIAS] === undefined) escolhido[NOTICIAS] = comNoticia.includes(REMO) ? REMO : 0;
+  $("time").innerHTML = `<option value="0">Todos os clubes</option>` + comNoticia
+    .sort((a, b) => clubes[a].nome.localeCompare(clubes[b].nome, "pt-BR"))
+    .map(id => `<option value="${id}" ${id === escolhido[NOTICIAS] ? "selected" : ""}>${esc(clubes[id].nome)}</option>`)
+    .join("");
+}
+
+function desenharNoticias() {
+  const clubes = todosOsClubes();
+  const id = escolhido[NOTICIAS];
+  $("atualizado").textContent = "Notícias do ge, atualizadas a cada 2 horas";
+  $("titulo-noticias").textContent = id ? `Notícias — ${clubes[id]?.nome ?? ""}` : "Notícias de todos os clubes";
+
+  // "Todos": a mesma matéria pode ser de dois clubes (um clássico, por exemplo); aparece uma vez.
+  const vistas = new Set();
+  const lista = noticias
+    .filter(n => id ? n.clube_id === id : !vistas.has(n.noticia_id) && vistas.add(n.noticia_id))
+    .slice(0, 40);
+
+  $("noticias").innerHTML = lista.length === 0 ? `<p class="nota">Sem notícias deste clube.</p>` :
+    lista.map(n => {
+      const quando = new Date(n.publicado_em).toLocaleString("pt-BR",
+        { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      const c = clubes[n.clube_id];
+      const clube = !id && c ? `${c.escudo ? `<img src="${esc(c.escudo)}" alt="">` : ""}${esc(c.nome)} · ` : "";
+      return `<a class="noticia" href="${esc(n.url)}" target="_blank" rel="noopener">
+        ${n.imagem ? `<img class="foto" src="${esc(n.imagem)}" alt="" loading="lazy">` : ""}
+        <div><strong>${esc(n.titulo)}</strong>
+          ${n.resumo ? `<p>${esc(n.resumo)}</p>` : ""}
+          <small>${clube}${quando}</small></div></a>`;
+    }).join("");
 }
 
 // ---------- pontos corridos ----------
@@ -244,10 +302,20 @@ function desenharPontos() {
 // Simula a liga só na primeira vez que ela é aberta (AD-simulacao-sob-demanda).
 function garantirSimulacao(l) {
   const d = dados[l];
+  if (!d) return;
   if (d.info.tipo !== "copa" && !d.sim) d.sim = simular(d, { simulacoes: SIMULACOES });
 }
 
-function trocarLiga(nova) {
+async function trocarLiga(nova) {
+  if (nova === NOTICIAS && !noticias) {
+    try {
+      noticias = await ler("remo_noticias", "order=publicado_em.desc");
+    } catch (e) {
+      $("atualizado").textContent = "Não foi possível carregar as notícias.";
+      console.error(e);
+      return;
+    }
+  }
   liga = nova;
   garantirSimulacao(liga);
   document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("ativa", b.dataset.liga === liga));
@@ -270,7 +338,8 @@ async function iniciar() {
   try {
     await Promise.all(LIGAS.map(([l]) => carregar(l)));
     $("abas").innerHTML = LIGAS.filter(([l]) => dados[l])
-      .map(([l, nome]) => `<button data-liga="${l}">${nome}</button>`).join("");
+      .map(([l, nome]) => `<button data-liga="${l}">${nome}</button>`).join("") +
+      `<button data-liga="${NOTICIAS}">Notícias</button>`;
     // Abre na série (pontos corridos) em que o Remo está neste ano.
     const doRemo = LIGAS.map(([l]) => l).find(l => dados[l]?.info.tipo === "pontos" && dados[l].clubes[REMO]);
     trocarLiga(doRemo ?? Object.keys(dados)[0]);

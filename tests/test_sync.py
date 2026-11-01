@@ -62,7 +62,7 @@ LIGAS_TESTE = {
 }
 
 
-def rodar(buscar, pagina_ge=None):
+def rodar(buscar, pagina_ge=None, noticias=lambda conn: [], argv=("sync_supabase.py",)):
     """Roda o main com banco e ge falsos. Sem pagina_ge, a edição atual é sempre a reserva."""
     conn = Conexao()
     if pagina_ge is None:
@@ -73,7 +73,7 @@ def rodar(buscar, pagina_ge=None):
             mock.patch.object(sync, "LIGAS", LIGAS_TESTE), \
             mock.patch.object(sync.psycopg, "connect", return_value=conn), \
             edicao, \
-            mock.patch.object(sync, "fetch_liga", side_effect=buscar):
+            mock.patch.object(sync, "fetch_liga", side_effect=buscar),             mock.patch.object(sync, "sync_noticias", side_effect=noticias),             mock.patch.object(sync.sys, "argv", list(argv)):
         try:
             sync.main()
             codigo = 0
@@ -135,8 +135,12 @@ class TestAvisarFalha(unittest.TestCase):
 
 
 class Resposta:
-    def __init__(self, texto):
+    def __init__(self, texto="", dados=None):
         self.text = texto
+        self.dados = dados
+
+    def json(self):
+        return self.dados
 
     def raise_for_status(self):
         pass
@@ -203,6 +207,69 @@ class TestAtualidade(unittest.TestCase):
         self.assertTrue(inserts)
         for s in inserts:
             self.assertIn("atualizado_em = now()", s)
+
+
+def materia(n, url=None, tipo="materia", imagem="https://s2-ge.glbimg.com/x.jpg"):
+    return {"id": f"n{n}", "type": tipo, "publication": "2026-10-31T21:08:10Z",
+            "content": {"title": f"Notícia {n}", "summary": "Resumo", "url": url or f"https://ge.globo.com/pa/n{n}.ghtml",
+                        "image": {"sizes": {"S": {"url": imagem}}}}}
+
+
+class TestNoticias(unittest.TestCase):
+    """TC-noticias: RF-noticias (docs/especificacao/sync.md#notícias)."""
+
+    def test_slug_igual_ao_endereco_do_ge(self):
+        self.assertEqual(sync.slug("São Paulo"), "sao-paulo")
+        self.assertEqual(sync.slug("Atlético-MG"), "atletico-mg")
+
+    def test_so_materias_do_ge_e_no_maximo_dez(self):
+        itens = [materia(i) for i in range(15)] + [materia(99, tipo="video"),
+                                                    materia(98, url="https://outro.site/x"),
+                                                    materia(97, imagem="javascript:alert(1)")]
+        itens = itens[-3:] + itens[:-3]
+        with mock.patch.object(sync.session, "get", return_value=Resposta(dados={"items": itens})):
+            noticias = sync.fetch_noticias("feed")
+        self.assertEqual(len(noticias), sync.NOTICIAS_POR_CLUBE)
+        ids = [n[0] for n in noticias]
+        self.assertNotIn("n99", ids)
+        self.assertNotIn("n98", ids)
+        self.assertIsNone(noticias[0][4], "imagem sem https é descartada")
+        self.assertTrue(all(n[3].startswith("https://ge.globo.com/") for n in noticias))
+
+    def rodar_noticias(self, feed):
+        conn = Conexao()
+        paginas = {"remo": "https://ge.globo.com/pa/futebol/times/remo/",
+                   "paysandu": "https://ge.globo.com/pa/futebol/times/paysandu/"}
+        with mock.patch.object(sync, "clubes_do_banco", return_value={364: "Remo", 1: "Paysandu", 2: "Time Sem Página"}),                 mock.patch.object(sync, "paginas_dos_times", return_value=paginas),                 mock.patch.object(sync, "feed_do_time", side_effect=lambda pagina: pagina),                 mock.patch.object(sync, "fetch_noticias", side_effect=feed):
+            falhas = sync.sync_noticias(conn)
+        apagados = [p[0] for s, p in conn.sql if s.startswith("delete from remo_noticias where clube_id = ")]
+        return apagados, falhas
+
+    def test_falha_de_um_clube_preserva_as_noticias_dele(self):
+        def feed(pagina):
+            if "paysandu" in pagina:
+                raise requests.ConnectionError()
+            return [("n1", "T", None, "https://ge.globo.com/x", None, "2026-10-31T00:00:00Z")]
+        apagados, falhas = self.rodar_noticias(feed)
+        self.assertEqual(apagados, [364])
+        self.assertEqual(falhas, [])
+
+    def test_nenhum_clube_gravado_e_falha(self):
+        apagados, falhas = self.rodar_noticias(lambda pagina: [])
+        self.assertEqual(apagados, [])
+        self.assertTrue(falhas)
+
+    def test_modo_noticias_nao_toca_nas_ligas(self):
+        chamadas = []
+        conn, codigo = rodar(lambda uuid: liga_com_jogos(), noticias=lambda c: chamadas.append(1) or [],
+                             argv=("sync_supabase.py", "noticias"))
+        self.assertEqual(conn.ligas_gravadas(), [])
+        self.assertEqual(chamadas, [1])
+        self.assertIn(codigo, (0, None))
+
+    def test_falha_nas_noticias_avisa(self):
+        _, codigo = rodar(lambda uuid: liga_com_jogos(), noticias=lambda c: ["Notícias: quebrou"])
+        self.assertNotIn(codigo, (0, None))
 
 
 if __name__ == "__main__":

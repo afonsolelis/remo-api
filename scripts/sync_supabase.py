@@ -1,6 +1,7 @@
-"""Baixa os campeonatos da API de tabelas do ge e grava no Postgres (Supabase).
+"""Baixa os campeonatos e as notícias dos clubes no ge e grava no Postgres (Supabase).
 
-Uso: DATABASE_URL=postgresql://... python scripts/sync_supabase.py
+Uso: DATABASE_URL=postgresql://... python scripts/sync_supabase.py            # tudo
+     DATABASE_URL=postgresql://... python scripts/sync_supabase.py noticias   # só notícias
 """
 
 import json
@@ -8,6 +9,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -29,6 +31,9 @@ LIGAS = {
     "parazao": ("Parazão", "copa", "pa/futebol/campeonato-paraense", "28da6ccd-6407-4602-9ceb-8cc33e05165d"),
     "copa_verde": ("Copa Verde", "copa", "futebol/copa-verde", "0b037b4f-c04d-4cdc-8461-4ecdec0ba1e0"),
 }
+
+NOTICIAS_POR_CLUBE = 10
+FEED = "https://falkor-cda.bastian.globo.com/tenants/ge/instances/{}/posts/page/1"
 
 session = requests.Session()
 session.headers.update({"User-Agent": "Mozilla/5.0 (remo-api; uso pessoal)"})
@@ -152,6 +157,93 @@ def fetch_liga(uuid: str) -> dict:
     }
 
 
+# ---------- notícias ----------
+
+def slug(texto: str) -> str:
+    """'São Paulo' -> 'sao-paulo', como no endereço da página do time no ge."""
+    sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", sem_acento.lower()).strip("-")
+
+
+def paginas_dos_times() -> dict[str, str]:
+    """slug -> página do time, a partir dos links nas páginas dos campeonatos."""
+    paginas = {}
+    for _, _, pagina, _ in LIGAS.values():
+        try:
+            r = session.get(f"https://ge.globo.com/{pagina}/", timeout=20)
+            r.raise_for_status()
+        except requests.RequestException:
+            continue
+        for url in re.findall(r'https://ge\.globo\.com/[a-z/-]*?futebol/times/[a-z0-9-]+/', r.text):
+            paginas.setdefault(url.rstrip("/").rsplit("/", 1)[1], url)
+    return paginas
+
+
+def feed_do_time(pagina: str) -> str | None:
+    """Id do feed de notícias que a página do time usa."""
+    r = session.get(pagina, timeout=20)
+    r.raise_for_status()
+    achado = re.search(r"tenants/ge/instances/([0-9a-f-]{36})/posts", r.text)
+    return achado.group(1) if achado else None
+
+
+def fetch_noticias(feed: str) -> list[tuple]:
+    """Matérias do feed: (id, título, resumo, url, imagem, publicação). Vídeos ficam de fora."""
+    r = session.get(FEED.format(feed), timeout=20)
+    r.raise_for_status()
+    noticias = []
+    for item in r.json().get("items") or []:
+        c = item.get("content") or {}
+        url = c.get("url") or ""
+        if item.get("type") != "materia" or not c.get("title") or not url.startswith("https://ge.globo.com/"):
+            continue
+        imagem = (((c.get("image") or {}).get("sizes") or {}).get("S") or {}).get("url")
+        if imagem and not imagem.startswith("https://"):
+            imagem = None
+        noticias.append((item["id"], c["title"], c.get("summary"), url, imagem, item["publication"]))
+    return noticias[:NOTICIAS_POR_CLUBE]
+
+
+def clubes_do_banco(conn) -> dict[int, str]:
+    return dict(conn.execute("select distinct id, nome from remo_clubes").fetchall())
+
+
+def sync_noticias(conn) -> list[str]:
+    """Regrava as notícias de cada clube, um por transação. Devolve as falhas."""
+    clubes = clubes_do_banco(conn)
+    paginas = paginas_dos_times()
+    if not paginas:
+        return ["Notícias: nenhuma página de time achada nas páginas dos campeonatos"]
+    gravados = 0
+    for id, nome in clubes.items():
+        pagina = paginas.get(slug(nome))
+        if not pagina:
+            continue  # clube pequeno, sem página no ge
+        try:
+            feed = feed_do_time(pagina)
+            noticias = fetch_noticias(feed) if feed else []
+        except Exception as e:  # mantém as notícias anteriores desse clube
+            print(f"Notícias de {nome}: falhou ({e})")
+            continue
+        if not noticias:
+            continue
+        with conn.transaction(), conn.cursor() as cur:
+            cur.execute("delete from remo_noticias where clube_id = %s", (id,))
+            cur.executemany(
+                """insert into remo_noticias (clube_id, noticia_id, titulo, resumo, url, imagem, publicado_em)
+                   values (%s, %s, %s, %s, %s, %s, %s)""",
+                [(id, *n) for n in noticias],
+            )
+        gravados += 1
+    # Clubes que saíram de todos os campeonatos deixam de ter notícias.
+    conn.execute("delete from remo_noticias where clube_id not in (select id from remo_clubes)")
+    conn.commit()
+    print(f"Notícias: {gravados} clubes atualizados.")
+    if clubes and not gravados:
+        return ["Notícias: nenhum clube teve notícias gravadas (o ge mudou o formato?)"]
+    return []
+
+
 def main() -> None:
     url = os.environ.get("DATABASE_URL")
     if not url:
@@ -164,7 +256,8 @@ def main() -> None:
         conn.execute(SCHEMA.read_text(encoding="utf-8"))
         conn.commit()
 
-        for liga, (nome, tipo, pagina, reserva) in LIGAS.items():
+        so_noticias = sys.argv[1:] == ["noticias"]
+        for liga, (nome, tipo, pagina, reserva) in ({} if so_noticias else LIGAS).items():
             uuid = uuid_atual(pagina, reserva)
             if pagina in usou_reserva:
                 falhas.append(f"{nome}: UUID da edição não encontrado na página do ge, usado o reserva")
@@ -205,6 +298,8 @@ def main() -> None:
                 )
             print(f"{nome}: {tipo}, {len(d['clubes'])} clubes, {len(d['partidas'])} partidas, "
                   f"{sum(p[7] for p in d['partidas'])} encerradas.")
+
+        falhas += sync_noticias(conn)
 
     if falhas:
         sys.exit("Atualização com falhas:\n" + "\n".join(f"- {f}" for f in falhas))

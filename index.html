@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Remo nos Campeonatos</title>
   <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -57,6 +57,14 @@
       </section>
     </div>
 
+    <div id="vista-noticias" hidden>
+      <section>
+        <h2 id="titulo-noticias">Notícias</h2>
+        <p class="nota">Últimas matérias do ge sobre o clube. O link abre no site do ge.</p>
+        <div id="noticias"></div>
+      </section>
+    </div>
+
     <div id="vista-copa" hidden>
       <section>
         <h2 id="titulo-jogos">Jogos</h2>
@@ -67,7 +75,7 @@
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="calculos.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <script src="calculos.js?v=9"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

@@ -37,6 +37,28 @@ código; as mudanças estão marcadas como **novo**.
 - O GitHub Actions marca a execução como falha e envia o e-mail padrão ao
   mantenedor (`AD-aviso-por-falha`).
 
+## Notícias (`RF-noticias`) — **novo**
+
+`python scripts/sync_supabase.py noticias` roda só esta parte (workflow
+`noticias.yml`, a cada 2 horas); sem argumento, ela roda depois das ligas.
+
+1. Clubes: todos os de `remo_clubes`.
+2. Página de cada clube: os links `…/futebol/times/<slug>/` das páginas dos
+   campeonatos de `LIGAS`. O clube casa pelo `slug(nome)` (minúsculas, sem
+   acento, `-` no lugar do resto). Clube sem página é pulado, sem falha.
+3. Feed: o primeiro `tenants/ge/instances/<uuid>/posts` da página do clube; a
+   primeira página do feed traz as matérias.
+4. Só entram itens `materia` com título e `url` em `https://ge.globo.com/`; a
+   imagem (tamanho `S`) só se começar com `https://`. No máximo
+   `NOTICIAS_POR_CLUBE` (10) por clube.
+5. Por clube, numa transação: apaga e regrava `remo_noticias` desse clube. Se a
+   busca falha ou volta vazia, as notícias anteriores dele ficam.
+6. No fim, apaga notícias de clubes que não estão mais em `remo_clubes`.
+7. Conta como falha (código 1) se nenhuma página de time foi achada ou se nenhum
+   clube teve notícias gravadas: sinal de que o ge mudou o formato.
+
+A página escapa todo texto do ge antes de pôr no HTML.
+
 ## Esquema (`QS-somente-leitura`, `RNF-banco-compartilhado`)
 
 `supabase/schema.sql` é idempotente, só cria objetos com prefixo `remo_`, liga o

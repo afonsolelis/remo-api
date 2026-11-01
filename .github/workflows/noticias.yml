@@ -1,0 +1,29 @@
+name: Atualizar notícias
+
+on:
+  schedule:
+    - cron: "30 */2 * * *"  # a cada 2 horas; as tabelas seguem no dados.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write  # para o passo que mantém o agendamento ligado
+
+jobs:
+  noticias:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python scripts/sync_supabase.py noticias
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # O GitHub desliga agendamentos após 60 dias sem atividade no repositório.
+      - name: Manter agendamento ativo
+        if: always()
+        run: gh workflow enable noticias.yml --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}

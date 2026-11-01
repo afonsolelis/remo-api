@@ -173,6 +173,21 @@
         "app.js",
         "index.html"
       ]
+    },
+    "TC-jogos-hoje": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/jogos-hoje.test.js"
+      ],
+      "inputs": [
+        "tests/apoio.js",
+        "calculos.js",
+        "app.js",
+        "index.html",
+        "scripts/sync_supabase.py",
+        "supabase/schema.sql"
+      ]
     }
   },
   "method": "DAIA-E",

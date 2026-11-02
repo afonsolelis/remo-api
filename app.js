@@ -70,6 +70,7 @@ function preencherTimes() {
 }
 
 function desenhar() {
+  pararTimelapse();
   const vista = liga === NOTICIAS ? "noticias" : liga === PROXIMOS ? "calendario" : liga === RESULTADOS ? "resultados" :
     dados[liga].info.tipo === "copa" ? "copa" : "pontos";
   for (const v of ["pontos", "copa", "noticias", "calendario", "resultados"]) $(`vista-${v}`).hidden = v !== vista;
@@ -313,27 +314,8 @@ function desenharPontos() {
   if (graficoPosicoes) graficoPosicoes.updateOptions(opcoesPos);
   else (graficoPosicoes = new ApexCharts($("grafico-posicoes"), opcoesPos)).render();
 
-  let total = 0;
-  const pontos = d.partidas
-    .filter(p => p.encerrada && (p.casa_id === id || p.fora_id === id))
-    .map(p => {
-      const [meus, deles] = p.casa_id === id ? [p.gols_casa, p.gols_fora] : [p.gols_fora, p.gols_casa];
-      total += meus > deles ? 3 : meus === deles ? 1 : 0;
-      return { x: `R${p.rodada}`, y: total };
-    });
   $("titulo-pontos").textContent = `Pontos por rodada — ${nome(id)}`;
-  const opcoesPontos = {
-    chart: { type: "line", height: 260, toolbar: { show: false } },
-    series: [{ name: "Pontos", data: pontos }],
-    stroke: { width: 3 },
-    markers: { size: 3 },
-    xaxis: { labels: { style: fonte() } },
-    yaxis: { labels: { style: fonte() } },
-    tooltip: { style: fonte() },
-    colors: ["#0b2a5b"],
-  };
-  if (graficoPontos) graficoPontos.updateOptions(opcoesPontos);
-  else (graficoPontos = new ApexCharts($("grafico-pontos"), opcoesPontos)).render();
+  desenharGraficoPontos();
 
   const meus = futuros.filter(p => p.casa_id === id || p.fora_id === id);
   $("proximos").innerHTML = meus.length === 0 ? "<tr><td>Sem jogos restantes.</td></tr>" :
@@ -380,6 +362,73 @@ function desenharPontos() {
   $("legenda").innerHTML = zonas.map(z =>
     `<span class="legenda" style="background:${cor(z.cor)}"></span>${z.nome} (${z.posicoes.length > 1 ? `${z.posicoes[0]}º–${z.posicoes.at(-1)}º` : `${z.posicoes[0]}º`})`)
     .join(" &nbsp; ") + " · Clique numa linha para escolher o time.";
+}
+
+// Pontos reais e projeção (média e faixa de 80%) jogo a jogo, com todas as combinações de resultado.
+// `ate` corta o gráfico no jogo `ate` para o timelapse; os eixos ficam fixos para não pular.
+let timelapse = null;
+
+function desenharGraficoPontos(ate = Infinity) {
+  const d = dados[liga];
+  const id = escolhido[liga];
+  const { jogos } = projecaoPontos(d.partidas, id, d.sim.modelo);
+  const n = jogos.length;
+  const ultimoReal = jogos.findLastIndex(j => j.encerrada);
+  const visivel = i => i + 1 <= ate;
+  const real = jogos.map((j, i) => ({ x: i + 1, y: j.pontos })).filter((p, i) => jogos[i].encerrada && visivel(i));
+  // A projeção começa no último jogo real para a linha emendar.
+  const proj = jogos.map((j, i) => ({ j, i })).filter(({ i }) => i >= Math.max(ultimoReal, 0) && visivel(i));
+  const semReal = ultimoReal < 0;
+  const esperado = (semReal ? [{ x: 0, y: 0 }] : []).concat(proj.map(({ j, i }) => ({ x: i + 1, y: +j.media.toFixed(1) })));
+  const faixa = (semReal ? [{ x: 0, y: [0, 0] }] : []).concat(proj.map(({ j, i }) => ({ x: i + 1, y: [j.min, j.max] })));
+  const rodada = v => jogos[Math.round(v) - 1]?.rodada;
+  const opcoes = {
+    chart: { type: "rangeArea", height: 280, toolbar: { show: false }, animations: { enabled: false } },
+    series: [
+      { type: "rangeArea", name: "Faixa provável (80%)", data: faixa },
+      { type: "line", name: "Pontos", data: real },
+      { type: "line", name: "Esperado", data: esperado },
+    ],
+    colors: ["#93c5fd", "#0b2a5b", "#2563eb"],
+    fill: { opacity: [0.35, 1, 1] },
+    stroke: { width: [0, 3, 2], dashArray: [0, 0, 5], curve: "straight" },
+    markers: { size: [0, 3, 0] },
+    xaxis: { type: "numeric", min: semReal ? 0 : 1, max: Math.max(n, 1), tickAmount: Math.min(n, CELULAR.matches ? 6 : 12),
+      labels: { style: fonte(), formatter: v => rodada(v) ? `R${rodada(v)}` : "" } },
+    dataLabels: { enabled: false },
+    yaxis: { min: 0, max: Math.ceil(Math.max(3, ...jogos.map(j => j.max)) / 10) * 10, tickAmount: 5, labels: { style: fonte(), formatter: v => v.toFixed(0) } },
+    legend: { labels: { colors: "#475569" }, fontSize: fonte().fontSize },
+    tooltip: { shared: true, style: fonte(), x: { formatter: v => rodada(v) ? `Rodada ${rodada(v)}` : "Início" },
+      y: { formatter: v => v == null ? "" : (+v).toFixed(1).replace(".", ",") } },
+  };
+  if (graficoPontos) graficoPontos.updateOptions(opcoes, false, false);
+  else (graficoPontos = new ApexCharts($("grafico-pontos"), opcoes)).render();
+
+  const j = jogos[Math.min(ate, n) - 1];
+  const fmt = x => x.toFixed(1).replace(".", ",");
+  $("nota-pontos").textContent = !j ? "" : j.encerrada
+    ? `Jogo ${Math.min(ate, n)} de ${n} (rodada ${j.rodada}): ${j.pontos} pontos.`
+    : `Jogo ${Math.min(ate, n)} de ${n} (rodada ${j.rodada}): ${fmt(j.media)} pontos esperados, ` +
+      `entre ${j.min} e ${j.max} em 80% dos cenários.`;
+}
+
+function pararTimelapse() {
+  if (!timelapse) return;
+  clearInterval(timelapse);
+  timelapse = null;
+  $("timelapse").textContent = "Gerar timelapse";
+}
+
+function gerarTimelapse() {
+  if (timelapse) { pararTimelapse(); desenharGraficoPontos(); return; }
+  const n = projecaoPontos(dados[liga].partidas, escolhido[liga], dados[liga].sim.modelo).jogos.length;
+  let k = 1;
+  $("timelapse").textContent = "Parar";
+  desenharGraficoPontos(k);
+  timelapse = setInterval(() => {
+    if (++k > n) return pararTimelapse();
+    desenharGraficoPontos(k);
+  }, Math.max(120, Math.min(300, 9000 / n)));
 }
 
 // Simula a liga só na primeira vez que ela é aberta (AD-simulacao-sob-demanda).
@@ -473,5 +522,7 @@ $("simular").addEventListener("click", e => {
     e.target.disabled = false;
   }, 20);
 });
+
+$("timelapse").addEventListener("click", gerarTimelapse);
 
 iniciar();

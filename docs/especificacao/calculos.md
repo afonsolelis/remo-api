@@ -64,6 +64,25 @@ Invariantes verificáveis:
 2. Os pontos não crescem ao longo da lista.
 3. Sem jogos restantes, a ordem é a da `tabela` atual (salvo empate total).
 
+## Projeção de pontos rodada a rodada (`RF-timelapse`) — **novo**
+
+`projecaoPontos(partidas, id, modelo, { faixa = [0.1, 0.9] })` percorre os jogos do clube na
+ordem de `partidas` e devolve `{ jogos, final }`:
+
+- Jogo encerrado: `{ rodada, encerrada: true, pontos, media, min, max }`, todos iguais aos pontos reais acumulados.
+- Jogo por disputar: `{ rodada, encerrada: false, media, min, max, vitoria, empate, derrota }`. Cada jogo soma
+  3, 1 ou 0 com as chances de `prob1x2` (modelo de `simular`), e a distribuição dos pontos acumulados é
+  calculada **exatamente**, combinando jogo a jogo (sem sorteio). `media` é a média; `min` e `max` são os
+  quantis `faixa` (80% dos cenários no padrão).
+- `final`: `[{ pontos, chance }]` ao fim dos jogos do clube.
+
+Invariantes verificáveis: `min ≤ media ≤ max`; a média não cai ao longo dos jogos; as chances de
+`final` somam 1; a média final fica perto de `res[id].pontos` de `simular` (que sorteia a mesma coisa).
+
+Na página, o gráfico "Pontos por rodada" mostra os pontos reais, a linha tracejada dos pontos esperados
+e a faixa de 80%. O botão "Gerar timelapse" redesenha o gráfico jogo a jogo, do primeiro ao último, com
+os eixos fixos, e mostra embaixo os pontos (ou a média e a faixa) do jogo da vez. Clicar de novo para.
+
 ## Copas (`RF-campanha-copa`)
 
 - `vencedor(jogos)`: `null` se não há jogos ou algum não terminou. Senão, quem

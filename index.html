@@ -6,7 +6,7 @@
   <title>Remo nos Campeonatos</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -36,8 +36,14 @@
       </section>
 
       <section>
-        <h2 id="titulo-pontos">Pontos por rodada</h2>
+        <div class="titulo-secao">
+          <h2 id="titulo-pontos">Pontos por rodada</h2>
+          <button id="timelapse">Gerar timelapse</button>
+        </div>
+        <p class="nota">Linha cheia: pontos reais. Tracejada: pontos esperados nos jogos que faltam, com a faixa
+          onde o time fica em 80% dos cenários (todas as combinações de vitória, empate e derrota, com as chances do modelo).</p>
         <div id="grafico-pontos"></div>
+        <p class="nota" id="nota-pontos"></p>
       </section>
 
       <section>
@@ -97,7 +103,7 @@
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="calculos.js?v=12"></script>
-  <script src="app.js?v=12"></script>
+  <script src="calculos.js?v=13"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

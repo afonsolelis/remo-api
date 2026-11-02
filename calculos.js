@@ -160,6 +160,45 @@ function tabelaPrevista(res) {
   })).sort((a, b) => b.pontos - a.pontos || a.posicaoMedia - b.posicaoMedia || a.id - b.id);
 }
 
+// ---------- projeção de pontos rodada a rodada ----------
+// Distribuição exata dos pontos do clube depois de cada jogo: cada jogo restante soma 3, 1 ou 0
+// com as chances do modelo, e as distribuições se combinam jogo a jogo (sem sorteio).
+
+function quantil(dist, q) {
+  let acc = 0;
+  for (let k = 0; k < dist.length; k++) if ((acc += dist[k]) >= q - 1e-12) return k;
+  return dist.length - 1;
+}
+
+function projecaoPontos(partidas, id, modelo, { faixa = [0.1, 0.9] } = {}) {
+  const jogos = [];
+  let real = 0;
+  let dist = [1];  // dist[k] = chance de somar k pontos a partir dos pontos já ganhos
+  for (const p of partidas) {
+    if (p.casa_id !== id && p.fora_id !== id) continue;
+    const casa = p.casa_id === id;
+    if (p.encerrada) {
+      const [a, b] = casa ? [p.gols_casa, p.gols_fora] : [p.gols_fora, p.gols_casa];
+      real += a > b ? 3 : a === b ? 1 : 0;
+      jogos.push({ rodada: p.rodada, encerrada: true, pontos: real, media: real, min: real, max: real });
+      continue;
+    }
+    const [v, e, d] = prob1x2(...lambdas(modelo, p.casa_id, p.fora_id));
+    const [pv, pd] = casa ? [v, d] : [d, v];
+    const nova = new Array(dist.length + 3).fill(0);
+    dist.forEach((x, k) => { nova[k + 3] += x * pv; nova[k + 1] += x * e; nova[k] += x * pd; });
+    dist = nova;
+    jogos.push({
+      rodada: p.rodada, encerrada: false, pontos: null,
+      media: real + dist.reduce((a, x, k) => a + x * k, 0),
+      min: real + quantil(dist, faixa[0]),
+      max: real + quantil(dist, faixa[1]),
+      vitoria: pv, empate: e, derrota: pd,
+    });
+  }
+  return { jogos, final: dist.map((x, k) => ({ pontos: real + k, chance: x })).filter(x => x.chance > 0) };
+}
+
 // ---------- copas e estaduais ----------
 
 // Quem passou no confronto: soma dos gols e, se empatar, pênaltis do último jogo.
@@ -274,7 +313,7 @@ function retrospecto(jogos, clube) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     REMO, tabelaVazia, somarJogo, ordenar, classificacao, forcas, lambdas, prob1x2, simular,
-    tabelaPrevista, vencedor, chavesDaFase, campanha, campeao, timePadrao,
+    tabelaPrevista, projecaoPontos, vencedor, chavesDaFase, campanha, campeao, timePadrao,
     FUSO, diaEmBelem, calendario, resultados, retrospecto,
   };
 }

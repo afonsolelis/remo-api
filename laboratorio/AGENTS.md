@@ -28,7 +28,7 @@ docker compose, com os dados de `laboratorio/seed.sql`, e o teste de carga mede 
 
 - Imagens com versão fixa: `postgres:16-alpine`, `postgrest/postgrest:v12.2.3`, `grafana/k6:0.54.0` e
   `nginx:1.27-alpine`. Elas já foram baixadas no computador da aula; não troque de versão.
-- O k6 roda como serviço do compose, na mesma rede dos outros contêineres, para que a rede do Docker Desktop entre
+- O k6 roda como serviço do compose, na mesma rede dos outros contêineres, para que o caminho de rede entre
   o host e os contêineres não contamine a medida.
 - Senhas são só locais e ficam em `laboratorio/.env.example`; nunca use a `DATABASE_URL` de produção.
 - Não rode o sync (`scripts/sync_supabase.py`) contra o banco local nem contra o de produção.

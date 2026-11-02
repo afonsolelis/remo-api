@@ -249,10 +249,32 @@ function calendario(dados, de, ate, clube = 0) {
   return dias;
 }
 
+// ---------- resultados passados ----------
+
+// Jogos encerrados de `de` a `ate` (dias de Belém, inclusive), por dia, do mais recente ao mais antigo.
+function resultados(dados, de, ate, clube = 0) {
+  return calendario(dados, de, ate, clube)
+    .map(({ dia, jogos }) => ({ dia, jogos: jogos.filter(p => p.encerrada).reverse() }))
+    .filter(d => d.jogos.length)
+    .reverse();
+}
+
+// Vitórias, empates, derrotas e gols do clube numa lista de jogos encerrados.
+function retrospecto(jogos, clube) {
+  const r = { J: 0, V: 0, E: 0, D: 0, GP: 0, GC: 0 };
+  for (const p of jogos) {
+    if (!p.encerrada || (p.casa_id !== clube && p.fora_id !== clube)) continue;
+    const [a, b] = p.casa_id === clube ? [p.gols_casa, p.gols_fora] : [p.gols_fora, p.gols_casa];
+    r.J++; r.GP += a; r.GC += b;
+    if (a > b) r.V++; else if (a === b) r.E++; else r.D++;
+  }
+  return r;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     REMO, tabelaVazia, somarJogo, ordenar, classificacao, forcas, lambdas, prob1x2, simular,
     tabelaPrevista, vencedor, chavesDaFase, campanha, campeao, timePadrao,
-    FUSO, diaEmBelem, calendario,
+    FUSO, diaEmBelem, calendario, resultados, retrospecto,
   };
 }

@@ -20,6 +20,8 @@ const escolhido = {};   // liga -> id do time escolhido
 let liga = "serie_a";
 const NOTICIAS = "noticias";  // abas que não são campeonato
 const PROXIMOS = "proximos-jogos";
+const RESULTADOS = "resultados";
+const periodo = { de: null, ate: null };  // filtro de datas da aba Resultados passados ("AAAA-MM-DD")
 let noticias = null;          // linhas de remo_noticias, lidas na primeira vez que a aba abre
 let graficoPosicoes = null;
 let graficoPontos = null;
@@ -56,7 +58,7 @@ function zonaDaPosicao(zonas, pos) {
 }
 
 function preencherTimes() {
-  if (liga === PROXIMOS) return preencherClubesCalendario();
+  if (liga === PROXIMOS || liga === RESULTADOS) return preencherClubesCalendario();
   if (liga === NOTICIAS) return preencherClubesNoticias();
   const d = dados[liga];
   const ids = Object.keys(d.clubes).map(Number);
@@ -68,11 +70,12 @@ function preencherTimes() {
 }
 
 function desenhar() {
-  const vista = liga === NOTICIAS ? "noticias" : liga === PROXIMOS ? "calendario" :
+  const vista = liga === NOTICIAS ? "noticias" : liga === PROXIMOS ? "calendario" : liga === RESULTADOS ? "resultados" :
     dados[liga].info.tipo === "copa" ? "copa" : "pontos";
-  for (const v of ["pontos", "copa", "noticias", "calendario"]) $(`vista-${v}`).hidden = v !== vista;
-  $("cards").hidden = vista === "noticias" || vista === "calendario";
-  ({ pontos: desenharPontos, copa: desenharCopa, noticias: desenharNoticias, calendario: desenharCalendario })[vista]();
+  for (const v of ["pontos", "copa", "noticias", "calendario", "resultados"]) $(`vista-${v}`).hidden = v !== vista;
+  $("cards").hidden = vista === "noticias" || vista === "calendario" || (vista === "resultados" && !escolhido[RESULTADOS]);
+  ({ pontos: desenharPontos, copa: desenharCopa, noticias: desenharNoticias, calendario: desenharCalendario,
+    resultados: desenharResultados })[vista]();
 }
 
 // ---------- copas e estaduais ----------
@@ -149,11 +152,16 @@ function desenharCopa() {
 
 function preencherClubesCalendario() {
   const clubes = todosOsClubes();
-  if (escolhido[PROXIMOS] === undefined) escolhido[PROXIMOS] = 0;  // abre com todos os clubes
+  if (escolhido[liga] === undefined) escolhido[liga] = 0;  // abre com todos os clubes
   $("time").innerHTML = `<option value="0">Todos os clubes</option>` + Object.keys(clubes).map(Number)
     .sort((a, b) => clubes[a].nome.localeCompare(clubes[b].nome, "pt-BR"))
-    .map(id => `<option value="${id}" ${id === escolhido[PROXIMOS] ? "selected" : ""}>${esc(clubes[id].nome)}</option>`)
+    .map(id => `<option value="${id}" ${id === escolhido[liga] ? "selected" : ""}>${esc(clubes[id].nome)}</option>`)
     .join("");
+}
+
+function atualizadoTodos() {
+  const recente = Object.values(dados).map(d => d.info.atualizado_em).sort().at(-1);
+  $("atualizado").textContent = recente ? `Jogos de todos os campeonatos · dados de ${new Date(recente).toLocaleString("pt-BR")}` : "";
 }
 
 function desenharCalendario() {
@@ -161,21 +169,56 @@ function desenharCalendario() {
   const fimDoAno = `${hoje.slice(0, 4)}-12-31`;
   const id = escolhido[PROXIMOS];
   const dias = calendario(dados, hoje, fimDoAno, id);
-  const nomeDia = x => x === hoje ? "Hoje" : new Date(`${x}T12:00:00-03:00`).toLocaleDateString("pt-BR",
-    { timeZone: FUSO, weekday: "long", day: "2-digit", month: "2-digit" });
-  const nomeLiga = Object.fromEntries(LIGAS);
-  const recente = Object.values(dados).map(d => d.info.atualizado_em).sort().at(-1);
-  $("atualizado").textContent = recente ? `Jogos de todos os campeonatos · dados de ${new Date(recente).toLocaleString("pt-BR")}` : "";
+  atualizadoTodos();
   const total = dias.reduce((n, d) => n + d.jogos.length, 0);
   $("titulo-calendario").textContent = `Próximos jogos${id ? ` — ${todosOsClubes()[id]?.nome ?? ""}` : ""} · ` +
     (total ? `${total} até 31/12` : "nenhum até 31/12");
+  $("jogos-calendario").innerHTML = listaPorDia(dias, hoje);
+}
 
-  $("jogos-calendario").innerHTML = dias.map(({ dia, jogos }) => `<section><h2>${nomeDia(dia)}</h2>${jogos.map(p => {
+// ---------- resultados passados ----------
+
+function desenharResultados() {
+  const hoje = diaEmBelem(Date.now());
+  if (!periodo.de) {  // abre com o ano todo até hoje
+    periodo.de = `${hoje.slice(0, 4)}-01-01`;
+    periodo.ate = hoje;
+    $("data-de").value = periodo.de;
+    $("data-ate").value = periodo.ate;
+  }
+  $("data-de").max = $("data-ate").max = hoje;
+  const id = escolhido[RESULTADOS];
+  const dias = resultados(dados, periodo.de, periodo.ate, id);
+  const jogos = dias.flatMap(d => d.jogos);
+  atualizadoTodos();
+  $("titulo-resultados").textContent = `Resultados passados${id ? ` — ${todosOsClubes()[id]?.nome ?? ""}` : ""} · ` +
+    (jogos.length ? `${jogos.length} jogo${jogos.length > 1 ? "s" : ""}` : "nenhum jogo");
+
+  if (id) {
+    const r = retrospecto(jogos, id);
+    $("cards").innerHTML = [
+      ["Jogos", r.J],
+      ["V · E · D", `${r.V} · ${r.E} · ${r.D}`],
+      ["Gols pró · contra", `${r.GP} · ${r.GC}`],
+      ["Aproveitamento", r.J ? Math.round((r.V * 3 + r.E) / (r.J * 3) * 100) + "%" : "–"],
+    ].map(([k, v]) => `<div class="card"><span>${k}</span><strong>${v}</strong></div>`).join("");
+  }
+  $("jogos-resultados").innerHTML = dias.length ? listaPorDia(dias, hoje) :
+    `<section><p class="nota">Nenhum jogo encerrado neste período.</p></section>`;
+}
+
+// Jogos agrupados por dia, no formato de calendario() e resultados().
+function listaPorDia(dias, hoje) {
+  const nomeDia = x => x === hoje ? "Hoje" : new Date(`${x}T12:00:00-03:00`).toLocaleDateString("pt-BR",
+    { timeZone: FUSO, weekday: "long", day: "2-digit", month: "2-digit" });
+  const nomeLiga = Object.fromEntries(LIGAS);
+  return dias.map(({ dia, jogos }) => `<section><h2>${nomeDia(dia)}</h2>${jogos.map(p => {
     const clubes = dados[p.liga].clubes;
+    const ganhou = p.encerrada ? vencedor([p]) : null;
     const lado = (x, escudoAntes) => {
       const c = clubes[x] || {};
       const img = c.escudo ? `<img src="${esc(c.escudo)}" alt="">` : "";
-      return `<span>${escudoAntes ? img : ""}${esc(c.nome ?? x)}${escudoAntes ? "" : " " + img}</span>`;
+      return `<span class="${x === ganhou ? "vence" : ""}">${escudoAntes ? img : ""}${esc(c.nome ?? x)}${escudoAntes ? "" : " " + img}</span>`;
     };
     const hora = p.hora_definida === false ? `<div class="hora indefinida">Horário a definir</div>` :
       `<div class="hora">${new Date(p.data).toLocaleTimeString("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" })}</div>`;
@@ -379,7 +422,8 @@ async function iniciar() {
     await Promise.all(LIGAS.map(([l]) => carregar(l)));
     $("abas").innerHTML = LIGAS.filter(([l]) => dados[l])
       .map(([l, nome]) => `<button data-liga="${l}">${nome}</button>`).join("") +
-      `<button data-liga="${PROXIMOS}">Próximos jogos</button><button data-liga="${NOTICIAS}">Notícias</button>`;
+      `<button data-liga="${PROXIMOS}">Próximos jogos</button><button data-liga="${RESULTADOS}">Resultados passados</button>` +
+      `<button data-liga="${NOTICIAS}">Notícias</button>`;
     // Abre na série (pontos corridos) em que o Remo está neste ano.
     const doRemo = LIGAS.map(([l]) => l).find(l => dados[l]?.info.tipo === "pontos" && dados[l].clubes[REMO]);
     trocarLiga(doRemo ?? Object.keys(dados)[0]);
@@ -395,9 +439,21 @@ $("abas").addEventListener("click", e => {
 });
 
 // Ao girar o celular ou redimensionar a janela, redesenha os gráficos com a fonte certa.
-CELULAR.addEventListener("change", () => { if (dados[liga] || liga === PROXIMOS) desenhar(); });
+CELULAR.addEventListener("change", () => { if (dados[liga] || liga === PROXIMOS || liga === RESULTADOS) desenhar(); });
 
 $("time").addEventListener("change", e => { escolhido[liga] = +e.target.value; desenhar(); });
+
+// Filtro de datas dos resultados; se "de" passar de "até", os dois viram o mesmo dia.
+for (const campo of ["de", "ate"]) $(`data-${campo}`).addEventListener("change", e => {
+  if (!e.target.value) { e.target.value = periodo[campo]; return; }
+  periodo[campo] = e.target.value;
+  if (periodo.de > periodo.ate) {
+    const outro = campo === "de" ? "ate" : "de";
+    periodo[outro] = periodo[campo];
+    $(`data-${outro}`).value = periodo[campo];
+  }
+  desenhar();
+});
 
 // Clique numa linha de qualquer tabela escolhe o time.
 document.querySelector("main").addEventListener("click", e => {

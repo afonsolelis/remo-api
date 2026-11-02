@@ -86,6 +86,19 @@ Invariantes verificáveis:
 A aba Próximos jogos mostra o calendário de hoje até 31/12, com filtro de clube
 (começa em "Todos os clubes").
 
+## Resultados passados (`RF-resultados`) — **novo**
+
+- `resultados(dados, de, ate, clube = 0)`: o mesmo recorte de `calendario`, só com as
+  partidas encerradas; dias sem jogo encerrado ficam de fora. Dias e jogos do mais
+  recente ao mais antigo.
+- `retrospecto(jogos, clube)`: `{ J, V, E, D, GP, GC }` do clube nas partidas encerradas
+  da lista em que ele jogou.
+
+A aba Resultados passados abre com o período de 1º/01 até hoje (Belém) e "Todos os
+clubes". Os filtros "De"/"Até" mudam o período (se "De" passar de "Até", os dois viram o
+mesmo dia). Com um clube escolhido, os cards mostram jogos, V · E · D, gols e
+aproveitamento no período.
+
 ## Time padrão (`RF-escolher-time`, `QS-facilidade`)
 
 `timePadrao(clubes, tabela)`: o Remo (364) se ele participa; senão o líder da

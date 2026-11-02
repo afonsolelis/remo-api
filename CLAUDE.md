@@ -15,6 +15,8 @@ tabelas `remo_ligas`, `remo_clubes`, `remo_partidas`, `remo_noticias`).
   ligas `copa` mostram campanha, grupos e chaves a partir de `remo_ligas.fases`. A aba Notícias lê `remo_noticias`.
   A aba Próximos jogos mostra o calendário de todas as ligas até 31/12 (fuso de Belém), por dia, com
   horário, estádio, link do ge e filtro de clube.
+  A aba Resultados passados mostra os jogos encerrados do ano, do mais recente ao mais antigo, com filtro de
+  período (de/até) e de clube (com o retrospecto do clube).
   Troque o `?v=` no `index.html` a cada mudança de JS/CSS.
 - `calculos.js` — funções puras (classificação, simulação, copas, time padrão), sem DOM nem rede. Script comum
   carregado antes de `app.js`; também exporta para o Node, onde os testes o usam. Contrato em

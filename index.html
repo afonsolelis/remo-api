@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Remo nos Campeonatos</title>
   <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -66,6 +66,18 @@
       <div id="jogos-calendario"></div>
     </div>
 
+    <div id="vista-resultados" hidden>
+      <section>
+        <h2 id="titulo-resultados">Resultados passados</h2>
+        <p class="nota">Jogos já encerrados de todos os campeonatos, do mais recente ao mais antigo, em horário de Belém.</p>
+        <div class="datas">
+          <label>De <input type="date" id="data-de"></label>
+          <label>Até <input type="date" id="data-ate"></label>
+        </div>
+      </section>
+      <div id="jogos-resultados"></div>
+    </div>
+
     <div id="vista-noticias" hidden>
       <section>
         <h2 id="titulo-noticias">Notícias</h2>
@@ -84,7 +96,7 @@
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="calculos.js?v=11"></script>
-  <script src="app.js?v=11"></script>
+  <script src="calculos.js?v=12"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>

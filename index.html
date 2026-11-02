@@ -6,7 +6,7 @@
   <title>Remo nos Campeonatos</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -36,6 +36,12 @@
         </div>
         <p class="nota" id="nota-sim"></p>
         <div id="grafico-posicoes"></div>
+        <div id="dispersao" hidden>
+          <h3>Como a previsão mudou rodada a rodada</h3>
+          <p class="nota">Cada coluna é a previsão da posição final feita ao fim daquela rodada. Cor espalhada pela
+            coluna = futuro incerto; cor concentrada numa linha = destino quase decidido.</p>
+          <div id="grafico-dispersao"></div>
+        </div>
       </section>
 
       <section>
@@ -106,7 +112,7 @@
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="calculos.js?v=14"></script>
-  <script src="app.js?v=14"></script>
+  <script src="calculos.js?v=15"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>

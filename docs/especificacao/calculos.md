@@ -79,17 +79,21 @@ ordem de `partidas` e devolve `{ jogos, final }`:
 Invariantes verificáveis: `min ≤ media ≤ max`; a média não cai ao longo dos jogos; as chances de
 `final` somam 1; a média final fica perto de `res[id].pontos` de `simular` (que sorteia a mesma coisa).
 
-`posicoesPorRodada(liga, id, { simulacoes, aleatorio })` devolve `{ [rodada]: [p1, p2, ...] }`, a chance
-de o clube estar em cada posição ao fim de cada rodada. Rodadas já jogadas usam a tabela real com os jogos
-encerrados até ali (uma posição com chance 1); as que faltam, Monte Carlo com o mesmo modelo de `simular`,
-registrando a posição ao fim de cada rodada. Invariantes: cada rodada soma 1; a última rodada fica perto de
-`res[id].posicoes`.
+`previsaoNaRodada(liga, rodada, opcoes)` roda `simular` como se o campeonato estivesse ao fim de `rodada`:
+jogos encerrados de rodadas posteriores voltam a ser "por disputar" e o modelo só usa o que já tinha
+acontecido (rodada 0 = antes do primeiro jogo). Não altera a liga recebida. Com `rodada` igual à última
+jogada, o resultado é o de `simular`.
+
+`resumoPosicoes(posicoes, [0.1, 0.9])` devolve `{ moda, chance, de, ate }`: a posição mais provável, a
+chance dela e o intervalo de posições com 80% dos cenários.
 
 Na página, o gráfico "Pontos por rodada" mostra os pontos reais, a linha tracejada dos pontos esperados
-e a faixa de 80%. O botão "Gerar timelapse" (no gráfico da Simulação e no de pontos) anima os dois
-gráficos juntos, jogo a jogo do clube, com os eixos fixos: a Simulação mostra a chance de cada posição
-ao fim daquela rodada, e embaixo do gráfico de pontos aparecem os pontos (ou a média e a faixa) do jogo
-da vez. Clicar de novo para.
+e a faixa de 80%. O botão "Gerar timelapse" (no gráfico da Simulação e no de pontos) volta ao início do
+campeonato e anda rodada a rodada até a última jogada: a cada passo, a Simulação mostra a previsão da
+**posição final** feita com o que se sabia naquela rodada (3.000 simulações por rodada), com a posição
+mais provável e a faixa de 80% no texto; o gráfico de pontos cresce junto. Um mapa de calor (rodada ×
+posição final) vai sendo preenchido e fica na tela ao fim, para ver se a distribuição foi se
+concentrando ou se espalhando. Clicar de novo para.
 
 ## Copas (`RF-campanha-copa`)
 

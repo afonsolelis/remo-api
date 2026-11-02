@@ -305,6 +305,7 @@ function desenharPontos() {
 
   $("titulo-pontos").textContent = `Pontos por rodada — ${nome(id)}`;
   desenharGraficoPontos();
+  desenharDispersao();
 
   const meus = futuros.filter(p => p.casa_id === id || p.fora_id === id);
   $("proximos").innerHTML = meus.length === 0 ? "<tr><td>Sem jogos restantes.</td></tr>" :
@@ -421,38 +422,84 @@ function desenharGraficoPontos(ate = Infinity) {
 }
 
 const botoesTimelapse = () => document.querySelectorAll(".botao-timelapse");
+const SIMULACOES_TIMELAPSE = 3000;
+let graficoDispersao = null;
 
-function pararTimelapse() {
-  if (!timelapse) return;
-  clearInterval(timelapse);
-  timelapse = null;
-  botoesTimelapse().forEach(b => { b.textContent = "Gerar timelapse"; b.disabled = false; });
+// Rodadas do timelapse: antes do campeonato (0) até a última com jogo encerrado.
+const rodadasJogadas = d =>
+  [0, ...new Set(d.partidas.filter(p => p.encerrada && p.rodada != null).map(p => p.rodada).sort((a, b) => a - b))];
+const nomeRodada = r => r === 0 ? "Início" : `R${r}`;
+
+function textoResumo(posicoes, r) {
+  const { moda, chance, de, ate } = resumoPosicoes(posicoes);
+  const quando = r === 0 ? "Antes da 1ª rodada" : `Após a rodada ${r}`;
+  return `${quando}: posição final mais provável ${moda}º (${pct(chance)}); ` +
+    (de === ate ? `${de}º em 80% dos cenários.` : `entre ${de}º e ${ate}º em 80% dos cenários (${ate - de + 1} posições).`);
 }
 
-// Os dois gráficos andam juntos, jogo a jogo do time: pontos e chance de cada posição ao fim daquela rodada.
+// Mapa de calor rodada × posição final do clube; células ainda não simuladas ficam vazias.
+function desenharDispersao() {
+  const d = dados[liga], id = escolhido[liga];
+  const hist = d.historico || {};
+  const rodadas = rodadasJogadas(d);
+  if (!rodadas.some(r => hist[r])) { $("dispersao").hidden = true; return; }
+  $("dispersao").hidden = false;
+  const n = Object.keys(d.clubes).length;
+  const series = [];
+  for (let pos = n; pos >= 1; pos--) series.push({
+    name: `${pos}º`,
+    data: rodadas.map(r => ({ x: nomeRodada(r), y: hist[r] ? +(hist[r][id].posicoes[pos - 1] * 100).toFixed(1) : -1 })),
+  });
+  const faixas = [[0, 1, "#f1f5f9"], [1, 5, "#dbeafe"], [5, 15, "#93c5fd"], [15, 30, "#3b82f6"], [30, 60, "#1d4ed8"], [60, 101, "#0b2a5b"]];
+  const opcoes = {
+    chart: { type: "heatmap", height: Math.max(260, n * 16 + 60), toolbar: { show: false }, animations: { enabled: false } },
+    series,
+    dataLabels: { enabled: false },
+    legend: { show: true, fontSize: fonte().fontSize },
+    plotOptions: { heatmap: { radius: 0, enableShades: false, colorScale: { ranges: [
+      ...(rodadas.every(r => hist[r]) ? [] : [{ from: -1, to: -0.5, color: "#ffffff", name: "ainda não simulado" }]),
+      ...faixas.map(([de, ate, c]) => ({ from: de, to: ate - 0.001, color: c, name: de === 0 ? "<1%" : `${de}–${Math.min(ate, 100)}%` })),
+    ] } } },
+    stroke: { width: 0.5, colors: ["#ffffff"] },
+    xaxis: { type: "category", labels: { style: fonte(), rotate: -45, hideOverlappingLabels: true },
+      tickAmount: CELULAR.matches ? 6 : 12 },
+    yaxis: { labels: { style: fonte() } },
+    tooltip: { style: fonte(), y: { formatter: v => v < 0 ? "—" : v + "%" } },
+  };
+  if (graficoDispersao) graficoDispersao.updateOptions(opcoes, false, false);
+  else (graficoDispersao = new ApexCharts($("grafico-dispersao"), opcoes)).render();
+}
+
+function pararTimelapse() {
+  clearTimeout(timelapse);
+  timelapse = null;
+  botoesTimelapse().forEach(b => b.textContent = "Gerar timelapse");
+}
+
+// Volta ao início do campeonato e anda rodada a rodada: a cada passo, a previsão da posição final feita com o
+// que se sabia ali (gráfico da Simulação e mapa de calor) e os pontos reais até aquela rodada.
 function gerarTimelapse() {
   if (timelapse) { pararTimelapse(); desenhar(); return; }
   const d = dados[liga], id = escolhido[liga];
-  const jogos = projecaoPontos(d.partidas, id, d.sim.modelo).jogos;
-  if (!jogos.length) return;
   const nome = d.clubes[id]?.nome ?? id;
-  botoesTimelapse().forEach(b => { b.textContent = "Simulando…"; b.disabled = true; });
-  // Deixa o navegador mostrar "Simulando…" antes da conta.
-  setTimeout(() => {
-    const cache = d.sim.porRodada ??= {};
-    const porRodada = cache[id] ??= posicoesPorRodada(d, id, { simulacoes: SIMULACOES });
-    let k = 0, ultimo = null;
-    const passo = () => {
-      if (++k > jogos.length) return pararTimelapse();
-      const r = jogos[k - 1].rodada;
-      ultimo = porRodada[r] ?? ultimo;
-      if (ultimo) desenharGraficoPosicoes(ultimo, `Posição após a rodada ${r} — ${nome}`, true);
-      desenharGraficoPontos(k);
-    };
-    timelapse = setInterval(passo, Math.max(150, Math.min(350, 10000 / jogos.length)));
-    botoesTimelapse().forEach(b => { b.textContent = "Parar"; b.disabled = false; });
-    passo();
-  }, 20);
+  const jogos = projecaoPontos(d.partidas, id, d.sim.modelo).jogos;
+  const rodadas = rodadasJogadas(d);
+  const hist = d.historico ??= {};
+  botoesTimelapse().forEach(b => b.textContent = "Parar");
+  let k = 0;
+  const passo = () => {
+    const r = rodadas[k];
+    // Cada rodada é simulada uma vez e guardada: rever o timelapse ou trocar de time sai na hora.
+    hist[r] ??= previsaoNaRodada(d, r, { simulacoes: SIMULACOES_TIMELAPSE }).res;
+    const posicoes = hist[r][id].posicoes;
+    desenharGraficoPosicoes(posicoes, `Posição final prevista ${r === 0 ? "antes da 1ª rodada" : `após a rodada ${r}`} — ${nome}`, true);
+    $("nota-sim").textContent = textoResumo(posicoes, r);
+    desenharGraficoPontos(r === rodadas.at(-1) ? Infinity : jogos.filter(j => j.encerrada && j.rodada <= r).length);
+    desenharDispersao();
+    if (++k >= rodadas.length) return pararTimelapse();
+    timelapse = setTimeout(passo, 250);
+  };
+  timelapse = setTimeout(passo, 20);
 }
 
 // Simula a liga só na primeira vez que ela é aberta (AD-simulacao-sob-demanda).

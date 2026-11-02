@@ -39,19 +39,19 @@ test("a média final bate com a média da simulação Monte Carlo", () => {
 // ligaPontos não tem rodada; numera cada jogo como uma rodada para o teste.
 const comRodadas = liga => ({ ...liga, partidas: liga.partidas.map((p, i) => ({ ...p, rodada: i + 1 })) });
 
-test("posições por rodada: jogadas são certas, e cada rodada soma 1", () => {
-  const { posicoesPorRodada } = calculos();
+test("previsão na rodada atual é a simulação de hoje; na rodada 0 ninguém jogou", () => {
+  const { previsaoNaRodada, simular } = calculos();
   const liga = comRodadas(ligaPontos(6, 12));
-  const pr = posicoesPorRodada(liga, 3, { simulacoes: 2000, aleatorio: semente(3) });
-  assert.equal(Object.keys(pr).length, 30);
-  for (let r = 1; r <= 12; r++) assert.equal(pr[r].filter(x => x === 1).length, 1, `rodada ${r}`);
-  for (const p of Object.values(pr)) assert.ok(Math.abs(p.reduce((a, b) => a + b, 0) - 1) < 1e-9);
+  const hoje = simular(liga, { simulacoes: 500, aleatorio: semente(3) });
+  assert.deepEqual(previsaoNaRodada(liga, 12, { simulacoes: 500, aleatorio: semente(3) }).res, hoje.res);
+  const zero = previsaoNaRodada(liga, 0, { simulacoes: 500, aleatorio: semente(3) });
+  assert.equal(zero.futuros.length, 30);
+  assert.ok(zero.tabela.every(l => l.PTS === 0));
+  assert.equal(liga.partidas.filter(p => p.encerrada).length, 12, "não altera a liga original");
 });
 
-test("posições na última rodada batem com a simulação", () => {
-  const { posicoesPorRodada, simular } = calculos();
-  const liga = comRodadas(ligaPontos(6, 10));
-  const pr = posicoesPorRodada(liga, 2, { simulacoes: 20000, aleatorio: semente(4) });
-  const { res } = simular(liga, { simulacoes: 20000, aleatorio: semente(5) });
-  pr[30].forEach((x, k) => assert.ok(Math.abs(x - res[2].posicoes[k]) < 0.03, `posição ${k + 1}`));
+test("resumo da distribuição: posição mais provável e faixa de 80%", () => {
+  const { resumoPosicoes } = calculos();
+  assert.deepEqual(resumoPosicoes([0, 0, 1, 0]), { moda: 3, chance: 1, de: 3, ate: 3 });
+  assert.deepEqual(resumoPosicoes([0.05, 0.2, 0.5, 0.2, 0.05]), { moda: 3, chance: 0.5, de: 2, ate: 4 });
 });

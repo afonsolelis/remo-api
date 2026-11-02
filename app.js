@@ -301,18 +301,7 @@ function desenharPontos() {
   $("nota-sim").textContent =
     `${SIMULACOES.toLocaleString("pt-BR")} campeonatos simulados com os ${futuros.length} jogos restantes.`;
 
-  const opcoesPos = {
-    chart: { type: "bar", height: 280, toolbar: { show: false }, animations: { enabled: false } },
-    series: [{ name: "Chance", data: time.posicoes.map(x => +(x * 100).toFixed(1)) }],
-    xaxis: { categories: time.posicoes.map((_, i) => `${i + 1}º`), labels: { style: fonte() },
-      title: { text: `Posição final — ${nome(id)}`, style: fonte() } },
-    yaxis: { labels: { formatter: v => v.toFixed(0) + "%", style: fonte() } },
-    dataLabels: { enabled: false },
-    colors: [({ dataPointIndex: i }) => cor(zonaDaPosicao(zonas, i + 1)?.cor) || "#94a3b8"],
-    tooltip: { style: fonte(), y: { formatter: v => v + "%" } },
-  };
-  if (graficoPosicoes) graficoPosicoes.updateOptions(opcoesPos);
-  else (graficoPosicoes = new ApexCharts($("grafico-posicoes"), opcoesPos)).render();
+  desenharGraficoPosicoes(time.posicoes, `Posição final — ${nome(id)}`);
 
   $("titulo-pontos").textContent = `Pontos por rodada — ${nome(id)}`;
   desenharGraficoPontos();
@@ -364,6 +353,24 @@ function desenharPontos() {
     .join(" &nbsp; ") + " · Clique numa linha para escolher o time.";
 }
 
+// Chance (0 a 1) de cada posição; `fixo` prende o eixo em 0–100% durante o timelapse.
+function desenharGraficoPosicoes(posicoes, titulo, fixo = false) {
+  const zonas = dados[liga].info.zonas;
+  const opcoes = {
+    chart: { type: "bar", height: 280, toolbar: { show: false }, animations: { enabled: false } },
+    series: [{ name: "Chance", data: posicoes.map(x => +(x * 100).toFixed(1)) }],
+    xaxis: { categories: posicoes.map((_, i) => `${i + 1}º`), labels: { style: fonte() },
+      title: { text: titulo, style: fonte() } },
+    yaxis: { min: 0, max: fixo ? 100 : undefined, tickAmount: fixo ? 4 : undefined,
+      labels: { formatter: v => v.toFixed(0) + "%", style: fonte() } },
+    dataLabels: { enabled: false },
+    colors: [({ dataPointIndex: i }) => cor(zonaDaPosicao(zonas, i + 1)?.cor) || "#94a3b8"],
+    tooltip: { style: fonte(), y: { formatter: v => v + "%" } },
+  };
+  if (graficoPosicoes) graficoPosicoes.updateOptions(opcoes);
+  else (graficoPosicoes = new ApexCharts($("grafico-posicoes"), opcoes)).render();
+}
+
 // Pontos reais e projeção (média e faixa de 80%) jogo a jogo, com todas as combinações de resultado.
 // `ate` corta o gráfico no jogo `ate` para o timelapse; os eixos ficam fixos para não pular.
 let timelapse = null;
@@ -377,7 +384,8 @@ function desenharGraficoPontos(ate = Infinity) {
   const visivel = i => i + 1 <= ate;
   const real = jogos.map((j, i) => ({ x: i + 1, y: j.pontos })).filter((p, i) => jogos[i].encerrada && visivel(i));
   // A projeção começa no último jogo real para a linha emendar.
-  const proj = jogos.map((j, i) => ({ j, i })).filter(({ i }) => i >= Math.max(ultimoReal, 0) && visivel(i));
+  let proj = jogos.map((j, i) => ({ j, i })).filter(({ i }) => i >= Math.max(ultimoReal, 0) && visivel(i));
+  if (ultimoReal >= 0 && proj.length < 2) proj = [];  // só o ponto de emenda: nada a projetar ainda
   const semReal = ultimoReal < 0;
   const esperado = (semReal ? [{ x: 0, y: 0 }] : []).concat(proj.map(({ j, i }) => ({ x: i + 1, y: +j.media.toFixed(1) })));
   const faixa = (semReal ? [{ x: 0, y: [0, 0] }] : []).concat(proj.map(({ j, i }) => ({ x: i + 1, y: [j.min, j.max] })));
@@ -412,23 +420,39 @@ function desenharGraficoPontos(ate = Infinity) {
       `entre ${j.min} e ${j.max} em 80% dos cenários.`;
 }
 
+const botoesTimelapse = () => document.querySelectorAll(".botao-timelapse");
+
 function pararTimelapse() {
   if (!timelapse) return;
   clearInterval(timelapse);
   timelapse = null;
-  $("timelapse").textContent = "Gerar timelapse";
+  botoesTimelapse().forEach(b => { b.textContent = "Gerar timelapse"; b.disabled = false; });
 }
 
+// Os dois gráficos andam juntos, jogo a jogo do time: pontos e chance de cada posição ao fim daquela rodada.
 function gerarTimelapse() {
-  if (timelapse) { pararTimelapse(); desenharGraficoPontos(); return; }
-  const n = projecaoPontos(dados[liga].partidas, escolhido[liga], dados[liga].sim.modelo).jogos.length;
-  let k = 1;
-  $("timelapse").textContent = "Parar";
-  desenharGraficoPontos(k);
-  timelapse = setInterval(() => {
-    if (++k > n) return pararTimelapse();
-    desenharGraficoPontos(k);
-  }, Math.max(120, Math.min(300, 9000 / n)));
+  if (timelapse) { pararTimelapse(); desenhar(); return; }
+  const d = dados[liga], id = escolhido[liga];
+  const jogos = projecaoPontos(d.partidas, id, d.sim.modelo).jogos;
+  if (!jogos.length) return;
+  const nome = d.clubes[id]?.nome ?? id;
+  botoesTimelapse().forEach(b => { b.textContent = "Simulando…"; b.disabled = true; });
+  // Deixa o navegador mostrar "Simulando…" antes da conta.
+  setTimeout(() => {
+    const cache = d.sim.porRodada ??= {};
+    const porRodada = cache[id] ??= posicoesPorRodada(d, id, { simulacoes: SIMULACOES });
+    let k = 0, ultimo = null;
+    const passo = () => {
+      if (++k > jogos.length) return pararTimelapse();
+      const r = jogos[k - 1].rodada;
+      ultimo = porRodada[r] ?? ultimo;
+      if (ultimo) desenharGraficoPosicoes(ultimo, `Posição após a rodada ${r} — ${nome}`, true);
+      desenharGraficoPontos(k);
+    };
+    timelapse = setInterval(passo, Math.max(150, Math.min(350, 10000 / jogos.length)));
+    botoesTimelapse().forEach(b => { b.textContent = "Parar"; b.disabled = false; });
+    passo();
+  }, 20);
 }
 
 // Simula a liga só na primeira vez que ela é aberta (AD-simulacao-sob-demanda).
@@ -523,6 +547,6 @@ $("simular").addEventListener("click", e => {
   }, 20);
 });
 
-$("timelapse").addEventListener("click", gerarTimelapse);
+botoesTimelapse().forEach(b => b.addEventListener("click", gerarTimelapse));
 
 iniciar();

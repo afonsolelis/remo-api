@@ -6,7 +6,7 @@
   <title>Remo nos Campeonatos</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -29,7 +29,10 @@
       <section>
         <div class="titulo-secao">
           <h2>Simulação</h2>
-          <button id="simular">Simular de novo</button>
+          <div class="botoes">
+            <button class="botao-timelapse">Gerar timelapse</button>
+            <button id="simular">Simular de novo</button>
+          </div>
         </div>
         <p class="nota" id="nota-sim"></p>
         <div id="grafico-posicoes"></div>
@@ -38,7 +41,7 @@
       <section>
         <div class="titulo-secao">
           <h2 id="titulo-pontos">Pontos por rodada</h2>
-          <button id="timelapse">Gerar timelapse</button>
+          <button class="botao-timelapse">Gerar timelapse</button>
         </div>
         <p class="nota">Linha cheia: pontos reais. Tracejada: pontos esperados nos jogos que faltam, com a faixa
           onde o time fica em 80% dos cenários (todas as combinações de vitória, empate e derrota, com as chances do modelo).</p>
@@ -103,7 +106,7 @@
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="calculos.js?v=13"></script>
-  <script src="app.js?v=13"></script>
+  <script src="calculos.js?v=14"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

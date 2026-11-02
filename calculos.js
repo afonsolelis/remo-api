@@ -199,6 +199,64 @@ function projecaoPontos(partidas, id, modelo, { faixa = [0.1, 0.9] } = {}) {
   return { jogos, final: dist.map((x, k) => ({ pontos: real + k, chance: x })).filter(x => x.chance > 0) };
 }
 
+// Chance de o clube estar em cada posição ao fim de cada rodada: { [rodada]: [p1, p2, ...] }.
+// Rodadas já jogadas usam a tabela real até ali; as que faltam, Monte Carlo com o modelo de `simular`.
+function posicoesPorRodada(d, id, { simulacoes = 10000, aleatorio = Math.random } = {}) {
+  const ids = Object.keys(d.clubes).map(Number);
+  const n = ids.length;
+  const alvo = ids.indexOf(id);
+  const jogados = d.partidas.filter(p => p.encerrada);
+  const futuros = d.partidas.filter(p => !p.encerrada && p.rodada != null).sort((a, b) => a.rodada - b.rodada);
+  const out = {};
+
+  const rodadasJogadas = [...new Set(jogados.map(p => p.rodada).filter(r => r != null))].sort((a, b) => a - b);
+  for (const r of rodadasJogadas) {
+    const pos = classificacao(d.clubes, jogados.filter(p => p.rodada <= r), aleatorio).findIndex(l => l.id === id);
+    out[r] = Array.from({ length: n }, (_, k) => (k === pos ? 1 : 0));
+  }
+  if (!futuros.length) return out;
+
+  const modelo = forcas(d.clubes, jogados);
+  const base = tabelaVazia(d.clubes);
+  for (const p of jogados) somarJogo(base, p.casa_id, p.fora_id, p.gols_casa, p.gols_fora);
+  const idx = new Map(ids.map((x, i) => [x, i]));
+  const basePTS = Int32Array.from(ids, x => base[x].PTS), baseV = Int32Array.from(ids, x => base[x].V);
+  const baseSG = Int32Array.from(ids, x => base[x].GP - base[x].GC), baseGP = Int32Array.from(ids, x => base[x].GP);
+  const casa = Int32Array.from(futuros, p => idx.get(p.casa_id)), fora = Int32Array.from(futuros, p => idx.get(p.fora_id));
+  const expC = futuros.map(p => Math.exp(-lambdas(modelo, p.casa_id, p.fora_id)[0]));
+  const expF = futuros.map(p => Math.exp(-lambdas(modelo, p.casa_id, p.fora_id)[1]));
+  const rodadas = [...new Set(futuros.map(p => p.rodada))];
+  const fimDaRodada = rodadas.map(r => futuros.findLastIndex(p => p.rodada === r));
+  const contagem = rodadas.map(() => new Float64Array(n));
+
+  const PTS = new Int32Array(n), V = new Int32Array(n), SG = new Int32Array(n), GP = new Int32Array(n);
+  const sorteio = new Float64Array(n);
+  const comparar = (a, b) =>
+    PTS[b] - PTS[a] || V[b] - V[a] || SG[b] - SG[a] || GP[b] - GP[a] || sorteio[a] - sorteio[b];
+  for (let s = 0; s < simulacoes; s++) {
+    PTS.set(basePTS); V.set(baseV); SG.set(baseSG); GP.set(baseGP);
+    for (let i = 0; i < n; i++) sorteio[i] = aleatorio();
+    let r = 0;
+    for (let i = 0; i < futuros.length; i++) {
+      const c = casa[i], f = fora[i];
+      const gc = poisson(expC[i], aleatorio), gf = poisson(expF[i], aleatorio);
+      GP[c] += gc; GP[f] += gf; SG[c] += gc - gf; SG[f] += gf - gc;
+      if (gc > gf) { PTS[c] += 3; V[c]++; }
+      else if (gc < gf) { PTS[f] += 3; V[f]++; }
+      else { PTS[c]++; PTS[f]++; }
+      if (i === fimDaRodada[r]) {
+        // Posição do clube = quantos ficam à frente dele.
+        let pos = 0;
+        for (let t = 0; t < n; t++) if (t !== alvo && comparar(t, alvo) < 0) pos++;
+        contagem[r][pos]++;
+        r++;
+      }
+    }
+  }
+  rodadas.forEach((rd, r) => { out[rd] = Array.from(contagem[r], x => x / simulacoes); });
+  return out;
+}
+
 // ---------- copas e estaduais ----------
 
 // Quem passou no confronto: soma dos gols e, se empatar, pênaltis do último jogo.
@@ -313,7 +371,7 @@ function retrospecto(jogos, clube) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     REMO, tabelaVazia, somarJogo, ordenar, classificacao, forcas, lambdas, prob1x2, simular,
-    tabelaPrevista, projecaoPontos, vencedor, chavesDaFase, campanha, campeao, timePadrao,
+    tabelaPrevista, projecaoPontos, posicoesPorRodada, vencedor, chavesDaFase, campanha, campeao, timePadrao,
     FUSO, diaEmBelem, calendario, resultados, retrospecto,
   };
 }

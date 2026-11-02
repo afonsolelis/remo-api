@@ -84,6 +84,7 @@ button {
   padding: 8px 14px;
   cursor: pointer;
 }
+.botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 button:disabled { opacity: .6; cursor: wait; }
 .nota { color: var(--suave); font-size: .85rem; margin: 0 0 8px; }
 

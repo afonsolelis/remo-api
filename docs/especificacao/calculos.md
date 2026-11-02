@@ -79,9 +79,17 @@ ordem de `partidas` e devolve `{ jogos, final }`:
 Invariantes verificáveis: `min ≤ media ≤ max`; a média não cai ao longo dos jogos; as chances de
 `final` somam 1; a média final fica perto de `res[id].pontos` de `simular` (que sorteia a mesma coisa).
 
+`posicoesPorRodada(liga, id, { simulacoes, aleatorio })` devolve `{ [rodada]: [p1, p2, ...] }`, a chance
+de o clube estar em cada posição ao fim de cada rodada. Rodadas já jogadas usam a tabela real com os jogos
+encerrados até ali (uma posição com chance 1); as que faltam, Monte Carlo com o mesmo modelo de `simular`,
+registrando a posição ao fim de cada rodada. Invariantes: cada rodada soma 1; a última rodada fica perto de
+`res[id].posicoes`.
+
 Na página, o gráfico "Pontos por rodada" mostra os pontos reais, a linha tracejada dos pontos esperados
-e a faixa de 80%. O botão "Gerar timelapse" redesenha o gráfico jogo a jogo, do primeiro ao último, com
-os eixos fixos, e mostra embaixo os pontos (ou a média e a faixa) do jogo da vez. Clicar de novo para.
+e a faixa de 80%. O botão "Gerar timelapse" (no gráfico da Simulação e no de pontos) anima os dois
+gráficos juntos, jogo a jogo do clube, com os eixos fixos: a Simulação mostra a chance de cada posição
+ao fim daquela rodada, e embaixo do gráfico de pontos aparecem os pontos (ou a média e a faixa) do jogo
+da vez. Clicar de novo para.
 
 ## Copas (`RF-campanha-copa`)
 

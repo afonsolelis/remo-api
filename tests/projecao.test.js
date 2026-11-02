@@ -35,3 +35,23 @@ test("a média final bate com a média da simulação Monte Carlo", () => {
     assert.ok(Math.abs(jogos.at(-1).media - sim.res[id].pontos) < 0.2, `clube ${id}`);
   }
 });
+
+// ligaPontos não tem rodada; numera cada jogo como uma rodada para o teste.
+const comRodadas = liga => ({ ...liga, partidas: liga.partidas.map((p, i) => ({ ...p, rodada: i + 1 })) });
+
+test("posições por rodada: jogadas são certas, e cada rodada soma 1", () => {
+  const { posicoesPorRodada } = calculos();
+  const liga = comRodadas(ligaPontos(6, 12));
+  const pr = posicoesPorRodada(liga, 3, { simulacoes: 2000, aleatorio: semente(3) });
+  assert.equal(Object.keys(pr).length, 30);
+  for (let r = 1; r <= 12; r++) assert.equal(pr[r].filter(x => x === 1).length, 1, `rodada ${r}`);
+  for (const p of Object.values(pr)) assert.ok(Math.abs(p.reduce((a, b) => a + b, 0) - 1) < 1e-9);
+});
+
+test("posições na última rodada batem com a simulação", () => {
+  const { posicoesPorRodada, simular } = calculos();
+  const liga = comRodadas(ligaPontos(6, 10));
+  const pr = posicoesPorRodada(liga, 2, { simulacoes: 20000, aleatorio: semente(4) });
+  const { res } = simular(liga, { simulacoes: 20000, aleatorio: semente(5) });
+  pr[30].forEach((x, k) => assert.ok(Math.abs(x - res[2].posicoes[k]) < 0.03, `posição ${k + 1}`));
+});

@@ -1,8 +1,9 @@
 name: Atualizar dados
 
 on:
-  schedule:
-    - cron: "0 3 * * *"  # 00:00 em Belém (UTC-3)
+  # Agendamento pausado até atualizar o secret DATABASE_URL (senha do Supabase mudou).
+  # schedule:
+  #   - cron: "0 3 * * *"  # 00:00 em Belém (UTC-3)
   workflow_dispatch:
 
 permissions:

@@ -1,8 +1,9 @@
 name: Atualizar notícias
 
 on:
-  schedule:
-    - cron: "30 */2 * * *"  # a cada 2 horas; as tabelas seguem no dados.yml
+  # Agendamento pausado até atualizar o secret DATABASE_URL (senha do Supabase mudou).
+  # schedule:
+  #   - cron: "30 */2 * * *"  # a cada 2 horas; as tabelas seguem no dados.yml
   workflow_dispatch:
 
 permissions:

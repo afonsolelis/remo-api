@@ -60,6 +60,21 @@ create table if not exists remo_noticias (
   primary key (clube_id, noticia_id)
 );
 
+-- Papéis de leitura do PostgREST. O Supabase já cria anon e authenticated; num Postgres comum (Hostinger)
+-- eles são criados aqui, sem login. O papel que o PostgREST usa para conectar (authenticator) tem senha
+-- e é criado à mão: ver docs/implantacao/hostinger.md.
+do $$
+begin
+  if not exists (select from pg_roles where rolname = 'anon') then
+    create role anon nologin;
+  end if;
+  if not exists (select from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin;
+  end if;
+end $$;
+
+grant usage on schema public to anon, authenticated;
+
 -- Leitura pública (chave publishable), escrita só pela conexão do Actions.
 alter table remo_ligas    enable row level security;
 alter table remo_clubes   enable row level security;

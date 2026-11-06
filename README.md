@@ -37,8 +37,10 @@ API de tabelas do ge ──(GitHub Actions, 00:00 Belém)──► Postgres (Sup
 
 - Secret do repositório `DATABASE_URL`: string de conexão do Postgres
   (pooler do Supabase).
-- A URL do projeto e a chave *publishable* ficam no topo de `app.js`. Essa
-  chave é pública; o RLS só permite leitura.
+- A URL da API REST (`API_URL`) e a chave *publishable* (`API_CHAVE`) ficam no
+  topo de `app.js`. Essa chave é pública; o RLS só permite leitura. Para trocar
+  o Supabase por um Postgres + PostgREST próprio, veja
+  `docs/implantacao/hostinger.md`.
 - O GitHub Pages publica a raiz da branch `main`.
 
 ## Rodando localmente

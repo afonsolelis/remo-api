@@ -1,8 +1,10 @@
 // Tela e leitura do banco. Classificação, simulação e regras de copa vêm de calculos.js.
 
-// Chave publishable: feita para ficar no navegador; o RLS só libera leitura.
-const SUPABASE_URL = "https://lwamaovuxcevsjfvtqhf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_j0O_u0t7-lDCtBbmqaIz3A_8vAIGcyJ";
+// API REST (PostgREST) que lê o banco. A URL já inclui o prefixo: no Supabase é /rest/v1; num PostgREST
+// próprio costuma ser a raiz. A chave é a publishable do Supabase (pública, o RLS só libera leitura);
+// num PostgREST próprio fica null e nenhum cabeçalho é enviado. Ver docs/implantacao/hostinger.md.
+const API_URL = "https://lwamaovuxcevsjfvtqhf.supabase.co/rest/v1";
+const API_CHAVE = "sb_publishable_j0O_u0t7-lDCtBbmqaIz3A_8vAIGcyJ";
 const SIMULACOES = 10000;
 const LIGAS = [
   ["serie_a", "Série A"],
@@ -37,8 +39,8 @@ let graficoPosicoes = null;
 let graficoPontos = null;
 
 async function ler(tabela, query) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?${query}`, {
-    headers: { apikey: SUPABASE_KEY },
+  const r = await fetch(`${API_URL}/${tabela}?${query}`, {
+    headers: API_CHAVE ? { apikey: API_CHAVE } : {},
   });
   if (!r.ok) throw new Error(`${tabela}: ${r.status}`);
   return r.json();

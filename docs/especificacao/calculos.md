@@ -130,6 +130,19 @@ clubes". Os filtros "De"/"Até" mudam o período (se "De" passar de "Até", os d
 mesmo dia). Com um clube escolhido, os cards mostram jogos, V · E · D, gols e
 aproveitamento no período.
 
+## Operação (`RF-operacao`) — **novo**
+
+- `situacaoWorkflow(execucoes, agora, limiteHoras)`: recebe as execuções de um workflow como a
+  API do GitHub devolve (mais recente primeiro; `status`, `conclusion`, `updated_at`) e devolve
+  `{ estado, rodando, ultima, ultimoSucesso, falhasSeguidas }`. Execuções canceladas ou puladas
+  não contam. `estado`: `falha` se a última execução concluída não deu certo; `atrasado` se o
+  último sucesso tem mais de `limiteHoras`; `sem-dados` sem execução concluída; senão `ok`.
+
+A aba Operação lê as execuções de `dados.yml` (limite de 36 h) e `noticias.yml` (12 h) direto da
+API pública do GitHub, sem chave, para funcionar mesmo com o banco fora; mostra também quando
+cada campeonato foi gravado no banco. A aba ganha ⚠️ quando algum workflow está em `falha` ou
+`atrasado`. Se o banco não responde, a página abre só com a aba Operação.
+
 ## Time padrão (`RF-escolher-time`, `QS-facilidade`)
 
 `timePadrao(clubes, tabela)`: o Remo (364) se ele participa; senão o líder da

@@ -21,6 +21,16 @@ let liga = "serie_a";
 const NOTICIAS = "noticias";  // abas que não são campeonato
 const PROXIMOS = "proximos-jogos";
 const RESULTADOS = "resultados";
+const OPERACAO = "operacao";
+// Workflows do GitHub que alimentam o banco: arquivo, nome, agenda e horas máximas entre dois sucessos
+// (o GitHub costuma atrasar os agendamentos em várias horas).
+const REPO = "afonsolelis/remo-api";
+const WORKFLOWS = [
+  ["dados.yml", "Tabelas e jogos", "todo dia às 00:00 (Belém)", 36],
+  ["noticias.yml", "Notícias", "a cada 2 horas", 12],
+];
+let operacao = null;          // workflow -> { situacao, execucoes } ou { erro }
+let pedidoOperacao = null;    // leitura do GitHub em andamento (uma por visita)
 const periodo = { de: null, ate: null };  // filtro de datas da aba Resultados passados ("AAAA-MM-DD")
 let noticias = null;          // linhas de remo_noticias, lidas na primeira vez que a aba abre
 let graficoPosicoes = null;
@@ -58,6 +68,7 @@ function zonaDaPosicao(zonas, pos) {
 }
 
 function preencherTimes() {
+  if (liga === OPERACAO) return;
   if (liga === PROXIMOS || liga === RESULTADOS) return preencherClubesCalendario();
   if (liga === NOTICIAS) return preencherClubesNoticias();
   const d = dados[liga];
@@ -71,12 +82,13 @@ function preencherTimes() {
 
 function desenhar() {
   pararTimelapse();
-  const vista = liga === NOTICIAS ? "noticias" : liga === PROXIMOS ? "calendario" : liga === RESULTADOS ? "resultados" :
+  const vista = liga === OPERACAO ? "operacao" : liga === NOTICIAS ? "noticias" : liga === PROXIMOS ? "calendario" : liga === RESULTADOS ? "resultados" :
     dados[liga].info.tipo === "copa" ? "copa" : "pontos";
-  for (const v of ["pontos", "copa", "noticias", "calendario", "resultados"]) $(`vista-${v}`).hidden = v !== vista;
-  $("cards").hidden = vista === "noticias" || vista === "calendario" || (vista === "resultados" && !escolhido[RESULTADOS]);
+  for (const v of ["pontos", "copa", "noticias", "calendario", "resultados", "operacao"]) $(`vista-${v}`).hidden = v !== vista;
+  $("filtro").hidden = vista === "operacao";
+  $("cards").hidden = vista === "noticias" || vista === "operacao" || vista === "calendario" || (vista === "resultados" && !escolhido[RESULTADOS]);
   ({ pontos: desenharPontos, copa: desenharCopa, noticias: desenharNoticias, calendario: desenharCalendario,
-    resultados: desenharResultados })[vista]();
+    resultados: desenharResultados, operacao: desenharOperacao })[vista]();
 }
 
 // ---------- copas e estaduais ----------
@@ -269,6 +281,75 @@ function desenharNoticias() {
           ${n.resumo ? `<p>${esc(n.resumo)}</p>` : ""}
           <small>${clube}${quando}</small></div></a>`;
     }).join("");
+}
+
+// ---------- operação ----------
+
+// Lê as execuções direto do GitHub (repositório público, sem chave), para a aba funcionar mesmo com o banco fora.
+function carregarOperacao() {
+  return pedidoOperacao ??= lerOperacao();
+}
+
+async function lerOperacao() {
+  const agora = Date.now();
+  operacao = Object.fromEntries(await Promise.all(WORKFLOWS.map(async ([arq, , , limite]) => {
+    try {
+      const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${arq}/runs?per_page=20`);
+      if (!r.ok) throw new Error(`GitHub: ${r.status}`);
+      const execucoes = (await r.json()).workflow_runs;
+      return [arq, { execucoes, situacao: situacaoWorkflow(execucoes, agora, limite) }];
+    } catch (e) {
+      console.error(e);
+      return [arq, { erro: true }];
+    }
+  })));
+  const problema = Object.values(operacao).some(o => o.erro || ["falha", "atrasado"].includes(o.situacao.estado));
+  const botao = document.querySelector(`#abas button[data-liga="${OPERACAO}"]`);
+  if (botao) botao.textContent = problema ? "Operação ⚠️" : "Operação";
+}
+
+const quando = t => t ? new Date(t).toLocaleString("pt-BR", { timeZone: FUSO, day: "2-digit", month: "2-digit",
+  hour: "2-digit", minute: "2-digit" }) : "—";
+const ESTADOS = {
+  ok: ["ok", "Funcionando"], falha: ["falha", "Falhando"], atrasado: ["atrasado", "Atrasado"],
+  "sem-dados": ["atrasado", "Sem execuções"],
+};
+const RESULTADO = { success: "ok", failure: "falha", timed_out: "tempo esgotado", cancelled: "cancelada",
+  skipped: "pulada", startup_failure: "falha ao iniciar" };
+
+function desenharOperacao() {
+  $("atualizado").textContent = "Situação das atualizações automáticas do site";
+  const ligas = LIGAS.filter(([l]) => dados[l]).map(([l, nome]) =>
+    `<tr><td>${nome}</td><td>${quando(dados[l].info.atualizado_em)}</td></tr>`).join("");
+  $("dados-banco").innerHTML = ligas ? `<tr><th>Campeonato</th><th>Gravado no banco em</th></tr>${ligas}` :
+    `<tr><td>Não foi possível ler o banco.</td></tr>`;
+
+  $("workflows").innerHTML = WORKFLOWS.map(([arq, nome, agenda, limite]) => {
+    const o = operacao?.[arq];
+    const link = `https://github.com/${REPO}/actions/workflows/${arq}`;
+    if (!o) return `<section><h2>${nome}</h2><p class="nota">Carregando…</p></section>`;
+    if (o.erro) return `<section><h2>${nome}</h2><p class="nota">Não foi possível ler o GitHub agora.
+      <a href="${link}" target="_blank" rel="noopener">Ver no GitHub</a></p></section>`;
+    const s = o.situacao;
+    const [classe, rotulo] = ESTADOS[s.estado];
+    const aviso = s.estado === "falha" ? `${s.falhasSeguidas === 1 ? "A última execução falhou" :
+        `As últimas ${s.falhasSeguidas} execuções falharam`}; o site mostra o último dado gravado.`
+      : s.estado === "atrasado" ? `Nenhuma execução certa nas últimas ${limite} horas.` : "";
+    const linhas = o.execucoes.slice(0, 10).map(e => {
+      const res = e.status === "completed" ? RESULTADO[e.conclusion] ?? e.conclusion : "rodando";
+      const cls = e.conclusion === "success" ? "ok" : e.status !== "completed" || ["cancelled", "skipped"].includes(e.conclusion) ? "" : "falha";
+      return `<tr><td>${quando(e.run_started_at ?? e.created_at)}</td>
+        <td>${e.event === "schedule" ? "agendada" : "manual"}</td>
+        <td><a class="estado ${cls}" href="${esc(e.html_url)}" target="_blank" rel="noopener">${esc(res)}</a></td></tr>`;
+    }).join("");
+    return `<section>
+      <div class="titulo-secao"><h2>${nome}</h2><span class="estado ${classe}">${rotulo}${s.rodando ? " · rodando" : ""}</span></div>
+      <p class="nota">Agenda: ${agenda}. Último sucesso: ${quando(s.ultimoSucesso?.updated_at)}.
+        <a href="${link}" target="_blank" rel="noopener">Ver no GitHub</a></p>
+      ${aviso ? `<p class="alerta">${aviso}</p>` : ""}
+      <div class="rolagem"><table><tr><th>Início (Belém)</th><th>Tipo</th><th>Resultado</th></tr>${linhas}</table></div>
+    </section>`;
+  }).join("");
 }
 
 // ---------- pontos corridos ----------
@@ -520,6 +601,7 @@ async function trocarLiga(nova) {
     }
   }
   liga = nova;
+  if (liga === OPERACAO && !operacao) carregarOperacao().then(() => { if (liga === OPERACAO) desenhar(); });
   garantirSimulacao(liga);
   document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("ativa", b.dataset.liga === liga));
   preencherTimes();
@@ -543,13 +625,17 @@ async function iniciar() {
     $("abas").innerHTML = LIGAS.filter(([l]) => dados[l])
       .map(([l, nome]) => `<button data-liga="${l}">${nome}</button>`).join("") +
       `<button data-liga="${PROXIMOS}">Próximos jogos</button><button data-liga="${RESULTADOS}">Resultados passados</button>` +
-      `<button data-liga="${NOTICIAS}">Notícias</button>`;
+      `<button data-liga="${NOTICIAS}">Notícias</button><button data-liga="${OPERACAO}">Operação</button>`;
+    carregarOperacao();  // marca a aba com ⚠️ se alguma atualização falhou
     // Abre na série (pontos corridos) em que o Remo está neste ano.
     const doRemo = LIGAS.map(([l]) => l).find(l => dados[l]?.info.tipo === "pontos" && dados[l].clubes[REMO]);
     trocarLiga(doRemo ?? Object.keys(dados)[0]);
   } catch (e) {
-    $("atualizado").textContent = "Não foi possível carregar os dados.";
     console.error(e);
+    // Sem banco, sobra a aba Operação para mostrar o que está acontecendo.
+    $("abas").innerHTML = `<button data-liga="${OPERACAO}">Operação</button>`;
+    trocarLiga(OPERACAO);
+    $("atualizado").textContent = "Não foi possível carregar os dados.";
   }
 }
 

@@ -6,7 +6,7 @@
   <title>Remo nos Campeonatos</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <!-- Troque o ?v= a cada mudança em style.css/app.js para furar o cache do navegador. -->
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
@@ -102,6 +102,16 @@
       </section>
     </div>
 
+    <div id="vista-operacao" hidden>
+      <section>
+        <h2>Operação</h2>
+        <p class="nota">O GitHub roda a coleta no ge e grava no banco. Se uma execução falha, o site continua mostrando o
+          último dado gravado. Os agendamentos do GitHub costumam atrasar algumas horas.</p>
+        <div class="rolagem"><table id="dados-banco"></table></div>
+      </section>
+      <div id="workflows"></div>
+    </div>
+
     <div id="vista-copa" hidden>
       <section>
         <h2 id="titulo-jogos">Jogos</h2>
@@ -112,7 +122,7 @@
   </main>
 
   <footer>Dados: API de tabelas do ge. Simulação Poisson simples, rodada no seu navegador.</footer>
-  <script src="calculos.js?v=15"></script>
-  <script src="app.js?v=15"></script>
+  <script src="calculos.js?v=16"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>

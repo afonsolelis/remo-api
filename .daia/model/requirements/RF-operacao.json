@@ -1,0 +1,26 @@
+{
+  "id": "RF-operacao",
+  "kind": "Requirement",
+  "type": "functional",
+  "level": "system",
+  "statement": "O sistema mostra, numa aba própria, a situação das atualizações automáticas (tabelas e notícias): últimas execuções, último sucesso, falhas seguidas e quando cada campeonato foi gravado no banco, marcando a aba quando alguma atualização falhou ou está atrasada, mesmo com o banco fora do ar.",
+  "traces_to": [
+    "BP-atualizar-dados",
+    "CON-confiabilidade",
+    "RF-avisar-falha"
+  ],
+  "elicitation": {
+    "technique": "interview",
+    "sources": [
+      "PER-mantenedor"
+    ],
+    "notes": "Pedido do mantenedor após a troca da senha do banco parar as coletas sem aviso no site."
+  },
+  "priority": "should",
+  "sprint": "SP2",
+  "status": "proposed",
+  "provenance": {
+    "drafted_by": "ai-assisted",
+    "model": "claude-opus-5-5"
+  }
+}

@@ -324,10 +324,29 @@ function retrospecto(jogos, clube) {
   return r;
 }
 
+// ---------- operação ----------
+
+// Situação de um workflow a partir das execuções da API do GitHub (mais recente primeiro).
+// Canceladas e puladas não contam. `limiteHoras`: tempo máximo esperado entre dois sucessos.
+function situacaoWorkflow(execucoes, agora, limiteHoras) {
+  const validas = execucoes.filter(e => e.status !== "completed" || !["cancelled", "skipped"].includes(e.conclusion));
+  const rodando = validas.length > 0 && validas[0].status !== "completed";
+  const fim = validas.filter(e => e.status === "completed");
+  const i = fim.findIndex(e => e.conclusion === "success");
+  const ultima = fim[0] ?? null;
+  const ultimoSucesso = i < 0 ? null : fim[i];
+  const falhasSeguidas = i < 0 ? fim.length : i;
+  let estado = "ok";
+  if (!ultima) estado = "sem-dados";
+  else if (ultima.conclusion !== "success") estado = "falha";
+  else if (agora - Date.parse(ultimoSucesso.updated_at) > limiteHoras * 3600e3) estado = "atrasado";
+  return { estado, rodando, ultima, ultimoSucesso, falhasSeguidas };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     REMO, tabelaVazia, somarJogo, ordenar, classificacao, forcas, lambdas, prob1x2, simular,
     tabelaPrevista, projecaoPontos, previsaoNaRodada, resumoPosicoes, vencedor, chavesDaFase, campanha, campeao, timePadrao,
-    FUSO, diaEmBelem, calendario, resultados, retrospecto,
+    FUSO, diaEmBelem, calendario, resultados, retrospecto, situacaoWorkflow,
   };
 }

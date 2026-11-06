@@ -1,10 +1,9 @@
 // Tela e leitura do banco. Classificação, simulação e regras de copa vêm de calculos.js.
 
-// API REST (PostgREST) que lê o banco. A URL já inclui o prefixo: no Supabase é /rest/v1; num PostgREST
-// próprio costuma ser a raiz. A chave é a publishable do Supabase (pública, o RLS só libera leitura);
-// num PostgREST próprio fica null e nenhum cabeçalho é enviado. Ver docs/implantacao/hostinger.md.
-const API_URL = "https://lwamaovuxcevsjfvtqhf.supabase.co/rest/v1";
-const API_CHAVE = "sb_publishable_j0O_u0t7-lDCtBbmqaIz3A_8vAIGcyJ";
+// API REST (PostgREST na Hostinger), só leitura: o papel anon só tem select. Num Supabase, a URL leva
+// /rest/v1 e API_CHAVE recebe a chave publishable (vai no cabeçalho apikey). Ver docs/implantacao/hostinger.md.
+const API_URL = "https://remo-api.afonsolelis.tech";
+const API_CHAVE = null;
 const SIMULACOES = 10000;
 const LIGAS = [
   ["serie_a", "Série A"],

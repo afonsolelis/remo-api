@@ -18,6 +18,18 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      # O Postgres não fica exposto na internet: o banco é acessado por um
+      # túnel SSH (usuário remo-tunel, chave que só abre 127.0.0.1:5432).
+      - name: Abrir túnel SSH para o Postgres
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_sync && chmod 600 ~/.ssh/id_sync
+          printf '%s\n' "$VPS_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_sync -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=30 -f -N -L 5432:127.0.0.1:5432 remo-tunel@187.41.118.3
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
       - run: python scripts/sync_supabase.py
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
